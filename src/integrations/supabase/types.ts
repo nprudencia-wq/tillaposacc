@@ -32,6 +32,51 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          currency: string
+          description: string | null
+          exchange_rate: number
+          expense_date: string
+          id: string
+          method: string
+          original_amount: number
+          posted_by: string
+          reference: string | null
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          exchange_rate?: number
+          expense_date?: string
+          id?: string
+          method?: string
+          original_amount: number
+          posted_by: string
+          reference?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          exchange_rate?: number
+          expense_date?: string
+          id?: string
+          method?: string
+          original_amount?: number
+          posted_by?: string
+          reference?: string | null
+        }
+        Relationships: []
+      }
       grn_items: {
         Row: {
           grn_id: string
@@ -533,6 +578,7 @@ export type Database = {
         Returns: number
       }
       can_manage_stock: { Args: { _user_id: string }; Returns: boolean }
+      can_post_expense: { Args: { _user_id: string }; Returns: boolean }
       can_refund: { Args: { _user_id: string }; Returns: boolean }
       complete_sale: {
         Args: {
@@ -560,6 +606,18 @@ export type Database = {
           p_supplier: string
         }
         Returns: undefined
+      }
+      post_expense: {
+        Args: {
+          p_amount: number
+          p_category: string
+          p_currency: string
+          p_date: string
+          p_description: string
+          p_method: string
+          p_reference: string
+        }
+        Returns: string
       }
       receive_goods: {
         Args: {
