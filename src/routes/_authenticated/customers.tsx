@@ -80,6 +80,7 @@ function CustomersPage() {
   const [edit, setEdit] = useState<Customer | "new" | null>(null);
   const [open, setOpen] = useState<Customer | null>(null);
   const [payFor, setPayFor] = useState<Customer | null>(null);
+  const [adjustFor, setAdjustFor] = useState<Customer | null>(null);
 
   const rows = useMemo(() => customers.map((c) => ({ c, a: agingFor(ledger?.entries[c.id]) })), [customers, ledger]);
   const shown = rows.filter(({ c }) => !q || c.name.toLowerCase().includes(q.toLowerCase()) || c.phone?.includes(q));
