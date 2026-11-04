@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      branch_stock: {
+        Row: {
+          branch_id: string
+          product_id: string
+          quantity: number
+        }
+        Insert: {
+          branch_id: string
+          product_id: string
+          quantity?: number
+        }
+        Update: {
+          branch_id?: string
+          product_id?: string
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branch_stock_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branch_stock_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      branches: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          is_main: boolean
+          name: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          is_main?: boolean
+          name: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          is_main?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
       cashier_shifts: {
         Row: {
           actual_cash_usd: number | null
@@ -73,18 +130,29 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          parent_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
+          parent_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
+          parent_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_adjustments: {
         Row: {
@@ -797,6 +865,7 @@ export type Database = {
       stock_movements: {
         Row: {
           balance_after: number
+          branch_id: string | null
           created_at: string
           id: string
           note: string | null
@@ -808,6 +877,7 @@ export type Database = {
         }
         Insert: {
           balance_after: number
+          branch_id?: string | null
           created_at?: string
           id?: string
           note?: string | null
@@ -819,6 +889,7 @@ export type Database = {
         }
         Update: {
           balance_after?: number
+          branch_id?: string | null
           created_at?: string
           id?: string
           note?: string | null
@@ -834,6 +905,137 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_transfers: {
+        Row: {
+          created_at: string
+          created_by: string
+          from_branch: string
+          id: string
+          items: Json
+          note: string | null
+          to_branch: string
+          transfer_number: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          from_branch: string
+          id?: string
+          items: Json
+          note?: string | null
+          to_branch: string
+          transfer_number?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          from_branch?: string
+          id?: string
+          items?: Json
+          note?: string | null
+          to_branch?: string
+          transfer_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_transfers_from_branch_fkey"
+            columns: ["from_branch"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_transfers_to_branch_fkey"
+            columns: ["to_branch"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stocktake_items: {
+        Row: {
+          counted_qty: number | null
+          name: string
+          product_id: string
+          stocktake_id: string
+          system_qty: number
+          unit_cost: number
+        }
+        Insert: {
+          counted_qty?: number | null
+          name: string
+          product_id: string
+          stocktake_id: string
+          system_qty: number
+          unit_cost?: number
+        }
+        Update: {
+          counted_qty?: number | null
+          name?: string
+          product_id?: string
+          stocktake_id?: string
+          system_qty?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stocktake_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stocktake_items_stocktake_id_fkey"
+            columns: ["stocktake_id"]
+            isOneToOne: false
+            referencedRelation: "stocktakes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stocktakes: {
+        Row: {
+          category_id: string | null
+          completed_at: string | null
+          id: string
+          note: string | null
+          started_at: string
+          started_by: string
+          status: string
+          stocktake_number: string
+        }
+        Insert: {
+          category_id?: string | null
+          completed_at?: string | null
+          id?: string
+          note?: string | null
+          started_at?: string
+          started_by: string
+          status?: string
+          stocktake_number?: string
+        }
+        Update: {
+          category_id?: string | null
+          completed_at?: string | null
+          id?: string
+          note?: string | null
+          started_at?: string
+          started_by?: string
+          status?: string
+          stocktake_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stocktakes_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
             referencedColumns: ["id"]
           },
         ]
@@ -869,6 +1071,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "supplier_payments_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_returns: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          items: Json
+          reason: string
+          return_number: string
+          supplier_id: string
+          total: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          items: Json
+          reason: string
+          return_number?: string
+          supplier_id: string
+          total?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          items?: Json
+          reason?: string
+          return_number?: string
+          supplier_id?: string
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_returns_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
@@ -1006,6 +1249,10 @@ export type Database = {
         Returns: Json
       }
       customer_balance: { Args: { p_customer: string }; Returns: number }
+      finish_stocktake: {
+        Args: { p_apply: boolean; p_stocktake: string }
+        Returns: undefined
+      }
       has_permission: {
         Args: { _perm: string; _user_id: string }
         Returns: boolean
@@ -1075,6 +1322,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      record_count: {
+        Args: { p_product: string; p_qty: number; p_stocktake: string }
+        Returns: undefined
+      }
       refund_sale: {
         Args: {
           p_items: Json
@@ -1084,9 +1335,17 @@ export type Database = {
         }
         Returns: Json
       }
+      return_to_supplier: {
+        Args: { p_items: Json; p_reason: string; p_supplier: string }
+        Returns: string
+      }
       role_allows: {
         Args: { _perm: string; _user_id: string }
         Returns: boolean
+      }
+      save_branch: {
+        Args: { p_active: boolean; p_id: string; p_name: string }
+        Returns: string
       }
       set_user_active: {
         Args: { p_active: boolean; p_user: string }
@@ -1104,6 +1363,14 @@ export type Database = {
         Returns: undefined
       }
       shift_summary: { Args: { p_shift: string }; Returns: Json }
+      start_stocktake: {
+        Args: { p_category: string; p_note: string }
+        Returns: string
+      }
+      transfer_stock: {
+        Args: { p_from: string; p_items: Json; p_note: string; p_to: string }
+        Returns: string
+      }
       verify_payment: { Args: { p_payment: string }; Returns: undefined }
     }
     Enums: {

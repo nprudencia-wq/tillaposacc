@@ -71,6 +71,13 @@
       "when": 1793798347402,
       "tag": "0009_customer_balance_adjustments",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793798805245,
+      "tag": "0010_inventory_module",
+      "breakpoints": true
     }
   ]
 }
