@@ -32,6 +32,18 @@ function SalesPage() {
     queryFn: async () => Object.fromEntries(((await supabase.from("profiles").select("id, full_name")).data ?? []).map((p) => [p.id, p.full_name])),
   });
 
+  const { data: unverified = [] } = useQuery({
+    queryKey: ["sales", "unverified"],
+    enabled: !!me?.canRefund,
+    queryFn: async () => (await supabase.from("sale_payments").select("id, method, currency, amount, sales(sale_number, created_at)").eq("verified", false).limit(100)).data ?? [],
+  });
+  async function verify(id: string) {
+    const { error } = await supabase.rpc("verify_payment", { p_payment: id });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Payment confirmed");
+    qc.invalidateQueries({ queryKey: ["sales", "unverified"] });
+  }
+
   async function reprint(s: (typeof sales)[number]) {
     const [{ data: items }, { data: pays }] = await Promise.all([
       supabase.from("sale_items").select("*").eq("sale_id", s.id),
@@ -50,13 +62,27 @@ function SalesPage() {
     <div className="mx-auto max-w-6xl p-4 lg:p-8">
       <h1 className="text-3xl font-bold">Sales</h1>
       <p className="text-muted-foreground">Latest 200 transactions</p>
+      {unverified.length > 0 && (
+        <div className="mt-6 rounded-xl border border-warning bg-warning/10 p-4">
+          <h2 className="font-semibold">Offline payments to check ({unverified.length})</h2>
+          <p className="text-sm text-muted-foreground">These non-cash payments were taken while offline. Confirm each one against your card machine or EcoCash statement.</p>
+          <div className="mt-3 space-y-2">
+            {unverified.map((p) => (
+              <div key={p.id} className="flex items-center justify-between rounded-lg bg-card p-2 text-sm">
+                <span>{p.sales?.sale_number} · {methodLabels[p.method as PayMethod] ?? p.method} · {money(Number(p.amount), p.currency as Currency)}</span>
+                <Button size="sm" variant="outline" onClick={() => verify(p.id)}>Confirm received</Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="mt-6 overflow-x-auto rounded-xl border bg-card shadow-soft">
         <Table>
           <TableHeader><TableRow><TableHead>Transaction</TableHead><TableHead>Date</TableHead><TableHead>Cashier</TableHead><TableHead>Currency</TableHead><TableHead className="text-right">Total (USD)</TableHead><TableHead /></TableRow></TableHeader>
           <TableBody>
             {sales.map((s) => (
               <TableRow key={s.id}>
-                <TableCell className="tabular font-medium">{s.sale_number}</TableCell>
+                <TableCell className="tabular font-medium">{s.sale_number}{s.offline && <Badge variant="outline" className="ml-2">Offline</Badge>}</TableCell>
                 <TableCell className="text-sm">{new Date(s.created_at).toLocaleString()}</TableCell>
                 <TableCell>{staff[s.cashier_id] ?? "—"}</TableCell>
                 <TableCell>{s.currency}</TableCell>
