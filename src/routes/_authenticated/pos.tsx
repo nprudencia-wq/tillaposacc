@@ -1,0 +1,311 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useMemo, useRef, useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, Printer, Share2, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useSettings, useStaff } from "@/hooks/use-staff";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Receipt, type ReceiptData } from "@/components/Receipt";
+import {
+  cartSubtotal, changeDueUSD, fromUSD, money, methodLabels, paidUSD, resolveDiscount,
+  type CartLine, type Currency, type Payment, type PayMethod,
+} from "@/lib/pos";
+
+export const Route = createFileRoute("/_authenticated/pos")({
+  head: () => ({ meta: [{ title: "Till — Tilla POS" }, { name: "description", content: "Point of sale till." }] }),
+  component: PosPage,
+});
+
+type Held = { id: string; at: string; lines: CartLine[] };
+const HELD_KEY = "tilla-held-sales";
+
+function PosPage() {
+  const qc = useQueryClient();
+  const { data: me } = useStaff();
+  const { data: settings } = useSettings();
+  const rate = settings?.zig_rate ?? 1;
+
+  const { data: products = [] } = useQuery({
+    queryKey: ["products", "active"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("products").select("*, categories(name)").eq("active", true).order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+  const { data: categories = [] } = useQuery({
+    queryKey: ["categories"],
+    queryFn: async () => (await supabase.from("categories").select("*").order("name")).data ?? [],
+  });
+
+  const [q, setQ] = useState("");
+  const [cat, setCat] = useState<string | null>(null);
+  const [lines, setLines] = useState<CartLine[]>([]);
+  const [discKind, setDiscKind] = useState<"percent" | "fixed">("percent");
+  const [discVal, setDiscVal] = useState(0);
+  const [currency, setCurrency] = useState<Currency>("USD");
+  const [payOpen, setPayOpen] = useState(false);
+  const [held, setHeld] = useState<Held[]>([]);
+  const [heldOpen, setHeldOpen] = useState(false);
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try { setHeld(JSON.parse(localStorage.getItem(HELD_KEY) || "[]")); } catch { /* ignore */ }
+    searchRef.current?.focus();
+  }, []);
+  const saveHeld = (h: Held[]) => { setHeld(h); localStorage.setItem(HELD_KEY, JSON.stringify(h)); };
+
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    return products.filter((p) =>
+      (!cat || p.category_id === cat) &&
+      (!s || p.name.toLowerCase().includes(s) || p.sku?.toLowerCase().includes(s) || p.barcode?.includes(s)));
+  }, [products, q, cat]);
+
+  function add(p: (typeof products)[number]) {
+    setLines((ls) => {
+      const ex = ls.find((l) => l.product_id === p.id);
+      if (ex) return ls.map((l) => (l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l));
+      return [...ls, { product_id: p.id, name: p.name, unit_price: Number(p.selling_price), quantity: 1, stock: Number(p.stock) }];
+    });
+  }
+  function setQty(id: string, qty: number) {
+    setLines((ls) => (qty <= 0 ? ls.filter((l) => l.product_id !== id) : ls.map((l) => (l.product_id === id ? { ...l, quantity: qty } : l))));
+  }
+
+  // Barcode scanners type the code then press Enter.
+  function onSearchEnter() {
+    const s = q.trim();
+    if (!s) return;
+    const hit = products.find((p) => p.barcode === s || p.sku?.toLowerCase() === s.toLowerCase());
+    const target = hit ?? (filtered.length === 1 ? filtered[0] : null);
+    if (target) { add(target); setQ(""); } else toast.error("No product matches that code");
+  }
+
+  const subtotal = cartSubtotal(lines);
+  const discount = resolveDiscount(subtotal, discKind, discVal);
+  const total = Math.round((subtotal - discount) * 100) / 100;
+  const show = (usd: number) => money(fromUSD(usd, currency, rate), currency);
+
+  function hold() {
+    if (!lines.length) return;
+    saveHeld([...held, { id: crypto.randomUUID(), at: new Date().toISOString(), lines }]);
+    setLines([]); setDiscVal(0);
+    toast.success("Sale held");
+  }
+
+  async function complete(payments: Payment[]) {
+    const { data, error } = await supabase.rpc("complete_sale", {
+      p_items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity })),
+      p_payments: payments.filter((p) => p.amount > 0) as never,
+      p_discount: discount,
+      p_currency: currency,
+    });
+    if (error) { toast.error(error.message); return; }
+    const res = data as { sale_number: string; total: number; change: number; rate: number };
+    setReceipt({
+      sale_number: res.sale_number, created_at: new Date().toISOString(),
+      business: settings?.business_name ?? "", cashier: me?.name ?? "",
+      currency, rate: Number(res.rate),
+      items: lines.map((l) => ({ name: l.name, quantity: l.quantity, unit_price: l.unit_price, line_total: l.unit_price * l.quantity })),
+      subtotal, discount, total: Number(res.total), change: Number(res.change),
+      payments: payments.filter((p) => p.amount > 0),
+    });
+    setPayOpen(false); setLines([]); setDiscVal(0);
+    qc.invalidateQueries({ queryKey: ["products"] });
+    qc.invalidateQueries({ queryKey: ["sales"] });
+    toast.success(`Sale ${res.sale_number} completed`);
+  }
+
+  return (
+    <div className="flex h-[calc(100vh-56px)] flex-col lg:h-screen lg:flex-row md:h-screen">
+      {/* Products */}
+      <section className="flex min-h-0 flex-1 flex-col p-4 lg:p-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && onSearchEnter()}
+            placeholder="Search name, SKU or scan barcode…" className="h-12 bg-card pl-10 text-base"
+          />
+        </div>
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+          <Button size="sm" variant={cat === null ? "default" : "outline"} onClick={() => setCat(null)}>All</Button>
+          {categories.map((c) => (
+            <Button key={c.id} size="sm" variant={cat === c.id ? "default" : "outline"} onClick={() => setCat(c.id)} className="shrink-0">{c.name}</Button>
+          ))}
+        </div>
+        <div className="mt-4 grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4">
+          {filtered.map((p) => {
+            const low = Number(p.stock) <= Number(p.min_stock);
+            return (
+              <button key={p.id} onClick={() => add(p)}
+                className="group flex flex-col rounded-xl border bg-card p-3 text-left shadow-soft transition active:scale-[0.98] hover:border-primary">
+                <div className="mb-3 grid h-16 place-items-center rounded-lg bg-secondary font-display text-2xl font-bold text-primary">
+                  {p.image_url ? <img src={p.image_url} alt="" className="h-full w-full rounded-lg object-cover" /> : p.name.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="line-clamp-2 text-sm font-semibold leading-tight">{p.name}</div>
+                <div className="mt-auto flex items-end justify-between pt-2">
+                  <span className="tabular text-base font-semibold text-primary">{show(Number(p.selling_price))}</span>
+                  <span className={`text-xs ${low ? "font-semibold text-destructive" : "text-muted-foreground"}`}>{Number(p.stock)} left</span>
+                </div>
+              </button>
+            );
+          })}
+          {!filtered.length && <p className="col-span-full py-12 text-center text-muted-foreground">No products found.</p>}
+        </div>
+      </section>
+
+      {/* Cart */}
+      <aside className="flex max-h-[55vh] w-full flex-col border-t bg-card lg:max-h-none lg:w-[400px] lg:border-l lg:border-t-0">
+        <div className="flex items-center justify-between border-b p-4">
+          <h2 className="text-lg font-bold">Current sale</h2>
+          <div className="flex gap-1">
+            <Button size="sm" variant="ghost" onClick={hold} disabled={!lines.length}><PauseCircle className="h-4 w-4" />Hold</Button>
+            <Button size="sm" variant="ghost" onClick={() => setHeldOpen(true)}><PlayCircle className="h-4 w-4" />Held ({held.length})</Button>
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {!lines.length && <p className="p-8 text-center text-sm text-muted-foreground">Tap a product or scan a barcode.</p>}
+          {lines.map((l) => (
+            <div key={l.product_id} className="flex items-center gap-2 border-b px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold">{l.name}</div>
+                <div className="tabular text-xs text-muted-foreground">{show(l.unit_price)} each</div>
+                {l.quantity > l.stock && <div className="text-xs text-destructive">Only {l.stock} in stock</div>}
+              </div>
+              <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setQty(l.product_id, l.quantity - 1)}><Minus className="h-4 w-4" /></Button>
+              <span className="tabular w-8 text-center font-semibold">{l.quantity}</span>
+              <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setQty(l.product_id, l.quantity + 1)}><Plus className="h-4 w-4" /></Button>
+              <span className="tabular w-20 text-right text-sm font-semibold">{show(l.unit_price * l.quantity)}</span>
+              <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive" onClick={() => setQty(l.product_id, 0)}><Trash2 className="h-4 w-4" /></Button>
+            </div>
+          ))}
+        </div>
+        <div className="space-y-3 border-t p-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Discount</span>
+            <Select value={discKind} onValueChange={(v) => setDiscKind(v as "percent" | "fixed")}>
+              <SelectTrigger className="h-9 w-20"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="percent">%</SelectItem><SelectItem value="fixed">$</SelectItem></SelectContent>
+            </Select>
+            <Input type="number" min={0} value={discVal || ""} onChange={(e) => setDiscVal(Number(e.target.value))} className="h-9 flex-1" placeholder="0" />
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-muted-foreground">Currency</span>
+            <div className="flex rounded-lg bg-muted p-1">
+              {(["USD", "ZiG"] as Currency[]).map((c) => (
+                <button key={c} onClick={() => setCurrency(c)} className={`rounded-md px-4 py-1 text-sm font-semibold ${currency === c ? "bg-card shadow-soft" : "text-muted-foreground"}`}>{c}</button>
+              ))}
+            </div>
+          </div>
+          <div className="tabular space-y-1 text-sm">
+            <div className="flex justify-between"><span>Subtotal</span><span>{show(subtotal)}</span></div>
+            {discount > 0 && <div className="flex justify-between text-destructive"><span>Discount</span><span>-{show(discount)}</span></div>}
+            <div className="flex justify-between pt-1 font-display text-2xl font-bold"><span>Total</span><span>{show(total)}</span></div>
+            {currency === "ZiG" && <div className="text-right text-xs text-muted-foreground">{money(total)} at ZiG {rate}/USD</div>}
+          </div>
+          <Button size="lg" className="h-14 w-full text-lg" disabled={!lines.length} onClick={() => setPayOpen(true)}>Charge {show(total)}</Button>
+        </div>
+      </aside>
+
+      {payOpen && <PayDialog total={total} currency={currency} rate={rate} onClose={() => setPayOpen(false)} onPay={complete} />}
+
+      <Dialog open={heldOpen} onOpenChange={setHeldOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Held sales</DialogTitle></DialogHeader>
+          {!held.length && <p className="text-sm text-muted-foreground">No held sales.</p>}
+          {held.map((h) => (
+            <div key={h.id} className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <div className="text-sm font-semibold">{h.lines.length} items · {money(cartSubtotal(h.lines))}</div>
+                <div className="text-xs text-muted-foreground">{new Date(h.at).toLocaleTimeString()}</div>
+              </div>
+              <div className="flex gap-1">
+                <Button size="sm" onClick={() => { setLines(h.lines); saveHeld(held.filter((x) => x.id !== h.id)); setHeldOpen(false); }}>Resume</Button>
+                <Button size="icon" variant="ghost" onClick={() => saveHeld(held.filter((x) => x.id !== h.id))}><X className="h-4 w-4" /></Button>
+              </div>
+            </div>
+          ))}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!receipt} onOpenChange={(o) => !o && setReceipt(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Sale complete</DialogTitle></DialogHeader>
+          {receipt && <ReceiptActions r={receipt} />}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+export function ReceiptActions({ r }: { r: ReceiptData }) {
+  async function share() {
+    const text = `${r.business}\n${r.sale_number}\nTotal: ${money(r.currency === "ZiG" ? r.total * r.rate : r.total, r.currency)}\nThank you!`;
+    if (navigator.share) await navigator.share({ title: r.sale_number, text }).catch(() => {});
+    else { await navigator.clipboard.writeText(text); toast.success("Receipt copied"); }
+  }
+  return (
+    <>
+      <div className="max-h-[60vh] overflow-y-auto rounded-lg border"><Receipt r={r} /></div>
+      <div className="flex gap-2">
+        <Button className="flex-1" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</Button>
+        <Button variant="outline" className="flex-1" onClick={share}><Share2 className="h-4 w-4" />Share</Button>
+      </div>
+    </>
+  );
+}
+
+function PayDialog({ total, currency, rate, onClose, onPay }: {
+  total: number; currency: Currency; rate: number; onClose: () => void; onPay: (p: Payment[]) => Promise<void>;
+}) {
+  const [payments, setPayments] = useState<Payment[]>([{ method: "cash", currency, amount: fromUSD(total, currency, rate) }]);
+  const [busy, setBusy] = useState(false);
+  const change = changeDueUSD(total, payments, rate);
+  const upd = (i: number, p: Partial<Payment>) => setPayments((ps) => ps.map((x, k) => (k === i ? { ...x, ...p } : x)));
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader><DialogTitle>Take payment · {money(fromUSD(total, currency, rate), currency)}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          {payments.map((p, i) => (
+            <div key={i} className="flex gap-2">
+              <Select value={p.method} onValueChange={(v) => upd(i, { method: v as PayMethod })}>
+                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>{Object.entries(methodLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+              </Select>
+              <Select value={p.currency} onValueChange={(v) => upd(i, { currency: v as Currency })}>
+                <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem></SelectContent>
+              </Select>
+              <Input type="number" min={0} step="0.01" value={p.amount || ""} onChange={(e) => upd(i, { amount: Number(e.target.value) })} className="tabular flex-1" />
+              {payments.length > 1 && <Button size="icon" variant="ghost" onClick={() => setPayments(payments.filter((_, k) => k !== i))}><X className="h-4 w-4" /></Button>}
+            </div>
+          ))}
+          <Button variant="outline" size="sm" onClick={() => setPayments([...payments, { method: "mobile_money", currency, amount: Math.max(0, fromUSD(-change, currency, rate)) }])}>
+            <Plus className="h-4 w-4" />Split payment
+          </Button>
+          <div className="tabular rounded-xl bg-muted p-4">
+            <div className="flex justify-between text-sm"><span>Paid</span><span>{money(fromUSD(paidUSD(payments, rate), currency, rate), currency)}</span></div>
+            <div className={`flex justify-between font-display text-xl font-bold ${change < 0 ? "text-destructive" : "text-success"}`}>
+              <span>{change < 0 ? "Still owed" : "Change"}</span>
+              <span>{money(fromUSD(Math.abs(change), currency, rate), currency)}</span>
+            </div>
+            {change > 0 && currency === "USD" && <div className="text-right text-xs text-muted-foreground">or {money(fromUSD(change, "ZiG", rate), "ZiG")}</div>}
+          </div>
+          <Button size="lg" className="h-14 w-full text-lg" disabled={change < 0 || busy}
+            onClick={async () => { setBusy(true); await onPay(payments); setBusy(false); }}>
+            Complete sale
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
