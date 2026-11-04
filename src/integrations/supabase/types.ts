@@ -403,6 +403,7 @@ export type Database = {
           id: string
           method: string
           sale_id: string
+          verified: boolean
         }
         Insert: {
           amount: number
@@ -410,6 +411,7 @@ export type Database = {
           id?: string
           method: string
           sale_id: string
+          verified?: boolean
         }
         Update: {
           amount?: number
@@ -417,6 +419,7 @@ export type Database = {
           id?: string
           method?: string
           sale_id?: string
+          verified?: boolean
         }
         Relationships: [
           {
@@ -433,45 +436,54 @@ export type Database = {
           amount_paid: number
           cashier_id: string
           change_given: number
+          client_ref: string | null
           created_at: string
           currency: string
           discount: number
           exchange_rate: number
           id: string
+          offline: boolean
           sale_number: string
           shift_id: string | null
           status: string
           subtotal: number
+          synced_at: string | null
           total: number
         }
         Insert: {
           amount_paid: number
           cashier_id: string
           change_given?: number
+          client_ref?: string | null
           created_at?: string
           currency: string
           discount?: number
           exchange_rate?: number
           id?: string
+          offline?: boolean
           sale_number?: string
           shift_id?: string | null
           status?: string
           subtotal: number
+          synced_at?: string | null
           total: number
         }
         Update: {
           amount_paid?: number
           cashier_id?: string
           change_given?: number
+          client_ref?: string | null
           created_at?: string
           currency?: string
           discount?: number
           exchange_rate?: number
           id?: string
+          offline?: boolean
           sale_number?: string
           shift_id?: string | null
           status?: string
           subtotal?: number
+          synced_at?: string | null
           total?: number
         }
         Relationships: [
@@ -700,6 +712,18 @@ export type Database = {
         Args: { p_actual_usd: number; p_actual_zig: number; p_notes: string }
         Returns: string
       }
+      complete_offline_sale: {
+        Args: {
+          p_client_ref: string
+          p_currency: string
+          p_discount: number
+          p_items: Json
+          p_payments: Json
+          p_shift: string
+          p_sold_at: string
+        }
+        Returns: Json
+      }
       complete_sale: {
         Args: {
           p_currency: string
@@ -779,6 +803,7 @@ export type Database = {
         Returns: undefined
       }
       shift_summary: { Args: { p_shift: string }; Returns: Json }
+      verify_payment: { Args: { p_payment: string }; Returns: undefined }
     }
     Enums: {
       app_role:

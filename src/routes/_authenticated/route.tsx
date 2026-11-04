@@ -4,10 +4,17 @@ import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut, Truck, BarChart3
 import { supabase } from "@/integrations/supabase/client";
 import { useStaff } from "@/hooks/use-staff";
 import { roleLabels } from "@/lib/pos";
+import { OfflineBar } from "@/components/OfflineBar";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
+    // Offline: trust the saved session so the till keeps working without internet.
+    if (!navigator.onLine) {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) throw redirect({ to: "/auth" });
+      return;
+    }
     const { data } = await supabase.auth.getUser();
     if (!data.user) throw redirect({ to: "/auth" });
   },
@@ -67,7 +74,7 @@ function AppLayout() {
           </button>
         </div>
       </aside>
-      <main className="min-w-0 flex-1"><Outlet /></main>
+      <main className="min-w-0 flex-1"><OfflineBar /><Outlet /></main>
     </div>
   );
 }
