@@ -16,7 +16,8 @@ import {
   cartSubtotal, changeDueUSD, fromUSD, money, paidUSD, resolveDiscount,
   type CartLine, type Currency, type Payment, type PayMethod,
 } from "@/lib/pos";
-import { activeTypes, isCashMethod, methodLabel, usePaymentTypes } from "@/lib/payment-types";
+import { activeTypes, isAccountMethod, isCashMethod, methodLabel, usePaymentTypes } from "@/lib/payment-types";
+import { CustomerDialog, useCustomers } from "@/routes/_authenticated/customers";
 
 export const Route = createFileRoute("/_authenticated/pos")({
   head: () => ({ meta: [{ title: "Till — Tilla POS" }, { name: "description", content: "Point of sale till." }] }),
@@ -73,6 +74,10 @@ function Till({ shiftId }: { shiftId: string }) {
   const [heldOpen, setHeldOpen] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const { data: customers = [] } = useCustomers();
+  const [customerId, setCustomerId] = useState<string>("none");
+  const [addCust, setAddCust] = useState(false);
+  const customer = customers.find((c) => c.id === customerId);
 
   useEffect(() => {
     try { setHeld(JSON.parse(localStorage.getItem(HELD_KEY) || "[]")); } catch { /* ignore */ }
@@ -125,7 +130,7 @@ function Till({ shiftId }: { shiftId: string }) {
       items: lines.map((l) => ({ name: l.name, quantity: l.quantity, unit_price: l.unit_price, line_total: l.unit_price * l.quantity })),
       subtotal, discount, payments: paid,
     });
-    setPayOpen(false); setLines([]); setDiscVal(0);
+    setPayOpen(false); setLines([]); setDiscVal(0); setCustomerId("none");
   }
 
   function saveOffline(paid: Payment[]) {
@@ -145,19 +150,24 @@ function Till({ shiftId }: { shiftId: string }) {
 
   async function complete(payments: Payment[]) {
     const paid = payments.filter((p) => p.amount > 0);
+    const onAccount = paid.some((p) => isAccountMethod(p.method));
+    if (onAccount && !customer) { toast.error("Choose the customer first to put this sale on account"); return; }
+    if (onAccount && !navigator.onLine) { toast.error("On-account sales need the internet so the credit limit can be checked"); return; }
     if (!navigator.onLine) { saveOffline(paid); return; }
     const { data, error } = await supabase.rpc("complete_sale", {
       p_items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity })),
       p_payments: payments.filter((p) => p.amount > 0) as never,
       p_discount: discount,
       p_currency: currency,
+      ...(customer ? { p_customer: customer.id } : {}),
     });
-    if (error && isNetworkError(error)) { saveOffline(paid); return; }
+    if (error && isNetworkError(error) && !onAccount) { saveOffline(paid); return; }
     if (error) { toast.error(error.message); qc.invalidateQueries({ queryKey: ["open-shift"] }); return; }
     const res = data as { sale_number: string; total: number; change: number; rate: number };
     finish({ sale_number: res.sale_number, created_at: new Date().toISOString(), rate: Number(res.rate), total: Number(res.total), change: Number(res.change) }, paid);
     qc.invalidateQueries({ queryKey: ["products"] });
     qc.invalidateQueries({ queryKey: ["sales"] });
+    qc.invalidateQueries({ queryKey: ["customer-ledger"] });
     toast.success(`Sale ${res.sale_number} completed`);
   }
 
@@ -228,6 +238,17 @@ function Till({ shiftId }: { shiftId: string }) {
           ))}
         </div>
         <div className="space-y-3 border-t p-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Customer</span>
+            <Select value={customerId} onValueChange={setCustomerId}>
+              <SelectTrigger className="h-9 flex-1" aria-label="Customer for this sale"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Walk-in customer</SelectItem>
+                {customers.filter((c) => c.active).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}{c.phone ? ` · ${c.phone}` : ""}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button size="icon" variant="outline" className="h-9 w-9" aria-label="Add a new customer" onClick={() => setAddCust(true)}><Plus className="h-4 w-4" /></Button>
+          </div>
           {me?.canDiscount !== false && <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Discount</span>
             <Select value={discKind} onValueChange={(v) => setDiscKind(v as "percent" | "fixed")}>
@@ -254,6 +275,7 @@ function Till({ shiftId }: { shiftId: string }) {
         </div>
       </aside>
 
+      {addCust && <CustomerDialog customer={null} onClose={() => setAddCust(false)} onSaved={(c) => { qc.invalidateQueries({ queryKey: ["customers"] }); setCustomerId(c.id); }} />}
       {payOpen && <PayDialog total={total} currency={currency} rate={rate} onClose={() => setPayOpen(false)} onPay={complete} />}
 
       <Dialog open={heldOpen} onOpenChange={setHeldOpen}>

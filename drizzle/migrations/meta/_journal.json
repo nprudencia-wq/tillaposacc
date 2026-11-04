@@ -57,6 +57,13 @@
       "when": 1793796411506,
       "tag": "0007_payment_types",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793797096342,
+      "tag": "0008_customers_debt",
+      "breakpoints": true
     }
   ]
 }
