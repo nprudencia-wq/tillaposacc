@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
-import { money, type Currency, type PayMethod } from "@/lib/pos";
+import { money, methodLabels, type Currency, type PayMethod } from "@/lib/pos";
 
 export const Route = createFileRoute("/_authenticated/sales")({
   head: () => ({ meta: [{ title: "Sales — Tilla POS" }, { name: "description", content: "Sales history and receipt reprints." }] }),
@@ -23,6 +23,7 @@ function SalesPage() {
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [refundFor, setRefundFor] = useState<{ id: string; sale_number: string } | null>(null);
   const { data: me } = useStaff();
+  const qc = useQueryClient();
   const { data: sales = [] } = useQuery({
     queryKey: ["sales", "list"],
     queryFn: async () => (await supabase.from("sales").select("*").order("created_at", { ascending: false }).limit(200)).data ?? [],
