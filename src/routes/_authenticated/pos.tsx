@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
+import { cached, enqueueSale, isNetworkError } from "@/lib/offline";
 import { OpenShiftGate, ShiftBar, useOpenShift } from "@/components/Shift";
 import {
   cartSubtotal, changeDueUSD, fromUSD, money, methodLabels, paidUSD, resolveDiscount,
@@ -32,12 +33,12 @@ function PosPage() {
   return (
     <div className="flex h-screen flex-col">
       <ShiftBar shift={shift} canReadX={!!me?.canRefund} />
-      <div className="min-h-0 flex-1"><Till /></div>
+      <div className="min-h-0 flex-1"><Till shiftId={shift.id} /></div>
     </div>
   );
 }
 
-function Till() {
+function Till({ shiftId }: { shiftId: string }) {
   const qc = useQueryClient();
   const { data: me } = useStaff();
   const { data: settings } = useSettings();
@@ -45,15 +46,19 @@ function Till() {
 
   const { data: products = [] } = useQuery({
     queryKey: ["products", "active"],
-    queryFn: async () => {
+    queryFn: () => cached("products-active", async () => {
       const { data, error } = await supabase.from("products").select("*, categories(name)").eq("active", true).order("name");
       if (error) throw error;
       return data;
-    },
+    }),
   });
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
-    queryFn: async () => (await supabase.from("categories").select("*").order("name")).data ?? [],
+    queryFn: () => cached("categories", async () => {
+      const { data, error } = await supabase.from("categories").select("*").order("name");
+      if (error) throw error;
+      return data ?? [];
+    }),
   });
 
   const [q, setQ] = useState("");
@@ -113,24 +118,43 @@ function Till() {
     toast.success("Sale held");
   }
 
+  function finish(r: Omit<ReceiptData, "business" | "cashier" | "currency" | "items" | "subtotal" | "discount" | "payments">, paid: Payment[]) {
+    setReceipt({
+      ...r, business: settings?.business_name ?? "", cashier: me?.name ?? "", currency,
+      items: lines.map((l) => ({ name: l.name, quantity: l.quantity, unit_price: l.unit_price, line_total: l.unit_price * l.quantity })),
+      subtotal, discount, payments: paid,
+    });
+    setPayOpen(false); setLines([]); setDiscVal(0);
+  }
+
+  function saveOffline(paid: Payment[]) {
+    const ref = `OFF-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`;
+    enqueueSale({
+      client_ref: ref, sold_at: new Date().toISOString(), shift_id: shiftId, currency, discount,
+      items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity })), payments: paid, total,
+    });
+    // Reduce the cached stock so the till shows sensible numbers while offline.
+    qc.setQueryData(["products", "active"], (old: typeof products | undefined) =>
+      old?.map((p) => { const l = lines.find((x) => x.product_id === p.id); return l ? { ...p, stock: Number(p.stock) - l.quantity } : p; }));
+    const change = Math.max(0, Math.round((paidUSD(paid, rate) - total) * 100) / 100);
+    finish({ sale_number: ref, created_at: new Date().toISOString(), rate, total, change }, paid);
+    const nonCash = paid.some((p) => p.method !== "cash");
+    toast.success(`Saved offline as ${ref}. It will upload when you're back online.${nonCash ? " Non-cash payments will need checking." : ""}`);
+  }
+
   async function complete(payments: Payment[]) {
+    const paid = payments.filter((p) => p.amount > 0);
+    if (!navigator.onLine) { saveOffline(paid); return; }
     const { data, error } = await supabase.rpc("complete_sale", {
       p_items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity })),
       p_payments: payments.filter((p) => p.amount > 0) as never,
       p_discount: discount,
       p_currency: currency,
     });
+    if (error && isNetworkError(error)) { saveOffline(paid); return; }
     if (error) { toast.error(error.message); qc.invalidateQueries({ queryKey: ["open-shift"] }); return; }
     const res = data as { sale_number: string; total: number; change: number; rate: number };
-    setReceipt({
-      sale_number: res.sale_number, created_at: new Date().toISOString(),
-      business: settings?.business_name ?? "", cashier: me?.name ?? "",
-      currency, rate: Number(res.rate),
-      items: lines.map((l) => ({ name: l.name, quantity: l.quantity, unit_price: l.unit_price, line_total: l.unit_price * l.quantity })),
-      subtotal, discount, total: Number(res.total), change: Number(res.change),
-      payments: payments.filter((p) => p.amount > 0),
-    });
-    setPayOpen(false); setLines([]); setDiscVal(0);
+    finish({ sale_number: res.sale_number, created_at: new Date().toISOString(), rate: Number(res.rate), total: Number(res.total), change: Number(res.change) }, paid);
     qc.invalidateQueries({ queryKey: ["products"] });
     qc.invalidateQueries({ queryKey: ["sales"] });
     toast.success(`Sale ${res.sale_number} completed`);
