@@ -16,7 +16,15 @@ export const Route = createFileRoute("/_authenticated/reports")({
   component: ReportsPage,
 });
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const presets: { label: string; get: () => [Date, Date] }[] = [
+  { label: "Today", get: () => [new Date(), new Date()] },
+  { label: "Yesterday", get: () => { const d = new Date(); d.setDate(d.getDate() - 1); return [d, d]; } },
+  { label: "This month", get: () => { const d = new Date(); return [new Date(d.getFullYear(), d.getMonth(), 1), d]; } },
+  { label: "Last month", get: () => { const d = new Date(); return [new Date(d.getFullYear(), d.getMonth() - 1, 1), new Date(d.getFullYear(), d.getMonth(), 0)]; } },
+  { label: "This year", get: () => { const d = new Date(); return [new Date(d.getFullYear(), 0, 1), d]; } },
+  { label: "Last year", get: () => { const y = new Date().getFullYear() - 1; return [new Date(y, 0, 1), new Date(y, 11, 31)]; } },
+];
 type Report = { id: string; label: string; cols: Col[]; rows: Row[]; totals?: Row };
 
 function group<T>(list: T[], key: (t: T) => string, val: (t: T) => { qty?: number; total: number; cost?: number }) {
