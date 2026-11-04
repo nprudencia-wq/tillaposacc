@@ -133,6 +133,7 @@ function CustomersPage() {
                     <TableCell className="space-x-1 text-right">
                       <Button size="sm" variant="outline" onClick={() => setOpen(c)}>Statement</Button>
                       <Button size="sm" onClick={() => setPayFor(c)}>Receive payment</Button>
+                      {me?.canManagePaymentTypes && <Button size="sm" variant="outline" onClick={() => setAdjustFor(c)}>Adjust balance</Button>}
                       {me?.canManagePaymentTypes && <Button size="sm" variant="ghost" onClick={() => setEdit(c)}>Edit</Button>}
                     </TableCell>
                   </TableRow>
