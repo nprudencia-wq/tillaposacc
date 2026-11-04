@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useStaff } from "@/hooks/use-staff";
 import { roleLabels } from "@/lib/pos";
 import { OfflineBar } from "@/components/OfflineBar";
+import { ClockButton } from "@/components/Clock";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -43,6 +44,7 @@ function AppLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   async function signOut() {
+    await supabase.rpc("log_event", { p_action: "logout" }).then(() => {}, () => {});
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
@@ -58,6 +60,7 @@ function AppLayout() {
           <div className="font-display text-lg font-bold">Tilla<span className="text-sidebar-primary">POS</span></div>
           <div className="flex items-center gap-3">
             <span className="hidden text-sm sm:inline">{me.name}</span>
+            <ClockButton />
             <button onClick={signOut} className="flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2 text-sm font-semibold hover:opacity-90">
               <LogOut className="h-4 w-4" />Sign out
             </button>
@@ -92,6 +95,7 @@ function AppLayout() {
               <div className="text-xs opacity-60">{me.roles.map((r) => roleLabels[r] ?? r).join(", ")}</div>
             </div>
           )}
+          <div className="hidden px-3 pb-2 md:block"><ClockButton /></div>
           <button onClick={signOut} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm opacity-80 hover:bg-sidebar-accent hover:opacity-100">
             <LogOut className="h-5 w-5" /><span className="hidden md:inline">Sign out</span>
           </button>
