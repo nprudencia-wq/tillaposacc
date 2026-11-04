@@ -88,7 +88,7 @@ Status: ${p.status.toUpperCase()}</pre>`);
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Box label="Status" value={s.billing_exempt ? "Free (no subscription)" : label} tone={s.billing_exempt ? undefined : sub.state} />
+        <Box label="Status" value={s.billing_exempt ? "Free (no subscription)" : label} tone={s.billing_exempt ? "" : sub.state} />
         <Box label="Paid until" value={s.billing_exempt ? "—" : new Date(sub.paidUntil + "T00:00:00").toLocaleDateString()} />
         <Box label={`${tills} till${tills > 1 ? "s" : ""} × ${money(Number(s.plan_price_usd))}`} value={`${money(Number(s.plan_price_usd) * tills)} / month`} />
       </div>
