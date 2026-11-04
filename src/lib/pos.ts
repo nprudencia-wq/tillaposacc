@@ -52,11 +52,14 @@ export function money(amount: number, currency: Currency = "USD") {
   return currency === "USD" ? `$${v}` : `ZiG ${v}`;
 }
 
-export const methodLabels: Record<PayMethod, string> = {
+/** Built-in labels, kept so records made before payment types were editable still read correctly. */
+export const methodLabels: Record<string, string> = {
   cash: "Cash",
   mobile_money: "Mobile money",
   bank_transfer: "Bank transfer",
   card: "Card",
+  ecocash: "EcoCash",
+  bank: "Bank transfer",
 };
 
 export const roleLabels: Record<string, string> = {
