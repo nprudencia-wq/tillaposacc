@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { cached, readQueue, syncQueue } from "@/lib/offline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -152,7 +153,10 @@ function CloseDialog({ shiftId, onClose, onClosed }: { shiftId: string; onClose:
   const [busy, setBusy] = useState(false);
   async function submit() {
     if (usd === "" || zig === "") { toast.error("Enter the cash counted in both currencies (0 if none)"); return; }
+    if (!navigator.onLine) { toast.error("You're offline. Reconnect to close the shift."); return; }
     setBusy(true);
+    await syncQueue();
+    if (readQueue().length) { setBusy(false); toast.error("Some offline sales haven't uploaded yet. Check the offline bar at the top, then try again."); return; }
     const { error } = await supabase.rpc("close_shift", { p_actual_usd: Number(usd), p_actual_zig: Number(zig), p_notes: notes });
     if (error) { setBusy(false); { toast.error(error.message); return; } }
     try { onClosed(await fetchShiftSummary(shiftId)); } catch (e) { toast.error((e as Error).message); onClose(); }
