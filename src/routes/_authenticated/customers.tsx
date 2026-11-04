@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/customers")({
   component: CustomersPage,
 });
 
-type Entry = { date: string; kind: "sale" | "payment" | "refund"; ref: string; debit: number; credit: number; note: string };
+type Entry = { date: string; kind: "sale" | "payment" | "refund" | "adjustment"; ref: string; debit: number; credit: number; note: string };
 
 function useLedger() {
   return useQuery({
@@ -31,10 +31,11 @@ function useLedger() {
     queryFn: async () => {
       const { data: types } = await supabase.from("payment_types").select("code").eq("is_account", true);
       const codes = (types ?? []).map((t) => t.code);
-      const [sp, pays, refs] = await Promise.all([
+      const [sp, pays, refs, adjs] = await Promise.all([
         codes.length ? supabase.from("sale_payments").select("amount, currency, method, sales!inner(customer_id, created_at, exchange_rate, sale_number)").in("method", codes).not("sales.customer_id", "is", null) : Promise.resolve({ data: [] as never[] }),
         supabase.from("customer_payments").select("*").order("created_at"),
         codes.length ? supabase.from("refunds").select("amount, created_at, method, reason, sales!inner(customer_id, sale_number)").in("method", codes) : Promise.resolve({ data: [] as never[] }),
+        supabase.from("customer_adjustments").select("*").order("created_at"),
       ]);
       const entries: Record<string, Entry[]> = {};
       const push = (id: string, e: Entry) => (entries[id] ??= []).push(e);
@@ -47,6 +48,16 @@ function useLedger() {
       }
       for (const r of (refs.data ?? []) as { amount: number; created_at: string; reason: string; sales: { customer_id: string; sale_number: string } }[]) {
         push(r.sales.customer_id, { date: r.created_at, kind: "refund", ref: r.sales.sale_number, debit: 0, credit: Number(r.amount), note: `Return: ${r.reason}` });
+      }
+      for (const a of adjs.data ?? []) {
+        push(a.customer_id, {
+          date: a.created_at,
+          kind: "adjustment",
+          ref: "ADJ",
+          debit: a.kind === "charge" ? Number(a.amount) : 0,
+          credit: a.kind === "credit" ? Number(a.amount) : 0,
+          note: `${a.kind === "charge" ? "Balance added" : "Balance reduced"}${a.note ? `: ${a.note}` : ""}`,
+        });
       }
       for (const k in entries) entries[k]?.sort((a, b) => a.date.localeCompare(b.date));
       return { entries, payments: pays.data ?? [] };
@@ -69,6 +80,7 @@ function CustomersPage() {
   const [edit, setEdit] = useState<Customer | "new" | null>(null);
   const [open, setOpen] = useState<Customer | null>(null);
   const [payFor, setPayFor] = useState<Customer | null>(null);
+  const [adjustFor, setAdjustFor] = useState<Customer | null>(null);
 
   const rows = useMemo(() => customers.map((c) => ({ c, a: agingFor(ledger?.entries[c.id]) })), [customers, ledger]);
   const shown = rows.filter(({ c }) => !q || c.name.toLowerCase().includes(q.toLowerCase()) || c.phone?.includes(q));
@@ -121,6 +133,7 @@ function CustomersPage() {
                     <TableCell className="space-x-1 text-right">
                       <Button size="sm" variant="outline" onClick={() => setOpen(c)}>Statement</Button>
                       <Button size="sm" onClick={() => setPayFor(c)}>Receive payment</Button>
+                      {me?.canManagePaymentTypes && <Button size="sm" variant="outline" onClick={() => setAdjustFor(c)}>Adjust balance</Button>}
                       {me?.canManagePaymentTypes && <Button size="sm" variant="ghost" onClick={() => setEdit(c)}>Edit</Button>}
                     </TableCell>
                   </TableRow>
@@ -178,6 +191,7 @@ function CustomersPage() {
 
       {edit && <CustomerDialog customer={edit === "new" ? null : edit} onClose={() => setEdit(null)} />}
       {payFor && <PayDialog customer={payFor} owed={agingFor(ledger?.entries[payFor.id]).total} onClose={() => setPayFor(null)} />}
+      {adjustFor && <AdjustDialog customer={adjustFor} owed={agingFor(ledger?.entries[adjustFor.id]).total} onClose={() => setAdjustFor(null)} />}
       {open && <StatementDialog customer={open} entries={ledger?.entries[open.id] ?? []} biz={biz} onClose={() => setOpen(null)} />}
     </div>
   );
@@ -215,6 +229,43 @@ function PayDialog({ customer, owed, onClose }: { customer: Customer; owed: numb
         <Select value={m} onValueChange={setMethod}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{methods.map((t) => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}</SelectContent></Select>
         <Input placeholder="Reference (optional)" value={ref} onChange={(e) => setRef(e.target.value)} />
         <Button onClick={pay} disabled={busy || !(Number(amount) > 0)}>Record payment</Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AdjustDialog({ customer, owed, onClose }: { customer: Customer; owed: number; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [kind, setKind] = useState<"charge" | "credit">("charge");
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    setBusy(true);
+    const { error } = await supabase.rpc("adjust_customer_balance", { p_customer: customer.id, p_kind: kind, p_amount: Number(amount), p_note: note });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(kind === "charge" ? `Balance added to ${customer.name}` : `Balance reduced for ${customer.name}`);
+    qc.invalidateQueries({ queryKey: ["customer-ledger"] });
+    onClose();
+  }
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Adjust balance — {customer.name}</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Currently owes {money(owed)}. Use this for opening balances or corrections — no sale is made and no stock moves.
+        </p>
+        <Select value={kind} onValueChange={(v) => setKind(v as "charge" | "credit")}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="charge">Add to what they owe (charge)</SelectItem>
+            <SelectItem value="credit">Reduce what they owe (credit)</SelectItem>
+          </SelectContent>
+        </Select>
+        <div><Label htmlFor="adj-amount">Amount (USD)</Label><Input id="adj-amount" type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="tabular" /></div>
+        <div><Label htmlFor="adj-note">Reason</Label><Input id="adj-note" placeholder="e.g. Opening balance from old book" value={note} onChange={(e) => setNote(e.target.value)} /></div>
+        <Button onClick={save} disabled={busy || !(Number(amount) > 0)}>Save adjustment</Button>
       </DialogContent>
     </Dialog>
   );

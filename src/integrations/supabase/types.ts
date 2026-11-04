@@ -86,6 +86,44 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_adjustments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          id: string
+          kind: string
+          note: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          id?: string
+          kind: string
+          note?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          id?: string
+          kind?: string
+          note?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_adjustments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_payments: {
         Row: {
           amount: number
@@ -917,6 +955,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      adjust_customer_balance: {
+        Args: {
+          p_amount: number
+          p_customer: string
+          p_kind: string
+          p_note?: string
+        }
+        Returns: string
+      }
       adjust_stock: {
         Args: {
           p_note: string
@@ -926,6 +973,7 @@ export type Database = {
         }
         Returns: number
       }
+      can_adjust_customer_balance: { Args: never; Returns: boolean }
       can_manage_payment_types: { Args: { _user_id: string }; Returns: boolean }
       can_manage_staff: { Args: { _user_id: string }; Returns: boolean }
       can_manage_stock: { Args: { _user_id: string }; Returns: boolean }
