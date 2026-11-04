@@ -141,7 +141,7 @@ function Reports() {
         rows: group(data.pays, (p) => `${methodLabels[p.method as PayMethod] ?? p.method} (${p.currency})`, (p) => ({ total: Number(p.amount) })).map((x) => ({ name: x.name, count: x.count, total: r2(x.total).toFixed(2) })),
       },
       {
-        id: "stock", label: "Stock on hand & value",
+        id: "stock", label: `Stock as at ${to}`,
         cols: [{ key: "name", label: "Product" }, { key: "cat", label: "Category" }, { key: "stock", label: "On hand" }, { key: "cost", label: "Value at cost", money: true }, { key: "retail", label: "Value at retail", money: true }],
         rows: data.products.filter((p) => p.active).map((p) => ({ name: p.name, cat: p.categories?.name ?? "", stock: Number(p.stock), cost: r2(Number(p.stock) * Number(p.cost_price)), retail: r2(Number(p.stock) * Number(p.selling_price)) })),
       },
