@@ -24,9 +24,16 @@ function SalesPage() {
   const [refundFor, setRefundFor] = useState<{ id: string; sale_number: string } | null>(null);
   const { data: me } = useStaff();
   const qc = useQueryClient();
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const { data: sales = [] } = useQuery({
-    queryKey: ["sales", "list"],
-    queryFn: async () => (await supabase.from("sales").select("*").order("created_at", { ascending: false }).limit(200)).data ?? [],
+    queryKey: ["sales", "list", from, to],
+    queryFn: async () => {
+      let q = supabase.from("sales").select("*").order("created_at", { ascending: false });
+      if (from) q = q.gte("created_at", new Date(from + "T00:00:00").toISOString());
+      if (to) q = q.lte("created_at", new Date(to + "T23:59:59.999").toISOString());
+      return (await q.limit(from || to ? 1000 : 200)).data ?? [];
+    },
   });
   const { data: staff = {} } = useQuery({
     queryKey: ["profiles"],
@@ -62,7 +69,12 @@ function SalesPage() {
   return (
     <div className="mx-auto max-w-6xl p-4 lg:p-8">
       <h1 className="text-3xl font-bold">Sales</h1>
-      <p className="text-muted-foreground">Latest 200 transactions</p>
+      <div className="mt-2 flex flex-wrap items-end gap-3">
+        <div className="space-y-1.5"><Label htmlFor="sales-from">From</Label><Input id="sales-from" type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} className="bg-card" /></div>
+        <div className="space-y-1.5"><Label htmlFor="sales-to">To</Label><Input id="sales-to" type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className="bg-card" /></div>
+        {(from || to) && <Button variant="ghost" onClick={() => { setFrom(""); setTo(""); }}>Clear dates</Button>}
+        <p className="pb-2 text-sm text-muted-foreground">{from || to ? `Up to 1000 sales in the chosen dates` : "Latest 200 transactions"}</p>
+      </div>
       {unverified.length > 0 && (
         <div className="mt-6 rounded-xl border border-warning bg-warning/10 p-4">
           <h2 className="font-semibold">Offline payments to check ({unverified.length})</h2>
