@@ -304,7 +304,7 @@ function Stocktake({ can }: { can: boolean }) {
   const current = takes.find((t) => t.status === "counting");
   const viewing = open ?? current?.id ?? null;
   async function start() {
-    const { data, error } = await supabase.rpc("start_stocktake", { p_category: cat === "all" ? null : cat, p_note: "" });
+    const { data, error } = await supabase.rpc("start_stocktake", { p_category: cat === "all" ? null : cat, p_note: "" } as never);
     if (error) { toast.error(error.message); return; }
     setOpen(data); qc.invalidateQueries({ queryKey: ["stocktakes"] });
   }
