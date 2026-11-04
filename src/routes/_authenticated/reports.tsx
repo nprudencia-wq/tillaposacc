@@ -66,7 +66,7 @@ function ReportsPage() {
     const soldBySold = (g: ReturnType<typeof group>) => g.map((x) => ({ name: x.name, qty: r2(x.qty), total: r2(x.total), profit: r2(x.total - x.cost) }));
 
     const byDay = group(data.sales, (s) => s.created_at.slice(0, 10), (s) => ({ total: Number(s.total) })).sort((a, b) => a.name.localeCompare(b.name));
-    const soldQty = group(data.items, (i) => i.product_id ?? i.name, (i) => ({ qty: Number(i.quantity) }));
+    const soldQty = group(data.items, (i) => i.product_id ?? i.name, (i) => ({ qty: Number(i.quantity), total: 0 }));
     const soldMap = Object.fromEntries(soldQty.map((x) => [x.name, x.qty]));
 
     return [
