@@ -48,7 +48,7 @@ export function OfflineBar() {
     <div role="status" className={`flex flex-wrap items-center gap-3 px-4 py-2 text-sm print:hidden ${online ? "bg-warning/15" : "bg-destructive/10"}`}>
       {!online && <span className="flex items-center gap-2 font-semibold text-destructive"><CloudOff className="h-4 w-4" />Offline — sales are saved on this device</span>}
       {queue.length > 0 && <span>{queue.length} sale{queue.length > 1 ? "s" : ""} waiting to upload</span>}
-      {failed.length > 0 && <span className="text-destructive">{failed.length} rejected: {failed[0].error}</span>}
+      {failed.length > 0 && <span className="text-destructive">{failed.length} rejected: {failed[0]?.error}</span>}
       {online && queue.length > 0 && (
         <Button size="sm" variant="outline" disabled={busy} onClick={() => sync(true)}>
           <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} />Upload now
