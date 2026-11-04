@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_log: {
+        Row: {
+          action: string
+          created_at: string
+          details: string | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       branch_stock: {
         Row: {
           branch_id: string
@@ -865,6 +889,38 @@ export type Database = {
           },
         ]
       }
+      staff_pins: {
+        Row: {
+          failed_attempts: number
+          locked_until: string | null
+          pin_hash: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          failed_attempts?: number
+          locked_until?: string | null
+          pin_hash: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          failed_attempts?: number
+          locked_until?: string | null
+          pin_hash?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_pins_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_movements: {
         Row: {
           balance_after: number
@@ -1152,6 +1208,30 @@ export type Database = {
         }
         Relationships: []
       }
+      time_clock: {
+        Row: {
+          clock_in: string
+          clock_out: string | null
+          id: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          clock_in?: string
+          clock_out?: string | null
+          id?: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          clock_in?: string
+          clock_out?: string | null
+          id?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_permissions: {
         Row: {
           allowed: boolean
@@ -1225,6 +1305,12 @@ export type Database = {
       can_manage_stock: { Args: { _user_id: string }; Returns: boolean }
       can_post_expense: { Args: { _user_id: string }; Returns: boolean }
       can_refund: { Args: { _user_id: string }; Returns: boolean }
+      check_staff_pin: {
+        Args: { p_pin: string; p_username: string }
+        Returns: string
+      }
+      clock_in: { Args: never; Returns: string }
+      clock_out: { Args: never; Returns: undefined }
       close_shift: {
         Args: { p_actual_usd: number; p_actual_zig: number; p_notes: string }
         Returns: string
@@ -1267,10 +1353,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_staff_pin: { Args: { p_user: string }; Returns: boolean }
       is_account_method: { Args: { p: string }; Returns: boolean }
       is_cash_method: { Args: { p: string }; Returns: boolean }
       is_owner_admin: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      log_event: {
+        Args: { p_action: string; p_details?: string }
+        Returns: undefined
+      }
       open_shift: {
         Args: { p_float_usd: number; p_float_zig: number }
         Returns: Json
@@ -1349,6 +1440,10 @@ export type Database = {
       save_branch: {
         Args: { p_active: boolean; p_id: string; p_name: string }
         Returns: string
+      }
+      set_staff_pin: {
+        Args: { p_pin: string; p_user: string }
+        Returns: undefined
       }
       set_user_active: {
         Args: { p_active: boolean; p_user: string }

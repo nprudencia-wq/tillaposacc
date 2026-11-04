@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { effectivePermission, isValidUsername, loginEmail } from "./username";
+import { effectivePermission, isValidPin, isValidUsername, loginEmail } from "./username";
 
 describe("username logins", () => {
   it("maps a username to its private login address", () => {
@@ -32,5 +32,17 @@ describe("price override right", () => {
   });
   it("can be allowed for one cashier on the Staff page", () => {
     expect(effectivePermission(["cashier"], "override_price", { override_price: true })).toBe(true);
+  });
+});
+
+describe("till PINs", () => {
+  it("accepts 4 to 6 digits", () => {
+    expect(isValidPin("1234")).toBe(true);
+    expect(isValidPin("123456")).toBe(true);
+  });
+  it("rejects too short, too long or letters", () => {
+    expect(isValidPin("123")).toBe(false);
+    expect(isValidPin("1234567")).toBe(false);
+    expect(isValidPin("12a4")).toBe(false);
   });
 });
