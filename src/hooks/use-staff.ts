@@ -31,6 +31,7 @@ export function useStaff() {
         canDiscount: can("give_discount"),
         canPostExpense: can("post_expense"),
         canViewReports: can("view_reports"),
+        canOverridePrice: can("override_price"),
         canManageStaff: list.some((r) => ["admin", "owner", "manager"].includes(r)),
         canManagePaymentTypes: list.some((r) => ["admin", "owner", "manager"].includes(r)),
         isOwner: list.some((r) => ["admin", "owner"].includes(r)),
