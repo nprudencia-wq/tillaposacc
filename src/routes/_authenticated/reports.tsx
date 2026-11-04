@@ -16,7 +16,15 @@ export const Route = createFileRoute("/_authenticated/reports")({
   component: ReportsPage,
 });
 
-const iso = (d: Date) => d.toISOString().slice(0, 10);
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const presets: { label: string; get: () => [Date, Date] }[] = [
+  { label: "Today", get: () => [new Date(), new Date()] },
+  { label: "Yesterday", get: () => { const d = new Date(); d.setDate(d.getDate() - 1); return [d, d]; } },
+  { label: "This month", get: () => { const d = new Date(); return [new Date(d.getFullYear(), d.getMonth(), 1), d]; } },
+  { label: "Last month", get: () => { const d = new Date(); return [new Date(d.getFullYear(), d.getMonth() - 1, 1), new Date(d.getFullYear(), d.getMonth(), 0)]; } },
+  { label: "This year", get: () => { const d = new Date(); return [new Date(d.getFullYear(), 0, 1), d]; } },
+  { label: "Last year", get: () => { const y = new Date().getFullYear() - 1; return [new Date(y, 0, 1), new Date(y, 11, 31)]; } },
+];
 type Report = { id: string; label: string; cols: Col[]; rows: Row[]; totals?: Row };
 
 function group<T>(list: T[], key: (t: T) => string, val: (t: T) => { qty?: number; total: number; cost?: number }) {
@@ -58,7 +66,15 @@ function Reports() {
         supabase.from("stock_movements").select("*, products(name)").gte("created_at", start).lte("created_at", end).order("created_at", { ascending: false }).limit(1000),
         supabase.from("expenses").select("*").gte("expense_date", from).lte("expense_date", to),
       ]);
-      return { sales: sales ?? [], items: items ?? [], pays: pays ?? [], refunds: refunds ?? [], products: products ?? [], profiles: profiles ?? [], movements: movements ?? [], expenses: expenses ?? [] };
+      // Stock as at the end date: rewind today's stock using movements made after it.
+      let list = products ?? [];
+      if (to < iso(new Date())) {
+        const { data: later } = await supabase.from("stock_movements").select("product_id, quantity").gt("created_at", end).limit(50000);
+        const delta: Record<string, number> = {};
+        (later ?? []).forEach((m) => { delta[m.product_id] = (delta[m.product_id] ?? 0) + Number(m.quantity); });
+        list = list.map((p) => ({ ...p, stock: Number(p.stock) - (delta[p.id] ?? 0) }));
+      }
+      return { sales: sales ?? [], items: items ?? [], pays: pays ?? [], refunds: refunds ?? [], products: list, profiles: profiles ?? [], movements: movements ?? [], expenses: expenses ?? [] };
     },
   });
 
@@ -125,7 +141,7 @@ function Reports() {
         rows: group(data.pays, (p) => `${methodLabels[p.method as PayMethod] ?? p.method} (${p.currency})`, (p) => ({ total: Number(p.amount) })).map((x) => ({ name: x.name, count: x.count, total: r2(x.total).toFixed(2) })),
       },
       {
-        id: "stock", label: "Stock on hand & value",
+        id: "stock", label: `Stock as at ${to}`,
         cols: [{ key: "name", label: "Product" }, { key: "cat", label: "Category" }, { key: "stock", label: "On hand" }, { key: "cost", label: "Value at cost", money: true }, { key: "retail", label: "Value at retail", money: true }],
         rows: data.products.filter((p) => p.active).map((p) => ({ name: p.name, cat: p.categories?.name ?? "", stock: Number(p.stock), cost: r2(Number(p.stock) * Number(p.cost_price)), retail: r2(Number(p.stock) * Number(p.selling_price)) })),
       },
@@ -157,8 +173,13 @@ function Reports() {
     <div className="mx-auto max-w-7xl p-4 lg:p-8">
       <h1 className="text-3xl font-bold">Reports</h1>
       <div className="mt-4 flex flex-wrap items-end gap-3">
-        <div className="space-y-1.5"><Label>From</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="bg-card" /></div>
-        <div className="space-y-1.5"><Label>To</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="bg-card" /></div>
+        <div className="space-y-1.5"><Label htmlFor="rep-from">From</Label><Input id="rep-from" type="date" value={from} max={to} onChange={(e) => e.target.value && setFrom(e.target.value)} className="bg-card" /></div>
+        <div className="space-y-1.5"><Label htmlFor="rep-to">To</Label><Input id="rep-to" type="date" value={to} min={from} onChange={(e) => e.target.value && setTo(e.target.value)} className="bg-card" /></div>
+        <div className="flex flex-wrap gap-1">
+          {presets.map((p) => (
+            <Button key={p.label} size="sm" variant="ghost" onClick={() => { const [a, b] = p.get(); setFrom(iso(a)); setTo(iso(b)); }}>{p.label}</Button>
+          ))}
+        </div>
         {rep && (
           <div className="ml-auto flex gap-2">
             <Button variant="outline" onClick={() => exportPDF(file, rep.label, sub, rep.cols, rep.rows)}><FileDown className="h-4 w-4" />PDF</Button>

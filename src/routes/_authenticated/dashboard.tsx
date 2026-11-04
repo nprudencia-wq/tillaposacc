@@ -16,10 +16,12 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-type Period = "today" | "yesterday" | "7d" | "month";
-const periodLabels: Record<Period, string> = { today: "Today", yesterday: "Yesterday", "7d": "Last 7 days", month: "This month" };
+type Period = "today" | "yesterday" | "7d" | "month" | "custom";
+const periodLabels: Record<Period, string> = { today: "Today", yesterday: "Yesterday", "7d": "Last 7 days", month: "This month", custom: "Pick dates" };
+const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-function range(p: Period) {
+function range(p: Period, custom: { from: string; to: string }) {
+  if (p === "custom") return { start: new Date(custom.from + "T00:00:00").toISOString(), end: new Date(custom.to + "T23:59:59.999").toISOString() };
   const start = new Date(); start.setHours(0, 0, 0, 0);
   const end = new Date();
   if (p === "yesterday") { start.setDate(start.getDate() - 1); end.setTime(start.getTime()); end.setHours(23, 59, 59, 999); }
@@ -34,6 +36,7 @@ function Dashboard() {
   const qc = useQueryClient();
   const [rate, setRate] = useState("");
   const [period, setPeriod] = useState<Period>("today");
+  const [custom, setCustom] = useState(() => ({ from: isoDay(new Date()), to: isoDay(new Date()) }));
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
   const { data } = useQuery({
@@ -50,9 +53,10 @@ function Dashboard() {
   });
 
   const { data: summary } = useQuery({
-    queryKey: ["sales", "dashboard-summary", period],
+    queryKey: ["sales", "dashboard-summary", period, period === "custom" ? custom : null],
+    enabled: period !== "custom" || (!!custom.from && !!custom.to && custom.from <= custom.to),
     queryFn: async () => {
-      const { start, end } = range(period);
+      const { start, end } = range(period, custom);
       const [{ data: sales }, { data: pays }, { data: refunds }, { data: profiles }] = await Promise.all([
         supabase.from("sales").select("*").gte("created_at", start).lte("created_at", end).order("created_at", { ascending: false }),
         supabase.from("sale_payments").select("sale_id, method, currency, amount, sales!inner(created_at, exchange_rate)").gte("sales.created_at", start).lte("sales.created_at", end),
@@ -137,10 +141,19 @@ function Dashboard() {
       <section className="mt-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold">Sales summary</h2>
-          <div className="flex flex-wrap gap-1 rounded-lg border bg-card p-1" role="group" aria-label="Summary period">
-            {(Object.keys(periodLabels) as Period[]).map((p) => (
-              <Button key={p} size="sm" variant={period === p ? "default" : "ghost"} onClick={() => setPeriod(p)}>{periodLabels[p]}</Button>
-            ))}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap gap-1 rounded-lg border bg-card p-1" role="group" aria-label="Summary period">
+              {(Object.keys(periodLabels) as Period[]).map((p) => (
+                <Button key={p} size="sm" variant={period === p ? "default" : "ghost"} onClick={() => setPeriod(p)}>{periodLabels[p]}</Button>
+              ))}
+            </div>
+            {period === "custom" && (
+              <div className="flex items-center gap-1">
+                <Input type="date" aria-label="From date" value={custom.from} max={custom.to} onChange={(e) => setCustom((c) => ({ ...c, from: e.target.value }))} className="h-9 w-40 bg-card" />
+                <span className="text-sm text-muted-foreground">to</span>
+                <Input type="date" aria-label="To date" value={custom.to} min={custom.from} onChange={(e) => setCustom((c) => ({ ...c, to: e.target.value }))} className="h-9 w-40 bg-card" />
+              </div>
+            )}
           </div>
         </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
