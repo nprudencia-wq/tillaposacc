@@ -223,7 +223,7 @@ function ReceiveGoods({ suppliers, onClose }: { suppliers: { id: string; name: s
               </Select>
               <Input type="number" className="w-24" placeholder="Qty" value={l.quantity || ""} onChange={(e) => upd(i, { quantity: Number(e.target.value) })} />
               <Input type="number" step="0.01" className="w-28" placeholder="Unit cost" value={l.unit_cost || ""} onChange={(e) => upd(i, { unit_cost: Number(e.target.value) })} />
-              <Button size="icon" variant="ghost" onClick={() => setLines(lines.filter((_, k) => k !== i))}><Trash2 className="h-4 w-4" /></Button>
+              <Button size="icon" variant="ghost" aria-label={`Remove line ${i + 1} from this goods received note`} onClick={() => setLines(lines.filter((_, k) => k !== i))}><Trash2 className="h-4 w-4" /></Button>
             </div>
           ))}
           <Button variant="outline" size="sm" onClick={() => setLines([...lines, { product_id: "", quantity: 1, unit_cost: 0 }])}><Plus className="h-4 w-4" />Add line</Button>
