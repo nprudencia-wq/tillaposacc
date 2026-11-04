@@ -93,9 +93,9 @@ function InventoryPage() {
                     <div className="text-xs text-muted-foreground">min {Number(p.min_stock)}</div>
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-right">
-                    <Button size="icon" variant="ghost" title="History" onClick={() => setHistory(p)}><History className="h-4 w-4" /></Button>
-                    {can && <Button size="icon" variant="ghost" title="Adjust stock" onClick={() => setAdjust(p)}><ArrowUpDown className="h-4 w-4" /></Button>}
-                    {can && <Button size="icon" variant="ghost" title="Edit" onClick={() => setEdit(p)}><Pencil className="h-4 w-4" /></Button>}
+                    <Button size="icon" variant="ghost" aria-label={`View stock history for ${p.name}`} onClick={() => setHistory(p)}><History className="h-4 w-4" /></Button>
+                    {can && <Button size="icon" variant="ghost" aria-label={`Adjust stock for ${p.name}`} onClick={() => setAdjust(p)}><ArrowUpDown className="h-4 w-4" /></Button>}
+                    {can && <Button size="icon" variant="ghost" aria-label={`Edit ${p.name}`} onClick={() => setEdit(p)}><Pencil className="h-4 w-4" /></Button>}
                   </TableCell>
                 </TableRow>
               );
