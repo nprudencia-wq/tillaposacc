@@ -130,6 +130,7 @@ function PosPage() {
           <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)}
+            aria-label="Search products by name, SKU or barcode"
             onKeyDown={(e) => e.key === "Enter" && onSearchEnter()}
             placeholder="Search name, SKU or scan barcode…" className="h-12 bg-card pl-10 text-base"
           />
@@ -179,11 +180,11 @@ function PosPage() {
                 <div className="tabular text-xs text-muted-foreground">{show(l.unit_price)} each</div>
                 {l.quantity > l.stock && <div className="text-xs text-destructive">Only {l.stock} in stock</div>}
               </div>
-              <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setQty(l.product_id, l.quantity - 1)}><Minus className="h-4 w-4" /></Button>
+              <Button size="icon" variant="outline" className="h-9 w-9" aria-label={`Reduce quantity of ${l.name}`} onClick={() => setQty(l.product_id, l.quantity - 1)}><Minus className="h-4 w-4" /></Button>
               <span className="tabular w-8 text-center font-semibold">{l.quantity}</span>
-              <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setQty(l.product_id, l.quantity + 1)}><Plus className="h-4 w-4" /></Button>
+              <Button size="icon" variant="outline" className="h-9 w-9" aria-label={`Add one more ${l.name}`} onClick={() => setQty(l.product_id, l.quantity + 1)}><Plus className="h-4 w-4" /></Button>
               <span className="tabular w-20 text-right text-sm font-semibold">{show(l.unit_price * l.quantity)}</span>
-              <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive" onClick={() => setQty(l.product_id, 0)}><Trash2 className="h-4 w-4" /></Button>
+              <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive" aria-label={`Remove ${l.name} from this sale`} onClick={() => setQty(l.product_id, 0)}><Trash2 className="h-4 w-4" /></Button>
             </div>
           ))}
         </div>
@@ -228,7 +229,7 @@ function PosPage() {
               </div>
               <div className="flex gap-1">
                 <Button size="sm" onClick={() => { setLines(h.lines); saveHeld(held.filter((x) => x.id !== h.id)); setHeldOpen(false); }}>Resume</Button>
-                <Button size="icon" variant="ghost" onClick={() => saveHeld(held.filter((x) => x.id !== h.id))}><X className="h-4 w-4" /></Button>
+                <Button size="icon" variant="ghost" aria-label={`Discard held sale of ${h.lines.length} items`} onClick={() => saveHeld(held.filter((x) => x.id !== h.id))}><X className="h-4 w-4" /></Button>
               </div>
             </div>
           ))}
@@ -269,7 +270,7 @@ function PayDialog({ total, currency, rate, onClose, onPay }: {
                 <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem></SelectContent>
               </Select>
               <Input type="number" min={0} step="0.01" value={p.amount || ""} onChange={(e) => upd(i, { amount: Number(e.target.value) })} className="tabular flex-1" />
-              {payments.length > 1 && <Button size="icon" variant="ghost" onClick={() => setPayments(payments.filter((_, k) => k !== i))}><X className="h-4 w-4" /></Button>}
+              {payments.length > 1 && <Button size="icon" variant="ghost" aria-label={`Remove this ${methodLabels[p.method]} payment`} onClick={() => setPayments(payments.filter((_, k) => k !== i))}><X className="h-4 w-4" /></Button>}
             </div>
           ))}
           <Button variant="outline" size="sm" onClick={() => setPayments([...payments, { method: "mobile_money", currency, amount: Math.max(0, fromUSD(-change, currency, rate)) }])}>

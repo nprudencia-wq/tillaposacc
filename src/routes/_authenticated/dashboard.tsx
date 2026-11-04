@@ -63,8 +63,8 @@ function Dashboard() {
 
   return (
     <div className="mx-auto max-w-7xl p-4 lg:p-8">
-      <h1 className="text-3xl font-bold">Good day{me ? `, ${me.name.split(" ")[0]}` : ""}</h1>
-      <p className="text-muted-foreground">{settings?.business_name} · ZiG {settings?.zig_rate} = $1</p>
+      <h1 className="text-3xl font-bold">Sales and stock dashboard</h1>
+      <p className="text-muted-foreground">Good day{me ? `, ${me.name.split(" ")[0]}` : ""} · {settings?.business_name} · ZiG {settings?.zig_rate} = $1</p>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card label="Today's sales" value={money(todayTotal)} sub={`${todaySales.length} transactions`} />
