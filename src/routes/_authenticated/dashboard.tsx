@@ -7,18 +7,34 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSettings, useStaff } from "@/hooks/use-staff";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { money } from "@/lib/pos";
+import { money, methodLabels, type Currency, type PayMethod } from "@/lib/pos";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Tilla POS" }, { name: "description", content: "Sales and stock at a glance." }] }),
   component: Dashboard,
 });
 
+type Period = "today" | "yesterday" | "7d" | "month";
+const periodLabels: Record<Period, string> = { today: "Today", yesterday: "Yesterday", "7d": "Last 7 days", month: "This month" };
+
+function range(p: Period) {
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const end = new Date();
+  if (p === "yesterday") { start.setDate(start.getDate() - 1); end.setTime(start.getTime()); end.setHours(23, 59, 59, 999); }
+  if (p === "7d") start.setDate(start.getDate() - 6);
+  if (p === "month") start.setDate(1);
+  return { start: start.toISOString(), end: end.toISOString() };
+}
+
 function Dashboard() {
   const { data: me } = useStaff();
   const { data: settings } = useSettings();
   const qc = useQueryClient();
   const [rate, setRate] = useState("");
+  const [period, setPeriod] = useState<Period>("today");
+  const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
   const { data } = useQuery({
     queryKey: ["sales", "dashboard"],
@@ -32,6 +48,51 @@ function Dashboard() {
       return { sales: sales ?? [], items: items ?? [], low: (low ?? []).filter((p) => Number(p.stock) <= Number(p.min_stock)) };
     },
   });
+
+  const { data: summary } = useQuery({
+    queryKey: ["sales", "dashboard-summary", period],
+    queryFn: async () => {
+      const { start, end } = range(period);
+      const [{ data: sales }, { data: pays }, { data: refunds }, { data: profiles }] = await Promise.all([
+        supabase.from("sales").select("*").gte("created_at", start).lte("created_at", end).order("created_at", { ascending: false }),
+        supabase.from("sale_payments").select("sale_id, method, currency, amount, sales!inner(created_at, exchange_rate)").gte("sales.created_at", start).lte("sales.created_at", end),
+        supabase.from("refunds").select("amount, created_at").gte("created_at", start).lte("created_at", end),
+        supabase.from("profiles").select("id, full_name"),
+      ]);
+      return { sales: sales ?? [], pays: pays ?? [], refunds: refunds ?? [], names: Object.fromEntries((profiles ?? []).map((p) => [p.id, p.full_name])) as Record<string, string> };
+    },
+  });
+
+  const pSales = summary?.sales ?? [];
+  const pGross = pSales.reduce((a, s) => a + Number(s.subtotal), 0);
+  const pDisc = pSales.reduce((a, s) => a + Number(s.discount), 0);
+  const pTotal = pSales.reduce((a, s) => a + Number(s.total), 0);
+  const pRefunds = (summary?.refunds ?? []).reduce((a, r) => a + Number((r as { amount: number }).amount ?? 0), 0);
+  const avg = pSales.length ? pTotal / pSales.length : 0;
+
+  const byMethod = Object.values((summary?.pays ?? []).reduce<Record<string, { key: string; label: string; usd: number; count: Set<string> }>>((acc, p) => {
+    const key = `${p.method}-${p.currency}`;
+    const rateUsed = Number((p.sales as { exchange_rate: number } | null)?.exchange_rate) || Number(settings?.zig_rate) || 1;
+    const usd = p.currency === "ZIG" ? Number(p.amount) / rateUsed : Number(p.amount);
+    const e = (acc[key] ??= { key, label: `${methodLabels[p.method as PayMethod] ?? p.method} (${p.currency})`, usd: 0, count: new Set() });
+    e.usd += usd; e.count.add(p.sale_id);
+    return acc;
+  }, {})).sort((a, b) => b.usd - a.usd);
+  const payTotal = byMethod.reduce((a, m) => a + m.usd, 0);
+
+  async function openReceipt(s: (typeof pSales)[number]) {
+    const [{ data: items }, { data: pays }] = await Promise.all([
+      supabase.from("sale_items").select("*").eq("sale_id", s.id),
+      supabase.from("sale_payments").select("*").eq("sale_id", s.id),
+    ]);
+    setReceipt({
+      sale_number: s.sale_number, created_at: s.created_at, business: settings?.business_name ?? "",
+      cashier: summary?.names[s.cashier_id] ?? "", currency: s.currency as Currency, rate: Number(s.exchange_rate),
+      items: (items ?? []).map((i) => ({ name: i.name, quantity: Number(i.quantity), unit_price: Number(i.unit_price), line_total: Number(i.line_total) })),
+      subtotal: Number(s.subtotal), discount: Number(s.discount), total: Number(s.total), change: Number(s.change_given),
+      payments: (pays ?? []).map((p) => ({ method: p.method as PayMethod, currency: p.currency as Currency, amount: Number(p.amount) })),
+    });
+  }
 
   const today = new Date().toDateString();
   const todaySales = (data?.sales ?? []).filter((s) => new Date(s.created_at).toDateString() === today);
@@ -72,6 +133,72 @@ function Dashboard() {
         <Card label="Gross profit (7 days)" value={money(revenue - cogs)} sub={revenue ? `${Math.round(((revenue - cogs) / revenue) * 100)}% margin` : "—"} />
         <Card label="Low-stock items" value={String(data?.low.length ?? 0)} sub="at or below minimum" warn={!!data?.low.length} />
       </div>
+
+      <section className="mt-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold">Sales summary</h2>
+          <div className="flex flex-wrap gap-1 rounded-lg border bg-card p-1" role="group" aria-label="Summary period">
+            {(Object.keys(periodLabels) as Period[]).map((p) => (
+              <Button key={p} size="sm" variant={period === p ? "default" : "ghost"} onClick={() => setPeriod(p)}>{periodLabels[p]}</Button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <Card label="Net sales" value={money(pTotal)} sub={`ZiG ${(pTotal * Number(settings?.zig_rate ?? 0)).toFixed(2)}`} />
+          <Card label="Receipts" value={String(pSales.length)} sub="completed sales" />
+          <Card label="Average sale" value={money(avg)} sub="per receipt" />
+          <Card label="Discounts" value={money(pDisc)} sub={`from ${money(pGross)} gross`} />
+          <Card label="Refunds" value={money(pRefunds)} sub={`${summary?.refunds.length ?? 0} refunds`} />
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-3">
+          <div className="rounded-xl border bg-card p-5 shadow-soft">
+            <h3 className="mb-3 font-semibold">Sales by payment type</h3>
+            {!byMethod.length && <p className="text-sm text-muted-foreground">No payments in this period.</p>}
+            {byMethod.map((m) => {
+              const pct = payTotal ? (m.usd / payTotal) * 100 : 0;
+              return (
+                <div key={m.key} className="py-2 text-sm">
+                  <div className="flex justify-between"><span>{m.label} <span className="text-muted-foreground">· {m.count.size}</span></span><span className="tabular">{money(m.usd)}</span></div>
+                  <div className="mt-1 h-2 rounded-full bg-muted"><div className="h-2 rounded-full bg-primary" style={{ width: `${pct}%` }} /></div>
+                  <div className="text-xs text-muted-foreground">{pct.toFixed(0)}% of takings</div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="rounded-xl border bg-card p-5 shadow-soft lg:col-span-2">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-semibold">Receipts</h3>
+              <Link to="/sales" className="text-sm font-medium text-primary">All sales →</Link>
+            </div>
+            {!pSales.length && <p className="text-sm text-muted-foreground">No receipts in this period.</p>}
+            <div className="max-h-96 overflow-auto">
+              <table className="w-full text-sm">
+                {pSales.length > 0 && <thead className="text-left text-muted-foreground"><tr><th className="py-1 font-medium">Receipt</th><th className="font-medium">Time</th><th className="font-medium">Cashier</th><th className="text-right font-medium">Total</th><th /></tr></thead>}
+                <tbody>
+                  {pSales.slice(0, 50).map((s) => (
+                    <tr key={s.id} className="border-t">
+                      <td className="py-2 font-mono">{s.sale_number}</td>
+                      <td>{new Date(s.created_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}</td>
+                      <td className="truncate">{summary?.names[s.cashier_id] ?? ""}</td>
+                      <td className="tabular text-right">{money(Number(s.total))}</td>
+                      <td className="text-right"><Button size="sm" variant="ghost" onClick={() => openReceipt(s)} aria-label={`View receipt ${s.sale_number}`}>View</Button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <Dialog open={!!receipt} onOpenChange={(o) => !o && setReceipt(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Receipt {receipt?.sale_number}</DialogTitle></DialogHeader>
+          {receipt && <ReceiptActions r={receipt} />}
+        </DialogContent>
+      </Dialog>
+
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="rounded-xl border bg-card p-5 shadow-soft lg:col-span-2">
