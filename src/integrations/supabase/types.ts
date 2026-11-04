@@ -827,6 +827,7 @@ export type Database = {
       settings: {
         Row: {
           address: string
+          billing_exempt: boolean
           business_name: string
           email: string
           grace_days: number
@@ -838,6 +839,7 @@ export type Database = {
           plan_price_usd: number
           receipt_footer: string
           tax_number: string
+          till_count: number
           updated_at: string
           vat_rate: number
           vendor_name: string
@@ -846,6 +848,7 @@ export type Database = {
         }
         Insert: {
           address?: string
+          billing_exempt?: boolean
           business_name?: string
           email?: string
           grace_days?: number
@@ -857,6 +860,7 @@ export type Database = {
           plan_price_usd?: number
           receipt_footer?: string
           tax_number?: string
+          till_count?: number
           updated_at?: string
           vat_rate?: number
           vendor_name?: string
@@ -865,6 +869,7 @@ export type Database = {
         }
         Update: {
           address?: string
+          billing_exempt?: boolean
           business_name?: string
           email?: string
           grace_days?: number
@@ -876,6 +881,7 @@ export type Database = {
           plan_price_usd?: number
           receipt_footer?: string
           tax_number?: string
+          till_count?: number
           updated_at?: string
           vat_rate?: number
           vendor_name?: string
@@ -1151,6 +1157,7 @@ export type Database = {
           status: string
           submitted_at: string
           submitted_by: string
+          tills: number
         }
         Insert: {
           amount: number
@@ -1167,6 +1174,7 @@ export type Database = {
           status?: string
           submitted_at?: string
           submitted_by: string
+          tills?: number
         }
         Update: {
           amount?: number
@@ -1183,6 +1191,7 @@ export type Database = {
           status?: string
           submitted_at?: string
           submitted_by?: string
+          tills?: number
         }
         Relationships: []
       }
@@ -1569,6 +1578,10 @@ export type Database = {
       transfer_stock: {
         Args: { p_from: string; p_items: Json; p_note: string; p_to: string }
         Returns: string
+      }
+      vendor_update_billing: {
+        Args: { p_exempt: boolean; p_price: number; p_tills: number }
+        Returns: undefined
       }
       vendor_update_plan: {
         Args: {
