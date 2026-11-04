@@ -86,6 +86,102 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          customer_id: string
+          exchange_rate: number
+          id: string
+          method: string
+          original_amount: number
+          payment_number: string
+          received_by: string
+          reference: string | null
+          shift_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          customer_id: string
+          exchange_rate?: number
+          id?: string
+          method: string
+          original_amount: number
+          payment_number?: string
+          received_by: string
+          reference?: string | null
+          shift_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          customer_id?: string
+          exchange_rate?: number
+          id?: string
+          method?: string
+          original_amount?: number
+          payment_number?: string
+          received_by?: string
+          reference?: string | null
+          shift_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_payments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_payments_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "cashier_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          active: boolean
+          address: string | null
+          created_at: string
+          credit_limit: number
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+        }
+        Insert: {
+          active?: boolean
+          address?: string | null
+          created_at?: string
+          credit_limit?: number
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Update: {
+          active?: boolean
+          address?: string | null
+          created_at?: string
+          credit_limit?: number
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           amount: number
@@ -223,6 +319,7 @@ export type Database = {
           code: string
           created_at: string
           id: string
+          is_account: boolean
           is_cash: boolean
           name: string
           sort_order: number
@@ -232,6 +329,7 @@ export type Database = {
           code: string
           created_at?: string
           id?: string
+          is_account?: boolean
           is_cash?: boolean
           name: string
           sort_order?: number
@@ -241,6 +339,7 @@ export type Database = {
           code?: string
           created_at?: string
           id?: string
+          is_account?: boolean
           is_cash?: boolean
           name?: string
           sort_order?: number
@@ -525,6 +624,7 @@ export type Database = {
           client_ref: string | null
           created_at: string
           currency: string
+          customer_id: string | null
           discount: number
           exchange_rate: number
           id: string
@@ -543,6 +643,7 @@ export type Database = {
           client_ref?: string | null
           created_at?: string
           currency: string
+          customer_id?: string | null
           discount?: number
           exchange_rate?: number
           id?: string
@@ -561,6 +662,7 @@ export type Database = {
           client_ref?: string | null
           created_at?: string
           currency?: string
+          customer_id?: string | null
           discount?: number
           exchange_rate?: number
           id?: string
@@ -573,6 +675,13 @@ export type Database = {
           total?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_shift_id_fkey"
             columns: ["shift_id"]
@@ -841,12 +950,14 @@ export type Database = {
       complete_sale: {
         Args: {
           p_currency: string
+          p_customer?: string
           p_discount: number
           p_items: Json
           p_payments: Json
         }
         Returns: Json
       }
+      customer_balance: { Args: { p_customer: string }; Returns: number }
       has_permission: {
         Args: { _perm: string; _user_id: string }
         Returns: boolean
@@ -858,6 +969,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_account_method: { Args: { p: string }; Returns: boolean }
       is_cash_method: { Args: { p: string }; Returns: boolean }
       is_owner_admin: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
@@ -881,6 +993,16 @@ export type Database = {
           p_currency: string
           p_date: string
           p_description: string
+          p_method: string
+          p_reference: string
+        }
+        Returns: string
+      }
+      receive_customer_payment: {
+        Args: {
+          p_amount: number
+          p_currency: string
+          p_customer: string
           p_method: string
           p_reference: string
         }
