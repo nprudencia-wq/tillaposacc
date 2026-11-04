@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
-import { money, methodLabels, type Currency, type PayMethod } from "@/lib/pos";
+import { money, type Currency, type PayMethod } from "@/lib/pos";
+import { methodLabel } from "@/lib/payment-types";
 
 export const Route = createFileRoute("/_authenticated/sales")({
   head: () => ({ meta: [{ title: "Sales — Tilla POS" }, { name: "description", content: "Sales history and receipt reprints." }] }),
@@ -82,7 +83,7 @@ function SalesPage() {
           <div className="mt-3 space-y-2">
             {unverified.map((p) => (
               <div key={p.id} className="flex items-center justify-between rounded-lg bg-card p-2 text-sm">
-                <span>{p.sales?.sale_number} · {methodLabels[p.method as PayMethod] ?? p.method} · {money(Number(p.amount), p.currency as Currency)}</span>
+                <span>{p.sales?.sale_number} · {methodLabel(p.method)} · {money(Number(p.amount), p.currency as Currency)}</span>
                 <Button size="sm" variant="outline" onClick={() => verify(p.id)}>Confirm received</Button>
               </div>
             ))}

@@ -13,9 +13,10 @@ import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
 import { cached, enqueueSale, isNetworkError } from "@/lib/offline";
 import { OpenShiftGate, ShiftBar, useOpenShift } from "@/components/Shift";
 import {
-  cartSubtotal, changeDueUSD, fromUSD, money, methodLabels, paidUSD, resolveDiscount,
+  cartSubtotal, changeDueUSD, fromUSD, money, paidUSD, resolveDiscount,
   type CartLine, type Currency, type Payment, type PayMethod,
 } from "@/lib/pos";
+import { activeTypes, isCashMethod, methodLabel, usePaymentTypes } from "@/lib/payment-types";
 
 export const Route = createFileRoute("/_authenticated/pos")({
   head: () => ({ meta: [{ title: "Till — Tilla POS" }, { name: "description", content: "Point of sale till." }] }),
@@ -138,7 +139,7 @@ function Till({ shiftId }: { shiftId: string }) {
       old?.map((p) => { const l = lines.find((x) => x.product_id === p.id); return l ? { ...p, stock: Number(p.stock) - l.quantity } : p; }));
     const change = Math.max(0, Math.round((paidUSD(paid, rate) - total) * 100) / 100);
     finish({ sale_number: ref, created_at: new Date().toISOString(), rate, total, change }, paid);
-    const nonCash = paid.some((p) => p.method !== "cash");
+    const nonCash = paid.some((p) => !isCashMethod(p.method));
     toast.success(`Saved offline as ${ref}. It will upload when you're back online.${nonCash ? " Non-cash payments will need checking." : ""}`);
   }
 
@@ -287,7 +288,11 @@ function Till({ shiftId }: { shiftId: string }) {
 function PayDialog({ total, currency, rate, onClose, onPay }: {
   total: number; currency: Currency; rate: number; onClose: () => void; onPay: (p: Payment[]) => Promise<void>;
 }) {
-  const [payments, setPayments] = useState<Payment[]>([{ method: "cash", currency, amount: fromUSD(total, currency, rate) }]);
+  const { data: types } = usePaymentTypes();
+  const methods = activeTypes(types);
+  const first = methods[0]?.code ?? "cash";
+  const second = methods.find((t) => !t.is_cash && t.code !== first)?.code ?? first;
+  const [payments, setPayments] = useState<Payment[]>([{ method: first, currency, amount: fromUSD(total, currency, rate) }]);
   const [busy, setBusy] = useState(false);
   const change = changeDueUSD(total, payments, rate);
   const upd = (i: number, p: Partial<Payment>) => setPayments((ps) => ps.map((x, k) => (k === i ? { ...x, ...p } : x)));
@@ -301,17 +306,17 @@ function PayDialog({ total, currency, rate, onClose, onPay }: {
             <div key={i} className="flex gap-2">
               <Select value={p.method} onValueChange={(v) => upd(i, { method: v as PayMethod })}>
                 <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                <SelectContent>{Object.entries(methodLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+                <SelectContent>{methods.map((t) => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}</SelectContent>
               </Select>
               <Select value={p.currency} onValueChange={(v) => upd(i, { currency: v as Currency })}>
                 <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem></SelectContent>
               </Select>
               <Input type="number" min={0} step="0.01" value={p.amount || ""} onChange={(e) => upd(i, { amount: Number(e.target.value) })} className="tabular flex-1" />
-              {payments.length > 1 && <Button size="icon" variant="ghost" aria-label={`Remove this ${methodLabels[p.method]} payment`} onClick={() => setPayments(payments.filter((_, k) => k !== i))}><X className="h-4 w-4" /></Button>}
+              {payments.length > 1 && <Button size="icon" variant="ghost" aria-label={`Remove this ${methodLabel(p.method)} payment`} onClick={() => setPayments(payments.filter((_, k) => k !== i))}><X className="h-4 w-4" /></Button>}
             </div>
           ))}
-          <Button variant="outline" size="sm" onClick={() => setPayments([...payments, { method: "mobile_money", currency, amount: Math.max(0, fromUSD(-change, currency, rate)) }])}>
+          <Button variant="outline" size="sm" onClick={() => setPayments([...payments, { method: second, currency, amount: Math.max(0, fromUSD(-change, currency, rate)) }])}>
             <Plus className="h-4 w-4" />Split payment
           </Button>
           <div className="tabular rounded-xl bg-muted p-4">

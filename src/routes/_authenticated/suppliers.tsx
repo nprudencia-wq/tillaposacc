@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { money, methodLabels } from "@/lib/pos";
+import { money } from "@/lib/pos";
+import { activeTypes, usePaymentTypes } from "@/lib/payment-types";
 
 export const Route = createFileRoute("/_authenticated/suppliers")({
   head: () => ({ meta: [{ title: "Suppliers — Tilla POS" }, { name: "description", content: "Suppliers, goods received and balances owed." }] }),
@@ -242,9 +243,12 @@ function PaySupplier({ id, name, onClose }: { id: string; name: string; onClose:
   const qc = useQueryClient();
   const [amount, setAmount] = useState(0);
   const [method, setMethod] = useState("cash");
+  const { data: types } = usePaymentTypes();
+  const methods = activeTypes(types);
+  const current = methods.some((t) => t.code === method) ? method : (methods[0]?.code ?? "cash");
   const [ref, setRef] = useState("");
   async function save() {
-    const { error } = await supabase.rpc("pay_supplier", { p_supplier: id, p_amount: amount, p_method: method, p_reference: ref });
+    const { error } = await supabase.rpc("pay_supplier", { p_supplier: id, p_amount: amount, p_method: current, p_reference: ref });
     if (error) { toast.error(error.message); return; }
     qc.invalidateQueries({ queryKey: ["suppliers"] });
     toast.success("Payment recorded");
@@ -255,9 +259,9 @@ function PaySupplier({ id, name, onClose }: { id: string; name: string; onClose:
       <DialogContent>
         <DialogHeader><DialogTitle>Pay {name}</DialogTitle></DialogHeader>
         <div className="space-y-1.5"><Label>Amount (USD)</Label><Input type="number" step="0.01" value={amount || ""} onChange={(e) => setAmount(Number(e.target.value))} /></div>
-        <Select value={method} onValueChange={setMethod}>
+        <Select value={current} onValueChange={setMethod}>
           <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>{Object.entries(methodLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+          <SelectContent>{methods.map((t) => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}</SelectContent>
         </Select>
         <div className="space-y-1.5"><Label>Reference</Label><Input value={ref} onChange={(e) => setRef(e.target.value)} /></div>
         <Button onClick={save}>Record payment</Button>

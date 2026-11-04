@@ -1,5 +1,6 @@
 export type Currency = "USD" | "ZiG";
-export type PayMethod = "cash" | "mobile_money" | "bank_transfer" | "card";
+/** A payment type code, e.g. "cash" or "ecocash". The shop's own list lives in payment_types. */
+export type PayMethod = string;
 
 export interface CartLine {
   product_id: string;
@@ -51,11 +52,14 @@ export function money(amount: number, currency: Currency = "USD") {
   return currency === "USD" ? `$${v}` : `ZiG ${v}`;
 }
 
-export const methodLabels: Record<PayMethod, string> = {
+/** Built-in labels, kept so records made before payment types were editable still read correctly. */
+export const methodLabels: Record<string, string> = {
   cash: "Cash",
   mobile_money: "Mobile money",
   bank_transfer: "Bank transfer",
   card: "Card",
+  ecocash: "EcoCash",
+  bank: "Bank transfer",
 };
 
 export const roleLabels: Record<string, string> = {

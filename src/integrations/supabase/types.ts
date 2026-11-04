@@ -217,6 +217,36 @@ export type Database = {
           },
         ]
       }
+      payment_types: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          id: string
+          is_cash: boolean
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          id?: string
+          is_cash?: boolean
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          id?: string
+          is_cash?: boolean
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       price_history: {
         Row: {
           cost_price: number
@@ -787,6 +817,7 @@ export type Database = {
         }
         Returns: number
       }
+      can_manage_payment_types: { Args: { _user_id: string }; Returns: boolean }
       can_manage_staff: { Args: { _user_id: string }; Returns: boolean }
       can_manage_stock: { Args: { _user_id: string }; Returns: boolean }
       can_post_expense: { Args: { _user_id: string }; Returns: boolean }
@@ -827,6 +858,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_cash_method: { Args: { p: string }; Returns: boolean }
       is_owner_admin: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
       open_shift: {

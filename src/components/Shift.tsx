@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { money, methodLabels, type Currency, type PayMethod } from "@/lib/pos";
+import { money, type Currency, type PayMethod } from "@/lib/pos";
+import { methodLabel } from "@/lib/payment-types";
 
 export type ShiftSummary = {
   shift: {
@@ -202,7 +203,7 @@ export function ShiftReport({ s, title }: { s: ShiftSummary; title: string }) {
       </div>
       <div className="space-y-1 border-t pt-2">
         <Row k="Sales" v={`${s.sales_count} · ${money(Number(s.sales_total_usd))}`} strong />
-        {s.payments.map((p) => <Row key={p.method + p.currency} k={`${methodLabels[p.method as PayMethod] ?? p.method} (${p.currency})`} v={money(Number(p.amount), p.currency as Currency)} />)}
+        {s.payments.map((p) => <Row key={p.method + p.currency} k={`${methodLabel(p.method)} (${p.currency})`} v={money(Number(p.amount), p.currency as Currency)} />)}
       </div>
       {cur.map((c) => {
         const g = (f: string) => Number((s as unknown as Record<string, number>)[`${f}_${k(c)}`] ?? 0);

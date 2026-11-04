@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { money, methodLabels, type PayMethod } from "@/lib/pos";
+import { money, type PayMethod } from "@/lib/pos";
+import { methodLabel } from "@/lib/payment-types";
 import { exportExcel, exportPDF, type Col, type Row } from "@/lib/export";
 
 export const Route = createFileRoute("/_authenticated/reports")({
@@ -138,7 +139,7 @@ function Reports() {
       {
         id: "payment", label: "By payment method",
         cols: [{ key: "name", label: "Method" }, { key: "count", label: "Payments" }, { key: "total", label: "Amount received" }],
-        rows: group(data.pays, (p) => `${methodLabels[p.method as PayMethod] ?? p.method} (${p.currency})`, (p) => ({ total: Number(p.amount) })).map((x) => ({ name: x.name, count: x.count, total: r2(x.total).toFixed(2) })),
+        rows: group(data.pays, (p) => `${methodLabel(p.method)} (${p.currency})`, (p) => ({ total: Number(p.amount) })).map((x) => ({ name: x.name, count: x.count, total: r2(x.total).toFixed(2) })),
       },
       {
         id: "stock", label: `Stock as at ${to}`,

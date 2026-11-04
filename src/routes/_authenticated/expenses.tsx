@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { money } from "@/lib/pos";
+import { activeTypes, methodLabel, usePaymentTypes } from "@/lib/payment-types";
 
 export const Route = createFileRoute("/_authenticated/expenses")({
   head: () => ({ meta: [{ title: "Expenses — Tilla POS" }, { name: "description", content: "Post shop running costs so net profit is accurate." }] }),
@@ -18,7 +19,6 @@ export const Route = createFileRoute("/_authenticated/expenses")({
 });
 
 export const EXPENSE_CATEGORIES = ["Rent", "Salaries & wages", "Electricity", "Water", "Fuel & transport", "Internet & phone", "Repairs & maintenance", "Bank charges", "Licences & taxes", "Security", "Cleaning", "Marketing", "Other"];
-const METHODS = { cash: "Cash", ecocash: "EcoCash", bank: "Bank transfer", card: "Card" } as const;
 const today = () => new Date().toISOString().slice(0, 10);
 
 function ExpensesPage() {
@@ -27,6 +27,9 @@ function ExpensesPage() {
   const qc = useQueryClient();
   const allowed = me?.roles.some((r) => ["admin", "owner", "manager", "accountant"].includes(r));
   const [f, setF] = useState({ date: today(), category: "", description: "", amount: "", currency: "USD", method: "cash", reference: "" });
+  const { data: types } = usePaymentTypes();
+  const methods = activeTypes(types);
+  const current = methods.some((t) => t.code === f.method) ? f.method : (methods[0]?.code ?? "cash");
   const [busy, setBusy] = useState(false);
 
   const { data: list } = useQuery({
@@ -46,7 +49,7 @@ function ExpensesPage() {
     setBusy(true);
     const { error } = await supabase.rpc("post_expense", {
       p_date: f.date, p_category: f.category, p_description: f.description, p_amount: Number(f.amount),
-      p_currency: f.currency, p_method: f.method, p_reference: f.reference,
+      p_currency: f.currency, p_method: current, p_reference: f.reference,
     });
     setBusy(false);
     if (error) { toast.error(error.message); return; }
@@ -93,9 +96,9 @@ function ExpensesPage() {
           {zigPreview !== null && <p className="mt-1 text-xs text-muted-foreground">≈ {money(zigPreview)} at {settings?.zig_rate} ZiG/USD</p>}
         </div>
         <div><Label>Paid by</Label>
-          <Select value={f.method} onValueChange={(v) => setF({ ...f, method: v })}>
+          <Select value={current} onValueChange={(v) => setF({ ...f, method: v })}>
             <SelectTrigger aria-label="Payment method"><SelectValue /></SelectTrigger>
-            <SelectContent>{Object.entries(METHODS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent>
+            <SelectContent>{methods.map((t) => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div><Label htmlFor="ex-ref">Receipt / reference</Label><Input id="ex-ref" value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} /></div>
@@ -112,7 +115,7 @@ function ExpensesPage() {
                 <TableCell className="tabular">{x.expense_date}</TableCell>
                 <TableCell>{x.category}</TableCell>
                 <TableCell>{x.description}{x.reference && <span className="ml-2 text-xs text-muted-foreground">#{x.reference}</span>}</TableCell>
-                <TableCell>{METHODS[x.method as keyof typeof METHODS] ?? x.method}</TableCell>
+                <TableCell>{methodLabel(x.method)}</TableCell>
                 <TableCell className="tabular text-right">{x.currency === "ZiG" ? `ZiG ${Number(x.original_amount).toFixed(2)}` : money(Number(x.original_amount))}</TableCell>
                 <TableCell className="tabular text-right font-medium">{money(Number(x.amount))}</TableCell>
                 <TableCell className="text-right">

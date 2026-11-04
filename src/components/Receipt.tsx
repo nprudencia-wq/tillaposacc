@@ -1,7 +1,8 @@
 import { toast } from "sonner";
 import { Printer, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { money, methodLabels, type Currency, type PayMethod } from "@/lib/pos";
+import { money, type Currency, type PayMethod } from "@/lib/pos";
+import { methodLabel } from "@/lib/payment-types";
 
 export interface ReceiptData {
   sale_number: string;
@@ -42,7 +43,7 @@ export function Receipt({ r }: { r: ReceiptData }) {
       {r.currency === "ZiG" && <div className="text-right opacity-70">= {money(r.total)} @ {r.rate}</div>}
       <div className="my-2 border-t border-dashed border-foreground/40" />
       {r.payments.map((p, k) => (
-        <div key={k} className="flex justify-between"><span>{methodLabels[p.method]} ({p.currency})</span><span>{money(p.amount, p.currency)}</span></div>
+        <div key={k} className="flex justify-between"><span>{methodLabel(p.method)} ({p.currency})</span><span>{money(p.amount, p.currency)}</span></div>
       ))}
       <div className="flex justify-between font-bold"><span>Change</span><span>{money(cv(r.change), r.currency)}</span></div>
       <div className="mt-3 text-center">Thank you for shopping with us!</div>
