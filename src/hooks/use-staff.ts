@@ -33,6 +33,8 @@ export function useStaff() {
         canViewReports: can("view_reports"),
         canManageStaff: list.some((r) => ["admin", "owner", "manager"].includes(r)),
         isOwner: list.some((r) => ["admin", "owner"].includes(r)),
+        // Cashier-only accounts are till users: no back office.
+        backOffice: list.some((r) => r !== "cashier"),
       };
     }),
   });
