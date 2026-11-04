@@ -642,6 +642,7 @@ export type Database = {
           id: string
           line_total: number
           name: string
+          original_price: number | null
           product_id: string | null
           quantity: number
           refunded_qty: number
@@ -653,6 +654,7 @@ export type Database = {
           id?: string
           line_total: number
           name: string
+          original_price?: number | null
           product_id?: string | null
           quantity: number
           refunded_qty?: number
@@ -664,6 +666,7 @@ export type Database = {
           id?: string
           line_total?: number
           name?: string
+          original_price?: number | null
           product_id?: string | null
           quantity?: number
           refunded_qty?: number
