@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, Link, useNavigate, Navigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut, Truck, BarChart3, Users, Wallet, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,12 +37,32 @@ function AppLayout() {
   const { data: me } = useStaff();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   async function signOut() {
     await qc.cancelQueries();
     qc.clear();
     await supabase.auth.signOut();
     navigate({ to: "/auth", replace: true });
+  }
+
+  // Till-only staff (cashiers): no back office, just the till with a clear sign-out.
+  if (me && !me.backOffice) {
+    if (pathname !== "/pos") return <Navigate to="/pos" replace />;
+    return (
+      <div className="flex min-h-screen flex-col">
+        <header className="flex items-center justify-between gap-3 bg-sidebar px-4 py-2 text-sidebar-foreground print:hidden">
+          <div className="font-display text-lg font-bold">Tilla<span className="text-sidebar-primary">POS</span></div>
+          <div className="flex items-center gap-3">
+            <span className="hidden text-sm sm:inline">{me.name}</span>
+            <button onClick={signOut} className="flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2 text-sm font-semibold hover:opacity-90">
+              <LogOut className="h-4 w-4" />Sign out
+            </button>
+          </div>
+        </header>
+        <main className="min-w-0 flex-1"><OfflineBar /><Outlet /></main>
+      </div>
+    );
   }
 
   return (
