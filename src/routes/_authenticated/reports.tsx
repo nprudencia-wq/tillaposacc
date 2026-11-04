@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileDown, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useSettings } from "@/hooks/use-staff";
+import { useStaff, useSettings } from "@/hooks/use-staff";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +31,13 @@ function group<T>(list: T[], key: (t: T) => string, val: (t: T) => { qty?: numbe
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
 function ReportsPage() {
+  const { data: me, isLoading } = useStaff();
+  if (isLoading) return null;
+  if (!me?.canViewReports) return <p className="p-8 text-muted-foreground">You don't have access to reports. Ask your manager if you need it.</p>;
+  return <Reports />;
+}
+
+function Reports() {
   const { data: settings } = useSettings();
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(1); return iso(d); });
   const [to, setTo] = useState(() => iso(new Date()));
