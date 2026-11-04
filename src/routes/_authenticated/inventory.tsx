@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { money } from "@/lib/pos";
+import { catOptions } from "@/lib/categories";
 import type { Database } from "@/integrations/supabase/types";
 
 type Product = Database["public"]["Tables"]["products"]["Row"];
@@ -110,15 +111,6 @@ function InventoryPage() {
       {history && <HistoryDialog p={history} onClose={() => setHistory(null)} />}
     </div>
   );
-}
-
-export function catOptions(cats: { id: string; name: string; parent_id: string | null }[]) {
-  const out: { id: string; label: string }[] = [];
-  for (const c of cats.filter((x) => !x.parent_id)) {
-    out.push({ id: c.id, label: c.name });
-    for (const s of cats.filter((x) => x.parent_id === c.id)) out.push({ id: s.id, label: `${c.name} › ${s.name}` });
-  }
-  return out;
 }
 
 function Stat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
