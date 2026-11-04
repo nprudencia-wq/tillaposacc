@@ -50,12 +50,12 @@ function StorePage() {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!f) return;
-    if (!f.business_name.trim()) return toast.error("Trading name is required");
+    if (!f) return undefined;
+    if (!f.business_name.trim()) { toast.error("Trading name is required"); return; }
     setBusy(true);
     const { error } = await supabase.from("settings").update({ ...f, updated_at: new Date().toISOString() }).eq("id", 1);
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Store profile saved");
     qc.invalidateQueries({ queryKey: ["settings"] });
   }
