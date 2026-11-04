@@ -32,6 +32,92 @@ export type Database = {
         }
         Relationships: []
       }
+      grn_items: {
+        Row: {
+          grn_id: string
+          id: string
+          line_total: number
+          name: string
+          product_id: string
+          quantity: number
+          unit_cost: number
+        }
+        Insert: {
+          grn_id: string
+          id?: string
+          line_total: number
+          name: string
+          product_id: string
+          quantity: number
+          unit_cost: number
+        }
+        Update: {
+          grn_id?: string
+          id?: string
+          line_total?: number
+          name?: string
+          product_id?: string
+          quantity?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grn_items_grn_id_fkey"
+            columns: ["grn_id"]
+            isOneToOne: false
+            referencedRelation: "grns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grn_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grns: {
+        Row: {
+          created_at: string
+          grn_number: string
+          id: string
+          invoice_number: string | null
+          note: string | null
+          received_by: string
+          supplier_id: string
+          total: number
+        }
+        Insert: {
+          created_at?: string
+          grn_number?: string
+          id?: string
+          invoice_number?: string | null
+          note?: string | null
+          received_by: string
+          supplier_id: string
+          total: number
+        }
+        Update: {
+          created_at?: string
+          grn_number?: string
+          id?: string
+          invoice_number?: string | null
+          note?: string | null
+          received_by?: string
+          supplier_id?: string
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grns_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           active: boolean
@@ -112,6 +198,44 @@ export type Database = {
         }
         Relationships: []
       }
+      refunds: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          method: string
+          reason: string
+          refunded_by: string
+          sale_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          method?: string
+          reason: string
+          refunded_by: string
+          sale_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          method?: string
+          reason?: string
+          refunded_by?: string
+          sale_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refunds_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sale_items: {
         Row: {
           cost_price: number
@@ -120,6 +244,7 @@ export type Database = {
           name: string
           product_id: string | null
           quantity: number
+          refunded_qty: number
           sale_id: string
           unit_price: number
         }
@@ -130,6 +255,7 @@ export type Database = {
           name: string
           product_id?: string | null
           quantity: number
+          refunded_qty?: number
           sale_id: string
           unit_price: number
         }
@@ -140,6 +266,7 @@ export type Database = {
           name?: string
           product_id?: string | null
           quantity?: number
+          refunded_qty?: number
           sale_id?: string
           unit_price?: number
         }
@@ -305,6 +432,74 @@ export type Database = {
           },
         ]
       }
+      supplier_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          method: string
+          paid_by: string
+          reference: string | null
+          supplier_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          method: string
+          paid_by: string
+          reference?: string | null
+          supplier_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          method?: string
+          paid_by?: string
+          reference?: string | null
+          supplier_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_payments_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: string | null
+          contact_person: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          address?: string | null
+          contact_person?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -338,6 +533,7 @@ export type Database = {
         Returns: number
       }
       can_manage_stock: { Args: { _user_id: string }; Returns: boolean }
+      can_refund: { Args: { _user_id: string }; Returns: boolean }
       complete_sale: {
         Args: {
           p_currency: string
@@ -354,7 +550,43 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_owner_admin: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      pay_supplier: {
+        Args: {
+          p_amount: number
+          p_method: string
+          p_reference: string
+          p_supplier: string
+        }
+        Returns: undefined
+      }
+      receive_goods: {
+        Args: {
+          p_invoice: string
+          p_items: Json
+          p_note: string
+          p_paid: number
+          p_supplier: string
+        }
+        Returns: Json
+      }
+      refund_sale: {
+        Args: {
+          p_items: Json
+          p_method: string
+          p_reason: string
+          p_sale: string
+        }
+        Returns: Json
+      }
+      set_user_role: {
+        Args: {
+          p_role: Database["public"]["Enums"]["app_role"]
+          p_user: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role:

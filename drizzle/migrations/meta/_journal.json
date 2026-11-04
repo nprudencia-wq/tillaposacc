@@ -8,6 +8,13 @@
       "when": 1793783357488,
       "tag": "0000_pos_core",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793784477968,
+      "tag": "0001_staff_suppliers_refunds",
+      "breakpoints": true
     }
   ]
 }
