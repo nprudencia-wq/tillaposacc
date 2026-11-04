@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
 import { cached, enqueueSale, isNetworkError } from "@/lib/offline";
+import { useSubscription } from "@/components/SubscriptionBanner";
 import { OpenShiftGate, ShiftBar, useOpenShift } from "@/components/Shift";
 import {
   cartSubtotal, changeDueUSD, fromUSD, money, paidUSD, resolveDiscount,
@@ -30,6 +31,13 @@ const HELD_KEY = "tilla-held-sales";
 function PosPage() {
   const { data: me } = useStaff();
   const { data: shift, isLoading } = useOpenShift();
+  const sub = useSubscription();
+  if (sub?.state === "locked") return (
+    <div className="mx-auto max-w-md p-8 text-center">
+      <h1 className="font-display text-2xl font-bold">Till locked</h1>
+      <p className="mt-2 text-muted-foreground">The subscription has expired. The owner or a manager can renew it on the Billing page.</p>
+    </div>
+  );
   if (isLoading) return <p className="p-8 text-muted-foreground">Loading till…</p>;
   if (!shift) return <OpenShiftGate />;
   return (
