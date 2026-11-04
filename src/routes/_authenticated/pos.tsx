@@ -131,7 +131,7 @@ function Till({ shiftId }: { shiftId: string }) {
     const ref = `OFF-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`;
     enqueueSale({
       client_ref: ref, sold_at: new Date().toISOString(), shift_id: shiftId, currency, discount,
-      items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity })), payments: paid, total,
+      items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price })), payments: paid, total, rate,
     });
     // Reduce the cached stock so the till shows sensible numbers while offline.
     qc.setQueryData(["products", "active"], (old: typeof products | undefined) =>
