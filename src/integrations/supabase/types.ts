@@ -357,6 +357,33 @@ export type Database = {
         }
         Relationships: []
       }
+      gl_accounts: {
+        Row: {
+          active: boolean
+          code: string
+          created_at: string
+          name: string
+          system: boolean
+          type: string
+        }
+        Insert: {
+          active?: boolean
+          code: string
+          created_at?: string
+          name: string
+          system?: boolean
+          type: string
+        }
+        Update: {
+          active?: boolean
+          code?: string
+          created_at?: string
+          name?: string
+          system?: boolean
+          type?: string
+        }
+        Relationships: []
+      }
       grn_items: {
         Row: {
           grn_id: string
@@ -439,6 +466,72 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      journal_entries: {
+        Row: {
+          created_at: string
+          entry_date: string
+          id: string
+          journal_number: string
+          memo: string
+          posted_by: string
+        }
+        Insert: {
+          created_at?: string
+          entry_date: string
+          id?: string
+          journal_number?: string
+          memo: string
+          posted_by: string
+        }
+        Update: {
+          created_at?: string
+          entry_date?: string
+          id?: string
+          journal_number?: string
+          memo?: string
+          posted_by?: string
+        }
+        Relationships: []
+      }
+      journal_lines: {
+        Row: {
+          account_code: string
+          credit: number
+          debit: number
+          entry_id: string
+          id: string
+        }
+        Insert: {
+          account_code: string
+          credit?: number
+          debit?: number
+          entry_id: string
+          id?: string
+        }
+        Update: {
+          account_code?: string
+          credit?: number
+          debit?: number
+          entry_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "journal_lines_account_code_fkey"
+            columns: ["account_code"]
+            isOneToOne: false
+            referencedRelation: "gl_accounts"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "journal_lines_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "journal_entries"
             referencedColumns: ["id"]
           },
         ]
@@ -1401,6 +1494,7 @@ export type Database = {
       can_manage_stock: { Args: { _user_id: string }; Returns: boolean }
       can_post_expense: { Args: { _user_id: string }; Returns: boolean }
       can_refund: { Args: { _user_id: string }; Returns: boolean }
+      can_view_accounts: { Args: { _user_id: string }; Returns: boolean }
       check_staff_pin: {
         Args: { p_pin: string; p_username: string }
         Returns: string
@@ -1442,6 +1536,19 @@ export type Database = {
         Args: { p_apply: boolean; p_stocktake: string }
         Returns: undefined
       }
+      gl_lines: {
+        Args: { p_to: string }
+        Returns: {
+          account_code: string
+          credit: number
+          debit: number
+          entry_date: string
+          memo: string
+          reference: string
+          source: string
+        }[]
+      }
+      gl_method_account: { Args: { p: string }; Returns: string }
       has_permission: {
         Args: { _perm: string; _user_id: string }
         Returns: boolean
@@ -1485,6 +1592,10 @@ export type Database = {
           p_method: string
           p_reference: string
         }
+        Returns: string
+      }
+      post_journal: {
+        Args: { p_date: string; p_lines: Json; p_memo: string }
         Returns: string
       }
       receive_customer_payment: {
@@ -1540,6 +1651,15 @@ export type Database = {
       save_branch: {
         Args: { p_active: boolean; p_id: string; p_name: string }
         Returns: string
+      }
+      save_gl_account: {
+        Args: {
+          p_active: boolean
+          p_code: string
+          p_name: string
+          p_type: string
+        }
+        Returns: undefined
       }
       set_staff_pin: {
         Args: { p_pin: string; p_user: string }
