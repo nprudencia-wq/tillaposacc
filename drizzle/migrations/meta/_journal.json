@@ -64,6 +64,13 @@
       "when": 1793797096342,
       "tag": "0008_customers_debt",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793798347402,
+      "tag": "0009_customer_balance_adjustments",
+      "breakpoints": true
     }
   ]
 }
