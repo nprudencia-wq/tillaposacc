@@ -53,7 +53,7 @@ export function OpenShiftGate() {
     setBusy(true);
     const { error } = await supabase.rpc("open_shift", { p_float_usd: Number(usd) || 0, p_float_zig: Number(zig) || 0 });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Shift opened");
     qc.invalidateQueries({ queryKey: ["open-shift"] });
   }
@@ -108,7 +108,7 @@ function MovementDialog({ onClose }: { onClose: () => void }) {
     setBusy(true);
     const { error } = await supabase.rpc("record_cash_movement", { p_type: type, p_currency: currency, p_amount: Number(amount), p_reason: reason });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success(`${moveLabels[type]} recorded`);
     onClose();
   }
@@ -147,10 +147,10 @@ function CloseDialog({ shiftId, onClose, onClosed }: { shiftId: string; onClose:
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   async function submit() {
-    if (usd === "" || zig === "") return toast.error("Enter the cash counted in both currencies (0 if none)");
+    if (usd === "" || zig === "") { toast.error("Enter the cash counted in both currencies (0 if none)"); return; }
     setBusy(true);
     const { error } = await supabase.rpc("close_shift", { p_actual_usd: Number(usd), p_actual_zig: Number(zig), p_notes: notes });
-    if (error) { setBusy(false); return toast.error(error.message); }
+    if (error) { setBusy(false); { toast.error(error.message); return; } }
     try { onClosed(await fetchShiftSummary(shiftId)); } catch (e) { toast.error((e as Error).message); onClose(); }
     qc.invalidateQueries({ queryKey: ["open-shift"] });
     qc.invalidateQueries({ queryKey: ["shifts"] });
