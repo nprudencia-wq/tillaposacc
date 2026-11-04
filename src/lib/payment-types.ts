@@ -34,8 +34,17 @@ export function isCashMethod(code: string) {
   return t ? t.is_cash : code === "cash";
 }
 
+// Used before the list has loaded, or if the read fails, so the till always has something to offer.
+const FALLBACK_TYPES: PaymentType[] = [
+  { id: "cash", code: "cash", name: "Cash", is_cash: true, active: true, sort_order: 1 },
+  { id: "mobile_money", code: "mobile_money", name: "Mobile money", is_cash: false, active: true, sort_order: 2 },
+  { id: "bank_transfer", code: "bank_transfer", name: "Bank transfer", is_cash: false, active: true, sort_order: 3 },
+  { id: "card", code: "card", name: "Card", is_cash: false, active: true, sort_order: 4 },
+];
+
 export function activeTypes(list: PaymentType[] | undefined) {
-  return (list ?? cache).filter((t) => t.active);
+  const on = (list ?? cache).filter((t) => t.active);
+  return on.length ? on : FALLBACK_TYPES;
 }
 
 export function usePaymentTypes() {
