@@ -1,3 +1,6 @@
+import { toast } from "sonner";
+import { Printer, Share2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { money, methodLabels, type Currency, type PayMethod } from "@/lib/pos";
 
 export interface ReceiptData {
@@ -46,3 +49,21 @@ export function Receipt({ r }: { r: ReceiptData }) {
     </div>
   );
 }
+
+export function ReceiptActions({ r }: { r: ReceiptData }) {
+  async function share() {
+    const text = `${r.business}\n${r.sale_number}\nTotal: ${money(r.currency === "ZiG" ? r.total * r.rate : r.total, r.currency)}\nThank you!`;
+    if (navigator.share) await navigator.share({ title: r.sale_number, text }).catch(() => {});
+    else { await navigator.clipboard.writeText(text); toast.success("Receipt copied"); }
+  }
+  return (
+    <>
+      <div className="max-h-[60vh] overflow-y-auto rounded-lg border"><Receipt r={r} /></div>
+      <div className="flex gap-2">
+        <Button className="flex-1" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</Button>
+        <Button variant="outline" className="flex-1" onClick={share}><Share2 className="h-4 w-4" />Share</Button>
+      </div>
+    </>
+  );
+}
+

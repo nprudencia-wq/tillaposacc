@@ -2,14 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, Printer, Share2, X } from "lucide-react";
+import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings, useStaff } from "@/hooks/use-staff";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Receipt, type ReceiptData } from "@/components/Receipt";
+import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
 import {
   cartSubtotal, changeDueUSD, fromUSD, money, methodLabels, paidUSD, resolveDiscount,
   type CartLine, type Currency, type Payment, type PayMethod,
@@ -242,23 +242,6 @@ function PosPage() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-export function ReceiptActions({ r }: { r: ReceiptData }) {
-  async function share() {
-    const text = `${r.business}\n${r.sale_number}\nTotal: ${money(r.currency === "ZiG" ? r.total * r.rate : r.total, r.currency)}\nThank you!`;
-    if (navigator.share) await navigator.share({ title: r.sale_number, text }).catch(() => {});
-    else { await navigator.clipboard.writeText(text); toast.success("Receipt copied"); }
-  }
-  return (
-    <>
-      <div className="max-h-[60vh] overflow-y-auto rounded-lg border"><Receipt r={r} /></div>
-      <div className="flex gap-2">
-        <Button className="flex-1" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</Button>
-        <Button variant="outline" className="flex-1" onClick={share}><Share2 className="h-4 w-4" />Share</Button>
-      </div>
-    </>
   );
 }
 
