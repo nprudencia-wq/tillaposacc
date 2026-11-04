@@ -59,7 +59,7 @@ function useLedger() {
       for (const r of (refs.data ?? []) as { amount: number; created_at: string; reason: string; sales: { customer_id: string; sale_number: string } }[]) {
         push(r.sales.customer_id, { date: r.created_at, kind: "refund", ref: r.sales.sale_number, debit: 0, credit: Number(r.amount), note: `Return: ${r.reason}` });
       }
-      for (const k in entries) entries[k].sort((a, b) => a.date.localeCompare(b.date));
+      for (const k in entries) entries[k]?.sort((a, b) => a.date.localeCompare(b.date));
       return { entries, payments: pays.data ?? [] };
     },
   });
