@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect, Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut, Truck, BarChart3, Users } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaff } from "@/hooks/use-staff";
 import { roleLabels } from "@/lib/pos";
@@ -19,6 +19,9 @@ const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/inventory", label: "Inventory", icon: Boxes },
   { to: "/sales", label: "Sales", icon: Receipt },
+  { to: "/suppliers", label: "Suppliers", icon: Truck },
+  { to: "/reports", label: "Reports", icon: BarChart3 },
+  { to: "/staff", label: "Staff", icon: Users },
 ] as const;
 
 function AppLayout() {
@@ -37,7 +40,7 @@ function AppLayout() {
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="flex shrink-0 items-center gap-1 bg-sidebar px-3 py-2 text-sidebar-foreground md:w-56 md:flex-col md:items-stretch md:px-3 md:py-5 print:hidden">
         <div className="hidden px-3 pb-6 font-display text-xl font-bold md:block">Tilla<span className="text-sidebar-primary">POS</span></div>
-        <nav className="flex flex-1 gap-1 md:flex-col">
+        <nav className="flex flex-1 gap-1 overflow-x-auto md:flex-col">
           {nav.map((n) => (
             <Link
               key={n.to}
