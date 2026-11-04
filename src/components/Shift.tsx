@@ -75,6 +75,7 @@ export function OpenShiftGate() {
 }
 
 export function ShiftBar({ shift, canReadX }: { shift: { id: string; shift_number: string; opened_at: string }; canReadX: boolean }) {
+  const qc = useQueryClient();
   const [moveOpen, setMoveOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [report, setReport] = useState<{ title: string; s: ShiftSummary } | null>(null);
@@ -92,8 +93,8 @@ export function ShiftBar({ shift, canReadX }: { shift: { id: string; shift_numbe
         <Button size="sm" onClick={() => setCloseOpen(true)}>End shift</Button>
       </div>
       {moveOpen && <MovementDialog onClose={() => setMoveOpen(false)} />}
-      {closeOpen && <CloseDialog shiftId={shift.id} onClose={() => setCloseOpen(false)} onClosed={(s) => { setCloseOpen(false); setReport({ title: "Z-report (shift closed)", s }); }} />}
-      {report && <ShiftReportDialog title={report.title} s={report.s} onClose={() => setReport(null)} />}
+      {closeOpen && <CloseDialog shiftId={shift.id} onClose={() => { setCloseOpen(false); qc.invalidateQueries({ queryKey: ["open-shift"] }); }} onClosed={(s) => { setCloseOpen(false); setReport({ title: "Z-report (shift closed)", s }); }} />}
+      {report && <ShiftReportDialog title={report.title} s={report.s} onClose={() => { const closed = report.s.shift.status === "closed"; setReport(null); if (closed) qc.invalidateQueries({ queryKey: ["open-shift"] }); }} />}
     </div>
   );
 }
@@ -152,7 +153,7 @@ function CloseDialog({ shiftId, onClose, onClosed }: { shiftId: string; onClose:
     const { error } = await supabase.rpc("close_shift", { p_actual_usd: Number(usd), p_actual_zig: Number(zig), p_notes: notes });
     if (error) { setBusy(false); { toast.error(error.message); return; } }
     try { onClosed(await fetchShiftSummary(shiftId)); } catch (e) { toast.error((e as Error).message); onClose(); }
-    qc.invalidateQueries({ queryKey: ["open-shift"] });
+    // open-shift is refreshed when the Z-report is dismissed, so the report stays visible
     qc.invalidateQueries({ queryKey: ["shifts"] });
   }
   return (
