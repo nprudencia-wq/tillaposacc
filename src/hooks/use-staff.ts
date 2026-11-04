@@ -20,6 +20,8 @@ export function useStaff() {
         name: profile?.full_name || user.email || "",
         roles: list,
         canManageStock: list.some((r) => STOCK_ROLES.includes(r)),
+        canRefund: list.some((r) => ["admin", "owner", "manager", "supervisor"].includes(r)),
+        isOwner: list.some((r) => ["admin", "owner"].includes(r)),
       };
     },
   });
