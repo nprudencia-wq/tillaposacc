@@ -1,5 +1,6 @@
 export type Currency = "USD" | "ZiG";
-export type PayMethod = "cash" | "mobile_money" | "bank_transfer" | "card";
+/** A payment type code, e.g. "cash" or "ecocash". The shop's own list lives in payment_types. */
+export type PayMethod = string;
 
 export interface CartLine {
   product_id: string;
