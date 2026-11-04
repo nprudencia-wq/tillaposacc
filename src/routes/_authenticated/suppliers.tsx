@@ -23,16 +23,18 @@ function useSupplierData() {
   return useQuery({
     queryKey: ["suppliers"],
     queryFn: async () => {
-      const [{ data: sup }, { data: grns }, { data: pays }] = await Promise.all([
+      const [{ data: sup }, { data: grns }, { data: pays }, { data: rets }] = await Promise.all([
         supabase.from("suppliers").select("*").order("name"),
         supabase.from("grns").select("*").order("created_at", { ascending: false }),
         supabase.from("supplier_payments").select("*").order("created_at", { ascending: false }),
+        supabase.from("supplier_returns").select("supplier_id,total"),
       ]);
       return {
         suppliers: (sup ?? []).map((s) => {
           const bought = (grns ?? []).filter((g) => g.supplier_id === s.id).reduce((a, g) => a + Number(g.total), 0);
           const paid = (pays ?? []).filter((p) => p.supplier_id === s.id).reduce((a, p) => a + Number(p.amount), 0);
-          return { ...s, bought, paid, balance: Math.round((bought - paid) * 100) / 100 };
+          const returned = (rets ?? []).filter((r) => r.supplier_id === s.id).reduce((a, r) => a + Number(r.total), 0);
+          return { ...s, bought, paid, returned, balance: Math.round((bought - paid - returned) * 100) / 100 };
         }),
         grns: grns ?? [],
         pays: pays ?? [],

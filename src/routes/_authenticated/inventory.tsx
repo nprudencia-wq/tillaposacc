@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { money } from "@/lib/pos";
+import { catOptions } from "@/lib/categories";
 import type { Database } from "@/integrations/supabase/types";
 
 type Product = Database["public"]["Tables"]["products"]["Row"];
@@ -168,7 +169,7 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
           <div className="space-y-1.5"><Label>Category</Label>
             <Select value={f.category_id ?? ""} onValueChange={(v) => set("category_id", v)}>
               <SelectTrigger><SelectValue placeholder="Choose" /></SelectTrigger>
-              <SelectContent>{cats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+              <SelectContent>{catOptions(cats).map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           {field("image_url", "Image link (optional)")}
