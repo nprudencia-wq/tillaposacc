@@ -313,19 +313,25 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active: boolean
           created_at: string
           full_name: string
           id: string
+          username: string | null
         }
         Insert: {
+          active?: boolean
           created_at?: string
           full_name?: string
           id: string
+          username?: string | null
         }
         Update: {
+          active?: boolean
           created_at?: string
           full_name?: string
           id?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -723,6 +729,32 @@ export type Database = {
         }
         Relationships: []
       }
+      user_permissions: {
+        Row: {
+          allowed: boolean
+          permission: string
+          user_id: string
+        }
+        Insert: {
+          allowed: boolean
+          permission: string
+          user_id: string
+        }
+        Update: {
+          allowed?: boolean
+          permission?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -755,6 +787,7 @@ export type Database = {
         }
         Returns: number
       }
+      can_manage_staff: { Args: { _user_id: string }; Returns: boolean }
       can_manage_stock: { Args: { _user_id: string }; Returns: boolean }
       can_post_expense: { Args: { _user_id: string }; Returns: boolean }
       can_refund: { Args: { _user_id: string }; Returns: boolean }
@@ -782,6 +815,10 @@ export type Database = {
           p_payments: Json
         }
         Returns: Json
+      }
+      has_permission: {
+        Args: { _perm: string; _user_id: string }
+        Returns: boolean
       }
       has_role: {
         Args: {
@@ -844,6 +881,18 @@ export type Database = {
           p_sale: string
         }
         Returns: Json
+      }
+      role_allows: {
+        Args: { _perm: string; _user_id: string }
+        Returns: boolean
+      }
+      set_user_active: {
+        Args: { p_active: boolean; p_user: string }
+        Returns: undefined
+      }
+      set_user_permission: {
+        Args: { p_allowed: boolean; p_perm: string; p_user: string }
+        Returns: undefined
       }
       set_user_role: {
         Args: {

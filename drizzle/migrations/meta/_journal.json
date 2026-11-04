@@ -43,6 +43,13 @@
       "when": 1793793005194,
       "tag": "0005_price_rate_history",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793793449619,
+      "tag": "0006_usernames_permissions",
+      "breakpoints": true
     }
   ]
 }
