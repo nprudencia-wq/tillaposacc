@@ -24,3 +24,13 @@ describe("access rights", () => {
     expect(effectivePermission(["cashier"], "give_discount", { give_discount: false })).toBe(false);
   });
 });
+
+describe("price override right", () => {
+  it("is on by default for supervisors, off for cashiers", () => {
+    expect(effectivePermission(["supervisor"], "override_price", {})).toBe(true);
+    expect(effectivePermission(["cashier"], "override_price", {})).toBe(false);
+  });
+  it("can be allowed for one cashier on the Staff page", () => {
+    expect(effectivePermission(["cashier"], "override_price", { override_price: true })).toBe(true);
+  });
+});

@@ -21,6 +21,7 @@ export const PERMISSIONS = {
   manage_stock: "Manage products & stock",
   post_expense: "Post expenses",
   view_reports: "View reports",
+  override_price: "Change prices at the till",
 } as const;
 export type Permission = keyof typeof PERMISSIONS;
 
@@ -30,6 +31,7 @@ export const ROLE_DEFAULTS: Record<Permission, string[]> = {
   manage_stock: ["admin", "owner", "manager", "stock_controller"],
   post_expense: ["admin", "owner", "manager", "accountant"],
   view_reports: ["admin", "owner", "manager", "accountant"],
+  override_price: ["admin", "owner", "manager", "supervisor"],
 };
 
 /** Personal override wins; otherwise the role decides. Mirrors public.has_permission. */

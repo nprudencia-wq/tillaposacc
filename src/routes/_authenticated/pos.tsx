@@ -92,6 +92,14 @@ function Till({ shiftId }: { shiftId: string }) {
       (!s || p.name.toLowerCase().includes(s) || p.sku?.toLowerCase().includes(s) || p.barcode?.includes(s)));
   }, [products, q, cat]);
 
+  const listPrice = (id: string) => Number(products.find((p) => p.id === id)?.selling_price ?? 0);
+  function changePrice(id: string, name: string, current: number) {
+    const v = window.prompt(`New price for ${name} in USD (list price ${money(listPrice(id))})`, String(current));
+    if (v === null) return;
+    const n = Math.round(Number(v) * 100) / 100;
+    if (!Number.isFinite(n) || n < 0) { toast.error("Enter a valid price"); return; }
+    setLines((ls) => ls.map((l) => (l.product_id === id ? { ...l, unit_price: n } : l)));
+  }
   function add(p: (typeof products)[number]) {
     setLines((ls) => {
       const ex = ls.find((l) => l.product_id === p.id);
@@ -153,15 +161,17 @@ function Till({ shiftId }: { shiftId: string }) {
     const onAccount = paid.some((p) => isAccountMethod(p.method));
     if (onAccount && !customer) { toast.error("Choose the customer first to put this sale on account"); return; }
     if (onAccount && !navigator.onLine) { toast.error("On-account sales need the internet so the credit limit can be checked"); return; }
+    const overridden = lines.some((l) => l.unit_price !== listPrice(l.product_id));
+    if (!navigator.onLine && overridden) { toast.error("Changed prices need the internet. Undo the price change or wait to reconnect."); return; }
     if (!navigator.onLine) { saveOffline(paid); return; }
     const { data, error } = await supabase.rpc("complete_sale", {
-      p_items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity })),
+      p_items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, ...(l.unit_price !== listPrice(l.product_id) ? { price: l.unit_price } : {}) })),
       p_payments: payments.filter((p) => p.amount > 0) as never,
       p_discount: discount,
       p_currency: currency,
       ...(customer ? { p_customer: customer.id } : {}),
     });
-    if (error && isNetworkError(error) && !onAccount) { saveOffline(paid); return; }
+    if (error && isNetworkError(error) && !onAccount && !overridden) { saveOffline(paid); return; }
     if (error) { toast.error(error.message); qc.invalidateQueries({ queryKey: ["open-shift"] }); return; }
     const res = data as { sale_number: string; total: number; change: number; rate: number };
     finish({ sale_number: res.sale_number, created_at: new Date().toISOString(), rate: Number(res.rate), total: Number(res.total), change: Number(res.change) }, paid);
@@ -226,7 +236,10 @@ function Till({ shiftId }: { shiftId: string }) {
             <div key={l.product_id} className="flex items-center gap-2 border-b px-4 py-3">
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-semibold">{l.name}</div>
-                <div className="tabular text-xs text-muted-foreground">{show(l.unit_price)} each</div>
+                <div className="tabular text-xs text-muted-foreground">{show(l.unit_price)} each
+                  {listPrice(l.product_id) !== l.unit_price && <span className="ml-1 text-warning">(price changed from {show(listPrice(l.product_id))})</span>}
+                  {me?.canOverridePrice && <button type="button" className="ml-2 underline" aria-label={`Change price of ${l.name}`} onClick={() => changePrice(l.product_id, l.name, l.unit_price)}>Change price</button>}
+                </div>
                 {l.quantity > l.stock && <div className="text-xs text-destructive">Only {l.stock} in stock</div>}
               </div>
               <Button size="icon" variant="outline" className="h-9 w-9" aria-label={`Reduce quantity of ${l.name}`} onClick={() => setQty(l.product_id, l.quantity - 1)}><Minus className="h-4 w-4" /></Button>
