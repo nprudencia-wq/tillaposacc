@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/staff")({
   component: StaffPage,
 });
 
-type Row = { id: string; full_name: string; username: string | null; active: boolean; role?: Role; overrides: Partial<Record<Permission, boolean>>; sales: number; total: number };
+type Row = { id: string; full_name: string; username: string | null; active: boolean; role: Role | undefined; overrides: Partial<Record<Permission, boolean>>; sales: number; total: number };
 
 function StaffPage() {
   const { data: me } = useStaff();
@@ -64,12 +64,12 @@ function StaffPage() {
 
   async function changeRole(id: string, role: Role) {
     const { error } = await supabase.rpc("set_user_role", { p_user: id, p_role: role });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Role updated"); refresh();
   }
   async function setActive(id: string, active: boolean) {
     const { error } = await supabase.rpc("set_user_active", { p_user: id, p_active: active });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success(active ? "Login enabled" : "Login disabled"); refresh();
   }
 
@@ -186,7 +186,7 @@ function AccessDialog({ row, onClose, onDone }: { row: Row; onClose: () => void;
   async function set(p: Permission, v: string) {
     const allowed = v === "default" ? null : v === "allow";
     const { error } = await supabase.rpc("set_user_permission", { p_user: row.id, p_perm: p, p_allowed: allowed as boolean });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     onDone();
   }
   const roles = row.role ? [row.role] : [];
