@@ -3,6 +3,7 @@ import { Printer, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { money, type Currency, type PayMethod } from "@/lib/pos";
 import { methodLabel } from "@/lib/payment-types";
+import { useSettings } from "@/hooks/use-staff";
 
 export interface ReceiptData {
   sale_number: string;
@@ -21,10 +22,15 @@ export interface ReceiptData {
 
 export function Receipt({ r }: { r: ReceiptData }) {
   const cv = (usd: number) => (r.currency === "ZiG" ? usd * r.rate : usd);
+  const { data: st } = useSettings();
   return (
     <div id="receipt-print" className="mx-auto w-full max-w-[320px] bg-card p-4 font-mono text-xs text-card-foreground">
       <div className="text-center">
-        <div className="text-sm font-bold">{r.business}</div>
+        {st?.logo_url && <img src={st.logo_url} alt="" className="mx-auto mb-1 max-h-16" />}
+        <div className="text-sm font-bold">{st?.business_name || r.business}</div>
+        {st?.address && <div>{st.address}</div>}
+        {(st?.phone || st?.email) && <div>{[st?.phone, st?.email].filter(Boolean).join(" · ")}</div>}
+        {st?.tax_number && <div>VAT/TIN: {st.tax_number}</div>}
         <div>{r.sale_number}</div>
         <div>{new Date(r.created_at).toLocaleString()}</div>
         <div>Cashier: {r.cashier}</div>
@@ -46,7 +52,7 @@ export function Receipt({ r }: { r: ReceiptData }) {
         <div key={k} className="flex justify-between"><span>{methodLabel(p.method)} ({p.currency})</span><span>{money(p.amount, p.currency)}</span></div>
       ))}
       <div className="flex justify-between font-bold"><span>Change</span><span>{money(cv(r.change), r.currency)}</span></div>
-      <div className="mt-3 text-center">Thank you for shopping with us!</div>
+      <div className="mt-3 whitespace-pre-line text-center">{st?.receipt_footer || "Thank you for shopping with us!"}</div>
     </div>
   );
 }

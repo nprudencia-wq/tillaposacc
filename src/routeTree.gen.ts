@@ -23,6 +23,7 @@ import { Route as AuthenticatedSalesRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedShiftsRouteImport } from './routes/_authenticated/shifts'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
 import { Route as AuthenticatedStockRouteImport } from './routes/_authenticated/stock'
+import { Route as AuthenticatedStoreRouteImport } from './routes/_authenticated/store'
 import { Route as AuthenticatedSuppliersRouteImport } from './routes/_authenticated/suppliers'
 
 const IndexRoute = IndexRouteImport.update({
@@ -95,6 +96,11 @@ const AuthenticatedStockRoute = AuthenticatedStockRouteImport.update({
   path: '/stock',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedStoreRoute = AuthenticatedStoreRouteImport.update({
+  id: '/store',
+  path: '/store',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSuppliersRoute = AuthenticatedSuppliersRouteImport.update({
   id: '/suppliers',
   path: '/suppliers',
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/shifts': typeof AuthenticatedShiftsRoute
   '/staff': typeof AuthenticatedStaffRoute
   '/stock': typeof AuthenticatedStockRoute
+  '/store': typeof AuthenticatedStoreRoute
   '/suppliers': typeof AuthenticatedSuppliersRoute
 }
 export interface FileRoutesByTo {
@@ -131,6 +138,7 @@ export interface FileRoutesByTo {
   '/shifts': typeof AuthenticatedShiftsRoute
   '/staff': typeof AuthenticatedStaffRoute
   '/stock': typeof AuthenticatedStockRoute
+  '/store': typeof AuthenticatedStoreRoute
   '/suppliers': typeof AuthenticatedSuppliersRoute
 }
 export interface FileRoutesById {
@@ -149,6 +157,7 @@ export interface FileRoutesById {
   '/_authenticated/shifts': typeof AuthenticatedShiftsRoute
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
   '/_authenticated/stock': typeof AuthenticatedStockRoute
+  '/_authenticated/store': typeof AuthenticatedStoreRoute
   '/_authenticated/suppliers': typeof AuthenticatedSuppliersRoute
 }
 export interface FileRouteTypes {
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/shifts'
     | '/staff'
     | '/stock'
+    | '/store'
     | '/suppliers'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -183,6 +193,7 @@ export interface FileRouteTypes {
     | '/shifts'
     | '/staff'
     | '/stock'
+    | '/store'
     | '/suppliers'
   id:
     | '__root__'
@@ -200,6 +211,7 @@ export interface FileRouteTypes {
     | '/_authenticated/shifts'
     | '/_authenticated/staff'
     | '/_authenticated/stock'
+    | '/_authenticated/store'
     | '/_authenticated/suppliers'
   fileRoutesById: FileRoutesById
 }
@@ -309,6 +321,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedStockRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/store': {
+      id: '/_authenticated/store'
+      path: '/store'
+      fullPath: '/store'
+      preLoaderRoute: typeof AuthenticatedStoreRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/suppliers': {
       id: '/_authenticated/suppliers'
       path: '/suppliers'
@@ -331,6 +350,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedShiftsRoute: typeof AuthenticatedShiftsRoute
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
   AuthenticatedStockRoute: typeof AuthenticatedStockRoute
+  AuthenticatedStoreRoute: typeof AuthenticatedStoreRoute
   AuthenticatedSuppliersRoute: typeof AuthenticatedSuppliersRoute
 }
 
@@ -346,6 +366,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedShiftsRoute: AuthenticatedShiftsRoute,
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,
   AuthenticatedStockRoute: AuthenticatedStockRoute,
+  AuthenticatedStoreRoute: AuthenticatedStoreRoute,
   AuthenticatedSuppliersRoute: AuthenticatedSuppliersRoute,
 }
 
