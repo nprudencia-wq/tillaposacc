@@ -9,7 +9,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { money } from "@/lib/pos";
 import { isValidPin } from "@/lib/username";
-import { exportExcel, exportPDF } from "@/lib/export";
+import { exportExcel as xl, exportPDF as pdf } from "@/lib/export";
+
+const shape = (head: string[], rows: string[][]) => ({
+  cols: head.map((label, i) => ({ key: `c${i}`, label })),
+  rows: rows.map((r) => Object.fromEntries(r.map((v, i) => [`c${i}`, v]))),
+});
+const exportPDF = (title: string, head: string[], rows: string[][]) => { const x = shape(head, rows); return pdf(title.toLowerCase().replace(/\s+/g, "-"), title, "", x.cols, x.rows); };
+const exportExcel = (file: string, head: string[], rows: string[][]) => { const x = shape(head, rows); return xl(file, "Sheet1", x.cols, x.rows); };
 
 const today = () => new Date().toISOString().slice(0, 10);
 const daysAgo = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString().slice(0, 10); };
