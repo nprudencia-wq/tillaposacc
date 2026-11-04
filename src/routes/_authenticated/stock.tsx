@@ -14,7 +14,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { money } from "@/lib/pos";
 import { catOptions, reorderQty } from "@/lib/categories";
-import { exportExcel, exportPDF } from "@/lib/export";
+import { exportExcel, exportPDF as pdfOut } from "@/lib/export";
+
+type Cell = string | number;
+const shape = (cols: string[], data: Cell[][]) => ({
+  c: cols.map((label, i) => ({ key: String(i), label })),
+  r: data.map((d) => Object.fromEntries(d.map((v, i) => [String(i), v]))),
+});
+function exportPDF(title: string, cols: string[], data: Cell[][], file: string) {
+  const { c, r } = shape(cols, data); return pdfOut(file, title, new Date().toLocaleString(), c, r);
+}
+function exportXls(sheet: string, cols: string[], data: Cell[][], file: string) {
+  const { c, r } = shape(cols, data); return exportExcel(file, sheet, c, r);
+}
 
 export const Route = createFileRoute("/_authenticated/stock")({
   head: () => ({
@@ -82,7 +94,7 @@ function Card({ children }: { children: React.ReactNode }) {
 }
 
 /* ---------- product line picker ---------- */
-function Lines({ lines, setLines, maxFor }: { lines: Line[]; setLines: (l: Line[]) => void; maxFor?: (id: string) => number }) {
+function Lines({ lines, setLines, maxFor }: { lines: Line[]; setLines: (l: Line[]) => void; maxFor?: ((id: string) => number) | undefined }) {
   const { data: products = [] } = useProducts();
   const [pick, setPick] = useState("");
   const name = (id: string) => products.find((p) => p.id === id)?.name ?? "";
@@ -119,7 +131,7 @@ function Reorder() {
         <p className="flex items-center gap-2 font-semibold">{rows.length > 0 && <AlertTriangle className="h-4 w-4 text-destructive" />}{rows.length} products at or below minimum · reorder cost about {money(cost)}</p>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => exportPDF("Reorder list", cols, data, "reorder-list")}><Download className="h-4 w-4" />PDF</Button>
-          <Button variant="outline" size="sm" onClick={() => exportExcel("Reorder", cols, data, "reorder-list")}><Download className="h-4 w-4" />Excel</Button>
+          <Button variant="outline" size="sm" onClick={() => exportXls("Reorder", cols, data, "reorder-list")}><Download className="h-4 w-4" />Excel</Button>
         </div>
       </div>
       <Table className="mt-3">
@@ -360,7 +372,7 @@ function StocktakeSheet({ id, can, onDone }: { id: string; can: boolean; onDone:
         <p className="font-semibold">{data?.t?.stocktake_number} · {counted.length}/{items.length} counted · variance <span className={varValue < 0 ? "text-destructive" : "text-success"}>{money(varValue)}</span></p>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => exportPDF(`Stocktake ${data?.t?.stocktake_number}`, cols, exp, "stocktake")}><Download className="h-4 w-4" />Count sheet PDF</Button>
-          <Button variant="outline" size="sm" onClick={() => exportExcel("Stocktake", cols, exp, "stocktake")}><Download className="h-4 w-4" />Excel</Button>
+          <Button variant="outline" size="sm" onClick={() => exportXls("Stocktake", cols, exp, "stocktake")}><Download className="h-4 w-4" />Excel</Button>
           {counting && <Button variant="outline" size="sm" onClick={() => finish(false)}>Cancel</Button>}
           {counting && <Button size="sm" onClick={() => finish(true)}>Approve & update stock</Button>}
         </div>
@@ -402,7 +414,7 @@ function Valuation() {
     <Card>
       <div className="flex justify-end gap-2">
         <Button variant="outline" size="sm" onClick={() => exportPDF("Stock valuation", cols, data, "stock-valuation")}><Download className="h-4 w-4" />PDF</Button>
-        <Button variant="outline" size="sm" onClick={() => exportExcel("Valuation", cols, data, "stock-valuation")}><Download className="h-4 w-4" />Excel</Button>
+        <Button variant="outline" size="sm" onClick={() => exportXls("Valuation", cols, data, "stock-valuation")}><Download className="h-4 w-4" />Excel</Button>
       </div>
       <Table><TableHeader><TableRow>{cols.map((c) => <TableHead key={c}>{c}</TableHead>)}</TableRow></TableHeader>
         <TableBody>{data.map((d, i) => <TableRow key={i} className={i === data.length - 1 ? "font-semibold" : ""}>{d.map((v, j) => <TableCell key={j} className={j ? "tabular" : ""}>{v}</TableCell>)}</TableRow>)}</TableBody></Table>
@@ -436,7 +448,7 @@ function Movements() {
         <div className="space-y-1.5"><Label htmlFor="mv-from">From</Label><Input id="mv-from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
         <div className="space-y-1.5"><Label htmlFor="mv-to">To</Label><Input id="mv-to" type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
         <Button variant="outline" size="sm" onClick={() => exportPDF("Stock movements", cols, rows, "stock-movements")}><Download className="h-4 w-4" />PDF</Button>
-        <Button variant="outline" size="sm" onClick={() => exportExcel("Movements", cols, rows, "stock-movements")}><Download className="h-4 w-4" />Excel</Button>
+        <Button variant="outline" size="sm" onClick={() => exportXls("Movements", cols, rows, "stock-movements")}><Download className="h-4 w-4" />Excel</Button>
       </div>
       <Table className="mt-3"><TableHeader><TableRow>{cols.map((c) => <TableHead key={c}>{c}</TableHead>)}</TableRow></TableHeader>
         <TableBody>{rows.map((r, i) => <TableRow key={i}>{r.map((v, j) => <TableCell key={j} className={j === 0 || j === 3 ? "text-xs" : j > 3 ? `tabular ${j === 4 && Number(v) < 0 ? "text-destructive" : ""}` : ""}>{v}</TableCell>)}</TableRow>)}</TableBody></Table>
