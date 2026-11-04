@@ -829,39 +829,57 @@ export type Database = {
           address: string
           business_name: string
           email: string
+          grace_days: number
           id: number
           logo_url: string
+          paid_until: string
           phone: string
+          plan_name: string
+          plan_price_usd: number
           receipt_footer: string
           tax_number: string
           updated_at: string
           vat_rate: number
+          vendor_name: string
+          vendor_pay_details: string
           zig_rate: number
         }
         Insert: {
           address?: string
           business_name?: string
           email?: string
+          grace_days?: number
           id?: number
           logo_url?: string
+          paid_until?: string
           phone?: string
+          plan_name?: string
+          plan_price_usd?: number
           receipt_footer?: string
           tax_number?: string
           updated_at?: string
           vat_rate?: number
+          vendor_name?: string
+          vendor_pay_details?: string
           zig_rate?: number
         }
         Update: {
           address?: string
           business_name?: string
           email?: string
+          grace_days?: number
           id?: number
           logo_url?: string
+          paid_until?: string
           phone?: string
+          plan_name?: string
+          plan_price_usd?: number
           receipt_footer?: string
           tax_number?: string
           updated_at?: string
           vat_rate?: number
+          vendor_name?: string
+          vendor_pay_details?: string
           zig_rate?: number
         }
         Relationships: []
@@ -1117,6 +1135,57 @@ export type Database = {
           },
         ]
       }
+      subscription_payments: {
+        Row: {
+          amount: number
+          decided_at: string | null
+          decision_note: string | null
+          id: string
+          invoice_number: string
+          method: string
+          months: number
+          payer_phone: string | null
+          period_from: string | null
+          period_to: string | null
+          reference: string
+          status: string
+          submitted_at: string
+          submitted_by: string
+        }
+        Insert: {
+          amount: number
+          decided_at?: string | null
+          decision_note?: string | null
+          id?: string
+          invoice_number?: string
+          method: string
+          months: number
+          payer_phone?: string | null
+          period_from?: string | null
+          period_to?: string | null
+          reference: string
+          status?: string
+          submitted_at?: string
+          submitted_by: string
+        }
+        Update: {
+          amount?: number
+          decided_at?: string | null
+          decision_note?: string | null
+          id?: string
+          invoice_number?: string
+          method?: string
+          months?: number
+          payer_phone?: string | null
+          period_from?: string | null
+          period_to?: string | null
+          reference?: string
+          status?: string
+          submitted_at?: string
+          submitted_by?: string
+        }
+        Relationships: []
+      }
       supplier_payments: {
         Row: {
           amount: number
@@ -1356,6 +1425,10 @@ export type Database = {
         Returns: Json
       }
       customer_balance: { Args: { p_customer: string }; Returns: number }
+      decide_subscription_payment: {
+        Args: { p_approve: boolean; p_note: string; p_payment: string }
+        Returns: undefined
+      }
       finish_stocktake: {
         Args: { p_apply: boolean; p_stocktake: string }
         Returns: undefined
@@ -1483,9 +1556,29 @@ export type Database = {
         Args: { p_category: string; p_note: string }
         Returns: string
       }
+      submit_subscription_payment: {
+        Args: {
+          p_method: string
+          p_months: number
+          p_phone: string
+          p_reference: string
+        }
+        Returns: string
+      }
+      subscription_state: { Args: never; Returns: string }
       transfer_stock: {
         Args: { p_from: string; p_items: Json; p_note: string; p_to: string }
         Returns: string
+      }
+      vendor_update_plan: {
+        Args: {
+          p_details: string
+          p_grace: number
+          p_paid_until: string
+          p_price: number
+          p_vendor: string
+        }
+        Returns: undefined
       }
       verify_payment: { Args: { p_payment: string }; Returns: undefined }
     }
