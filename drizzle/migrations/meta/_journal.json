@@ -85,6 +85,13 @@
       "when": 1793799114927,
       "tag": "0011_price_override",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793799684096,
+      "tag": "0012_pin_clock_activity",
+      "breakpoints": true
     }
   ]
 }
