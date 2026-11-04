@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSettings, useStaff } from "@/hooks/use-staff";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { money, methodLabels, type Currency, type PayMethod } from "@/lib/pos";
+import { money, type Currency, type PayMethod } from "@/lib/pos";
+import { methodLabel } from "@/lib/payment-types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
 
@@ -78,7 +79,7 @@ function Dashboard() {
     const key = `${p.method}-${p.currency}`;
     const rateUsed = Number((p.sales as { exchange_rate: number } | null)?.exchange_rate) || Number(settings?.zig_rate) || 1;
     const usd = p.currency === "ZIG" ? Number(p.amount) / rateUsed : Number(p.amount);
-    const e = (acc[key] ??= { key, label: `${methodLabels[p.method as PayMethod] ?? p.method} (${p.currency})`, usd: 0, count: new Set() });
+    const e = (acc[key] ??= { key, label: `${methodLabel(p.method)} (${p.currency})`, usd: 0, count: new Set() });
     e.usd += usd; e.count.add(p.sale_id);
     return acc;
   }, {})).sort((a, b) => b.usd - a.usd);
