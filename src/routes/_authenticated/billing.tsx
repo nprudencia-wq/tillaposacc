@@ -35,7 +35,7 @@ function BillingPage() {
   const { data: me } = useStaff();
   const sub = useSubscription();
   const qc = useQueryClient();
-  const s = st as unknown as { plan_name: string; plan_price_usd: number; grace_days: number; paid_until: string; vendor_name: string; vendor_pay_details: string; business_name: string } | undefined;
+  const s = st as unknown as { plan_name: string; plan_price_usd: number; grace_days: number; paid_until: string; vendor_name: string; vendor_pay_details: string; business_name: string; till_count: number; billing_exempt: boolean } | undefined;
   const { data: pays = [] } = useQuery({
     queryKey: ["sub-payments"],
     queryFn: async () => {
@@ -44,7 +44,7 @@ function BillingPage() {
       return data as unknown as Pay[];
     },
   });
-  const canPay = !!me && me.roles.some((r) => ["admin", "owner", "manager"].includes(r));
+  const canPay = !s?.billing_exempt && !!me && me.roles.some((r) => ["admin", "owner", "manager"].includes(r));
   const [f, setF] = useState({ months: "1", method: "EcoCash", reference: "", phone: "" });
   const [busy, setBusy] = useState(false);
 
@@ -67,7 +67,7 @@ ${s.vendor_name || "Software provider"}
 Billed to: ${s.business_name}
 Date: ${new Date(p.submitted_at).toLocaleDateString()}
 
-${s.plan_name} x ${p.months} month(s)
+POS subscription: ${(p as Pay & { tills?: number }).tills ?? 1} till(s) x ${p.months} month(s)
 Amount: ${money(Number(p.amount))}
 Paid by: ${p.method}  Ref: ${p.reference}
 Period: ${p.period_from ?? "-"} to ${p.period_to ?? "-"}
@@ -77,7 +77,8 @@ Status: ${p.status.toUpperCase()}</pre>`);
 
   if (!s || !sub) return <div className="p-6 text-muted-foreground">Loading…</div>;
   const label = { active: "Active", grace: "Overdue (grace period)", locked: "Locked" }[sub.state];
-  const total = Number(s.plan_price_usd) * Number(f.months || 0);
+  const tills = Number(s.till_count) || 1;
+  const total = Number(s.plan_price_usd) * tills * Number(f.months || 0);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-8">
@@ -87,9 +88,9 @@ Status: ${p.status.toUpperCase()}</pre>`);
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Box label="Status" value={label} tone={sub.state} />
-        <Box label="Paid until" value={new Date(sub.paidUntil + "T00:00:00").toLocaleDateString()} />
-        <Box label={s.plan_name} value={`${money(Number(s.plan_price_usd))} / month`} />
+        <Box label="Status" value={s.billing_exempt ? "Free (no subscription)" : label} tone={s.billing_exempt ? undefined : sub.state} />
+        <Box label="Paid until" value={s.billing_exempt ? "—" : new Date(sub.paidUntil + "T00:00:00").toLocaleDateString()} />
+        <Box label={`${tills} till${tills > 1 ? "s" : ""} × ${money(Number(s.plan_price_usd))}`} value={`${money(Number(s.plan_price_usd) * tills)} / month`} />
       </div>
 
       {canPay && (
@@ -158,13 +159,13 @@ function Box({ label, value, tone }: { label: string; value: string; tone?: stri
   );
 }
 
-function VendorPanel({ s, pays }: { s: { plan_price_usd: number; grace_days: number; paid_until: string; vendor_name: string; vendor_pay_details: string }; pays: Pay[] }) {
+function VendorPanel({ s, pays }: { s: { plan_price_usd: number; till_count: number; billing_exempt: boolean; grace_days: number; paid_until: string; vendor_name: string; vendor_pay_details: string }; pays: Pay[] }) {
   const qc = useQueryClient();
   const decide = useServerFn(vendorDecide);
   const update = useServerFn(vendorUpdatePlan);
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
-  const [p, setP] = useState({ price: String(s.plan_price_usd), grace: String(s.grace_days), paidUntil: s.paid_until, vendor: s.vendor_name, details: s.vendor_pay_details });
+  const [p, setP] = useState({ price: String(s.plan_price_usd), tills: String(s.till_count ?? 1), exempt: !!s.billing_exempt, grace: String(s.grace_days), paidUntil: s.paid_until, vendor: s.vendor_name, details: s.vendor_pay_details });
   const refresh = () => { qc.invalidateQueries({ queryKey: ["sub-payments"] }); qc.invalidateQueries({ queryKey: ["settings"] }); };
 
   async function act(id: string, approve: boolean) {
@@ -172,7 +173,7 @@ function VendorPanel({ s, pays }: { s: { plan_price_usd: number; grace_days: num
     catch (e) { toast.error((e as Error).message); }
   }
   async function save() {
-    try { await update({ data: { code, price: Number(p.price), grace: Number(p.grace), paidUntil: p.paidUntil, vendor: p.vendor, details: p.details } }); toast.success("Plan saved"); refresh(); }
+    try { await update({ data: { code, price: Number(p.price), tills: Number(p.tills), exempt: p.exempt, grace: Number(p.grace), paidUntil: p.paidUntil, vendor: p.vendor, details: p.details } }); toast.success("Plan saved"); refresh(); }
     catch (e) { toast.error((e as Error).message); }
   }
 
@@ -193,9 +194,13 @@ function VendorPanel({ s, pays }: { s: { plan_price_usd: number; grace_days: num
         {!pending.length && <p className="text-sm text-muted-foreground">Nothing waiting.</p>}
       </div>
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="space-y-1.5"><Label htmlFor="pr">Monthly price (USD)</Label><Input id="pr" type="number" step="0.01" value={p.price} onChange={(e) => setP({ ...p, price: e.target.value })} /></div>
+        <div className="space-y-1.5"><Label htmlFor="pr">Price per till per month (USD)</Label><Input id="pr" type="number" step="0.01" value={p.price} onChange={(e) => setP({ ...p, price: e.target.value })} /></div>
         <div className="space-y-1.5"><Label htmlFor="gd">Grace days</Label><Input id="gd" type="number" value={p.grace} onChange={(e) => setP({ ...p, grace: e.target.value })} /></div>
         <div className="space-y-1.5"><Label htmlFor="pu">Paid until</Label><Input id="pu" type="date" value={p.paidUntil} onChange={(e) => setP({ ...p, paidUntil: e.target.value })} /></div>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5"><Label htmlFor="tc">Number of tills (POS)</Label><Input id="tc" type="number" min={1} value={p.tills} onChange={(e) => setP({ ...p, tills: e.target.value })} /></div>
+        <label className="flex items-center gap-2 pt-6 text-sm"><input type="checkbox" checked={p.exempt} onChange={(e) => setP({ ...p, exempt: e.target.checked })} />Free — this shop doesn't pay</label>
       </div>
       <div className="space-y-1.5"><Label htmlFor="vn">Your business name</Label><Input id="vn" value={p.vendor} onChange={(e) => setP({ ...p, vendor: e.target.value })} /></div>
       <div className="space-y-1.5"><Label htmlFor="vd">How clients pay you (EcoCash number, InnBucks code, bank details)</Label><Textarea id="vd" rows={4} value={p.details} onChange={(e) => setP({ ...p, details: e.target.value })} /></div>

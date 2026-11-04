@@ -17,11 +17,13 @@ export const vendorDecide = createServerFn({ method: "POST" })
       p_payment: data.paymentId, p_approve: data.approve, p_note: data.note ?? "",
     });
     if (error) throw new Error(error.message);
+    const { error: e2 } = await supabaseAdmin.rpc("vendor_update_billing", { p_price: data.price, p_tills: Math.max(1, Math.round(data.tills)), p_exempt: data.exempt });
+    if (e2) throw new Error(e2.message);
     return { ok: true };
   });
 
 export const vendorUpdatePlan = createServerFn({ method: "POST" })
-  .inputValidator((d: { code: string; price: number; grace: number; paidUntil: string; vendor: string; details: string }) => {
+  .inputValidator((d: { code: string; price: number; tills: number; exempt: boolean; grace: number; paidUntil: string; vendor: string; details: string }) => {
     if (!(d.price > 0) || d.grace < 0 || !/^\d{4}-\d{2}-\d{2}$/.test(d.paidUntil)) throw new Error("Check the plan details");
     return d;
   })
@@ -32,5 +34,7 @@ export const vendorUpdatePlan = createServerFn({ method: "POST" })
       p_price: data.price, p_grace: data.grace, p_paid_until: data.paidUntil, p_vendor: data.vendor, p_details: data.details,
     });
     if (error) throw new Error(error.message);
+    const { error: e2 } = await supabaseAdmin.rpc("vendor_update_billing", { p_price: data.price, p_tills: Math.max(1, Math.round(data.tills)), p_exempt: data.exempt });
+    if (e2) throw new Error(e2.message);
     return { ok: true };
   });

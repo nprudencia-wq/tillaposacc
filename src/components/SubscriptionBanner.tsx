@@ -6,18 +6,18 @@ import { daysBetween, subState, todayStr } from "@/lib/subscription";
 export function useSubscription() {
   const { data: st } = useSettings();
   if (!st) return null;
-  const s = st as unknown as { paid_until: string; grace_days: number };
+  const s = st as unknown as { paid_until: string; grace_days: number; billing_exempt: boolean };
   const today = todayStr();
-  const state = subState(s.paid_until, Number(s.grace_days), today);
+  const state = s.billing_exempt ? "active" as const : subState(s.paid_until, Number(s.grace_days), today);
   const left = daysBetween(today, s.paid_until);
   const graceLeft = left + Number(s.grace_days);
-  return { state, paidUntil: s.paid_until, daysLeft: left, graceLeft };
+  return { exempt: !!s.billing_exempt, state, paidUntil: s.paid_until, daysLeft: left, graceLeft };
 }
 
 export function SubscriptionBanner() {
   const sub = useSubscription();
   if (!sub) return null;
-  if (sub.state === "active" && sub.daysLeft > 3) return null;
+  if (sub.exempt || (sub.state === "active" && sub.daysLeft > 3)) return null;
   const msg = sub.state === "locked"
     ? "Subscription expired — the till is locked until it's renewed."
     : sub.state === "grace"
