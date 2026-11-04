@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect, Link, useNavigate, Navigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut, Truck, BarChart3, Users, Wallet, Clock, CreditCard, Contact, ClipboardList, Store } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut, Truck, BarChart3, Users, Wallet, Clock, CreditCard, Contact, ClipboardList, Store, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaff } from "@/hooks/use-staff";
 import { roleLabels } from "@/lib/pos";
@@ -27,12 +27,13 @@ const nav = [
   { to: "/pos", label: "Till", icon: ShoppingCart },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/inventory", label: "Inventory", icon: Boxes },
-  { to: "/stock", label: "Stock control", icon: ClipboardList, Store },
+  { to: "/stock", label: "Stock control", icon: ClipboardList },
   { to: "/sales", label: "Sales", icon: Receipt },
   { to: "/customers", label: "Customers", icon: Contact },
   { to: "/suppliers", label: "Suppliers", icon: Truck },
   { to: "/shifts", label: "Shifts", icon: Clock },
   { to: "/expenses", label: "Expenses", icon: Wallet },
+  { to: "/accounting", label: "Accounting", icon: BookOpen },
   { to: "/payment-types", label: "Payment types", icon: CreditCard },
   { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/staff", label: "Staff", icon: Users },
