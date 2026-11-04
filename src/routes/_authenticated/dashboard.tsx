@@ -47,16 +47,16 @@ function Dashboard() {
   });
 
   const top = Object.values((data?.items ?? []).reduce<Record<string, { name: string; qty: number; total: number }>>((acc, i) => {
-    acc[i.name] ??= { name: i.name, qty: 0, total: 0 };
-    acc[i.name].qty += Number(i.quantity); acc[i.name].total += Number(i.line_total);
+    const e = (acc[i.name] ??= { name: i.name, qty: 0, total: 0 });
+    e.qty += Number(i.quantity); e.total += Number(i.line_total);
     return acc;
   }, {})).sort((a, b) => b.total - a.total).slice(0, 5);
 
   async function saveRate() {
     const v = Number(rate);
-    if (!v || v <= 0) return toast.error("Enter a valid rate");
+    if (!v || v <= 0) { toast.error("Enter a valid rate"); return; }
     const { error } = await supabase.from("settings").update({ zig_rate: v, updated_at: new Date().toISOString() }).eq("id", 1);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     qc.invalidateQueries({ queryKey: ["settings"] }); setRate("");
     toast.success("Exchange rate updated");
   }

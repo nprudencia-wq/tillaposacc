@@ -129,7 +129,7 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
   const set = (k: keyof Product, v: unknown) => setF((x) => ({ ...x, [k]: v }));
 
   async function save() {
-    if (!f.name) return toast.error("Name is required");
+    if (!f.name) { toast.error("Name is required"); return; }
     const payload = {
       name: f.name, sku: f.sku || null, barcode: f.barcode || null, description: f.description || null,
       category_id: f.category_id || null, image_url: f.image_url || null,
@@ -138,7 +138,7 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
     };
     if (isNew) {
       const { data, error } = await supabase.from("products").insert(payload).select().single();
-      if (error) return toast.error(error.message);
+      if (error) { toast.error(error.message); return; }
       const opening = Number(f.stock || 0);
       if (opening > 0) {
         const { error: e2 } = await supabase.rpc("adjust_stock", { p_product: data.id, p_qty: opening, p_type: "opening", p_note: "Opening stock" });
@@ -146,7 +146,7 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
       }
     } else {
       const { error } = await supabase.from("products").update(payload).eq("id", p.id!);
-      if (error) return toast.error(error.message);
+      if (error) { toast.error(error.message); return; }
     }
     qc.invalidateQueries({ queryKey: ["products"] });
     toast.success("Product saved");
@@ -206,9 +206,9 @@ function AdjustDialog({ p, onClose }: { p: Product; onClose: () => void }) {
   const delta = sign === 0 ? qty : sign * Math.abs(qty);
 
   async function save() {
-    if (!qty) return toast.error("Enter a quantity");
+    if (!qty) { toast.error("Enter a quantity"); return; }
     const { error } = await supabase.rpc("adjust_stock", { p_product: p.id, p_qty: delta, p_type: type, p_note: note });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     qc.invalidateQueries({ queryKey: ["products"] });
     qc.invalidateQueries({ queryKey: ["movements", p.id] });
     toast.success("Stock updated");
