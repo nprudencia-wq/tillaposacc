@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { STOCK_ROLES } from "@/lib/pos";
 import { cached } from "@/lib/offline";
+import { effectivePermission, type Permission } from "@/lib/username";
 
 export function useStaff() {
   return useQuery({
@@ -10,19 +10,28 @@ export function useStaff() {
       const { data: s } = await supabase.auth.getSession();
       const user = s.session?.user;
       if (!user) return null;
-      const [{ data: roles, error }, { data: profile }] = await Promise.all([
+      const [{ data: roles, error }, { data: profile }, { data: perms }] = await Promise.all([
         supabase.from("user_roles").select("role").eq("user_id", user.id),
-        supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+        supabase.from("profiles").select("full_name, username, active").eq("id", user.id).maybeSingle(),
+        supabase.from("user_permissions").select("permission, allowed").eq("user_id", user.id),
       ]);
       if (error) throw error;
       const list = (roles ?? []).map((r) => r.role as string);
+      const overrides = Object.fromEntries((perms ?? []).map((p) => [p.permission, p.allowed])) as Partial<Record<Permission, boolean>>;
+      const can = (p: Permission) => profile?.active !== false && effectivePermission(list, p, overrides);
       return {
         id: user.id,
         email: user.email ?? "",
-        name: profile?.full_name || user.email || "",
+        name: profile?.full_name || profile?.username || user.email || "",
         roles: list,
-        canManageStock: list.some((r) => STOCK_ROLES.includes(r)),
-        canRefund: list.some((r) => ["admin", "owner", "manager", "supervisor"].includes(r)),
+        username: profile?.username ?? "",
+        active: profile?.active !== false,
+        canManageStock: can("manage_stock"),
+        canRefund: can("refund"),
+        canDiscount: can("give_discount"),
+        canPostExpense: can("post_expense"),
+        canViewReports: can("view_reports"),
+        canManageStaff: list.some((r) => ["admin", "owner", "manager"].includes(r)),
         isOwner: list.some((r) => ["admin", "owner"].includes(r)),
       };
     }),

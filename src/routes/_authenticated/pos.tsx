@@ -227,14 +227,14 @@ function Till({ shiftId }: { shiftId: string }) {
           ))}
         </div>
         <div className="space-y-3 border-t p-4">
-          <div className="flex items-center gap-2">
+          {me?.canDiscount !== false && <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Discount</span>
             <Select value={discKind} onValueChange={(v) => setDiscKind(v as "percent" | "fixed")}>
               <SelectTrigger className="h-9 w-20"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="percent">%</SelectItem><SelectItem value="fixed">$</SelectItem></SelectContent>
             </Select>
             <Input type="number" min={0} value={discVal || ""} onChange={(e) => setDiscVal(Number(e.target.value))} className="h-9 flex-1" placeholder="0" />
-          </div>
+          </div>}
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Currency</span>
             <div className="flex rounded-lg bg-muted p-1">
