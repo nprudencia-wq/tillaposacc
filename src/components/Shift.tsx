@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { money, methodLabels, type Currency, type PayMethod } from "@/lib/pos";
+import { cached } from "@/lib/offline";
 
 export type ShiftSummary = {
   shift: {
@@ -28,13 +29,15 @@ const moveLabels: Record<string, string> = { cash_drop: "Safe drop", paid_out: "
 export function useOpenShift() {
   return useQuery({
     queryKey: ["open-shift"],
-    queryFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return null;
-      const { data } = await supabase.from("cashier_shifts").select("*")
-        .eq("cashier_id", u.user.id).eq("status", "open").maybeSingle();
+    queryFn: () => cached("open-shift", async () => {
+      const { data: s } = await supabase.auth.getSession();
+      const uid = s.session?.user.id;
+      if (!uid) return null;
+      const { data, error } = await supabase.from("cashier_shifts").select("*")
+        .eq("cashier_id", uid).eq("status", "open").maybeSingle();
+      if (error) throw error;
       return data;
-    },
+    }),
   });
 }
 
