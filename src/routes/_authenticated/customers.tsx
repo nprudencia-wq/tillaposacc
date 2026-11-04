@@ -234,6 +234,43 @@ function PayDialog({ customer, owed, onClose }: { customer: Customer; owed: numb
   );
 }
 
+function AdjustDialog({ customer, owed, onClose }: { customer: Customer; owed: number; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [kind, setKind] = useState<"charge" | "credit">("charge");
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    setBusy(true);
+    const { error } = await supabase.rpc("adjust_customer_balance", { p_customer: customer.id, p_kind: kind, p_amount: Number(amount), p_note: note });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(kind === "charge" ? `Balance added to ${customer.name}` : `Balance reduced for ${customer.name}`);
+    qc.invalidateQueries({ queryKey: ["customer-ledger"] });
+    onClose();
+  }
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Adjust balance — {customer.name}</DialogTitle></DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Currently owes {money(owed)}. Use this for opening balances or corrections — no sale is made and no stock moves.
+        </p>
+        <Select value={kind} onValueChange={(v) => setKind(v as "charge" | "credit")}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="charge">Add to what they owe (charge)</SelectItem>
+            <SelectItem value="credit">Reduce what they owe (credit)</SelectItem>
+          </SelectContent>
+        </Select>
+        <div><Label htmlFor="adj-amount">Amount (USD)</Label><Input id="adj-amount" type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="tabular" /></div>
+        <div><Label htmlFor="adj-note">Reason</Label><Input id="adj-note" placeholder="e.g. Opening balance from old book" value={note} onChange={(e) => setNote(e.target.value)} /></div>
+        <Button onClick={save} disabled={busy || !(Number(amount) > 0)}>Save adjustment</Button>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function StatementDialog({ customer, entries, biz, onClose }: { customer: Customer; entries: Entry[]; biz: string; onClose: () => void }) {
   let bal = 0;
   const rows = entries.map((e) => { bal = Math.round((bal + e.debit - e.credit) * 100) / 100; return { date: new Date(e.date).toLocaleDateString(), ref: e.ref, note: e.note, debit: e.debit, credit: e.credit, balance: bal }; });
