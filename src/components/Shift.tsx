@@ -235,7 +235,7 @@ export function ShiftReportDialog({ s, title, onClose }: { s: ShiftSummary; titl
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-sm overflow-y-auto">
         <DialogHeader className="sr-only"><DialogTitle>{title}</DialogTitle></DialogHeader>
-        <div id="print-area"><ShiftReport s={s} title={title} /></div>
+        <div id="receipt-print"><ShiftReport s={s} title={title} /></div>
         <Button variant="outline" onClick={() => window.print()} className="print:hidden"><Printer className="h-4 w-4" />Print</Button>
       </DialogContent>
     </Dialog>
