@@ -217,6 +217,38 @@ export type Database = {
           },
         ]
       }
+      price_history: {
+        Row: {
+          cost_price: number
+          effective_from: string
+          id: string
+          product_id: string
+          selling_price: number
+        }
+        Insert: {
+          cost_price: number
+          effective_from?: string
+          id?: string
+          product_id: string
+          selling_price: number
+        }
+        Update: {
+          cost_price?: number
+          effective_from?: string
+          id?: string
+          product_id?: string
+          selling_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_history_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           active: boolean
@@ -294,6 +326,24 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+        }
+        Relationships: []
+      }
+      rate_history: {
+        Row: {
+          effective_from: string
+          id: string
+          zig_rate: number
+        }
+        Insert: {
+          effective_from?: string
+          id?: string
+          zig_rate: number
+        }
+        Update: {
+          effective_from?: string
+          id?: string
+          zig_rate?: number
         }
         Relationships: []
       }
