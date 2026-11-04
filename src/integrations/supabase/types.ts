@@ -826,22 +826,40 @@ export type Database = {
       }
       settings: {
         Row: {
+          address: string
           business_name: string
+          email: string
           id: number
+          logo_url: string
+          phone: string
+          receipt_footer: string
+          tax_number: string
           updated_at: string
           vat_rate: number
           zig_rate: number
         }
         Insert: {
+          address?: string
           business_name?: string
+          email?: string
           id?: number
+          logo_url?: string
+          phone?: string
+          receipt_footer?: string
+          tax_number?: string
           updated_at?: string
           vat_rate?: number
           zig_rate?: number
         }
         Update: {
+          address?: string
           business_name?: string
+          email?: string
           id?: number
+          logo_url?: string
+          phone?: string
+          receipt_footer?: string
+          tax_number?: string
           updated_at?: string
           vat_rate?: number
           zig_rate?: number

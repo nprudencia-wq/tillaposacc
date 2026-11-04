@@ -92,6 +92,13 @@
       "when": 1793799684096,
       "tag": "0012_pin_clock_activity",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793801349862,
+      "tag": "0013_store_profile",
+      "breakpoints": true
     }
   ]
 }
