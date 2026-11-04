@@ -159,7 +159,7 @@ function Till({ shiftId }: { shiftId: string }) {
       p_payments: payments.filter((p) => p.amount > 0) as never,
       p_discount: discount,
       p_currency: currency,
-      p_customer: customer?.id,
+      ...(customer ? { p_customer: customer.id } : {}),
     });
     if (error && isNetworkError(error) && !onAccount) { saveOffline(paid); return; }
     if (error) { toast.error(error.message); qc.invalidateQueries({ queryKey: ["open-shift"] }); return; }
