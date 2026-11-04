@@ -350,8 +350,17 @@ function StocktakeSheet({ id, can, onDone }: { id: string; can: boolean; onDone:
   const items = data?.items ?? [];
   const counting = data?.t?.status === "counting" && can;
   const rows = useMemo(() => items.filter((i) => !q || i.name.toLowerCase().includes(q.toLowerCase())), [items, q]);
-  const counted = items.filter((i) => i.counted_qty !== null);
-  const varValue = counted.reduce((s, i) => s + (Number(i.counted_qty) - Number(i.system_qty)) * Number(i.unit_cost), 0);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const qty = (i: { product_id: string; counted_qty: number | null }) => {
+    const d = draft[i.product_id];
+    if (d !== undefined) return d === "" ? null : Number(d);
+    return i.counted_qty === null ? null : Number(i.counted_qty);
+  };
+  const counted = items.filter((i) => qty(i) !== null);
+  const diffs = counted.map((i) => (Number(qty(i)) - Number(i.system_qty)) * Number(i.unit_cost));
+  const varValue = diffs.reduce((s, x) => s + x, 0);
+  const shortValue = diffs.filter((x) => x < 0).reduce((s, x) => s + x, 0);
+  const overValue = diffs.filter((x) => x > 0).reduce((s, x) => s + x, 0);
   async function count(pid: string, v: string) {
     const { error } = await supabase.rpc("record_count", { p_stocktake: id, p_product: pid, p_qty: v === "" ? null : Number(v) } as never);
     if (error) toast.error(error.message); else qc.invalidateQueries({ queryKey: ["stocktake", id] });
@@ -364,12 +373,13 @@ function StocktakeSheet({ id, can, onDone }: { id: string; can: boolean; onDone:
     ["stocktakes", "stocktake", "products", "movements"].forEach((k) => qc.invalidateQueries({ queryKey: [k] }));
     onDone();
   }
-  const cols = ["Product", "System", "Counted", "Variance", "Value"];
-  const exp = items.map((i) => [i.name, Number(i.system_qty), i.counted_qty ?? "", i.counted_qty === null ? "" : Number(i.counted_qty) - Number(i.system_qty), i.counted_qty === null ? "" : money((Number(i.counted_qty) - Number(i.system_qty)) * Number(i.unit_cost))]);
+  const cols = ["Product", "System balance", "Physical count", "Variance (qty)", "Unit cost", "Variance cost"];
+  const exp = items.map((i) => { const c = qty(i); return [i.name, Number(i.system_qty), c ?? "", c === null ? "" : c - Number(i.system_qty), money(Number(i.unit_cost)), c === null ? "" : money((c - Number(i.system_qty)) * Number(i.unit_cost))]; });
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-semibold">{data?.t?.stocktake_number} · {counted.length}/{items.length} counted · variance <span className={varValue < 0 ? "text-destructive" : "text-success"}>{money(varValue)}</span></p>
+        <p className="font-semibold">{data?.t?.stocktake_number} · {counted.length}/{items.length} counted · net variance cost <span className={varValue < 0 ? "text-destructive" : "text-success"}>{money(varValue)}</span>
+          <span className="ml-2 text-sm font-normal text-muted-foreground">shortages <span className="text-destructive">{money(shortValue)}</span> · surpluses <span className="text-success">{money(overValue)}</span></span></p>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => exportPDF(`Stocktake ${data?.t?.stocktake_number}`, cols, exp, "stocktake")}><Download className="h-4 w-4" />Count sheet PDF</Button>
           <Button variant="outline" size="sm" onClick={() => exportXls("Stocktake", cols, exp, "stocktake")}><Download className="h-4 w-4" />Excel</Button>
@@ -380,12 +390,14 @@ function StocktakeSheet({ id, can, onDone }: { id: string; can: boolean; onDone:
       <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find product…" className="mt-3 max-w-sm" />
       <Table className="mt-2"><TableHeader><TableRow>{cols.map((c) => <TableHead key={c}>{c}</TableHead>)}</TableRow></TableHeader>
         <TableBody>{rows.map((i) => {
-          const v = i.counted_qty === null ? null : Number(i.counted_qty) - Number(i.system_qty);
+          const c = qty(i);
+          const v = c === null ? null : c - Number(i.system_qty);
           return (
             <TableRow key={i.product_id}><TableCell>{i.name}</TableCell><TableCell className="tabular">{Number(i.system_qty)}</TableCell>
-              <TableCell>{counting ? <Input type="number" aria-label={`Counted ${i.name}`} className="w-24" defaultValue={i.counted_qty ?? ""} onBlur={(e) => count(i.product_id, e.target.value)} /> : <span className="tabular">{i.counted_qty ?? "—"}</span>}</TableCell>
+              <TableCell>{counting ? <Input type="number" aria-label={`Counted ${i.name}`} className="w-24" min={0} value={draft[i.product_id] ?? (i.counted_qty ?? "")} onChange={(e) => setDraft((d) => ({ ...d, [i.product_id]: e.target.value }))} onBlur={(e) => count(i.product_id, e.target.value)} /> : <span className="tabular">{c ?? "—"}</span>}</TableCell>
               <TableCell className={`tabular ${v && v < 0 ? "text-destructive" : v ? "text-success" : ""}`}>{v === null ? "—" : v > 0 ? `+${v}` : v}</TableCell>
-              <TableCell className="tabular">{v === null ? "—" : money(v * Number(i.unit_cost))}</TableCell></TableRow>
+              <TableCell className="tabular">{money(Number(i.unit_cost))}</TableCell>
+              <TableCell className={`tabular ${v && v < 0 ? "text-destructive" : v ? "text-success" : ""}`}>{v === null ? "—" : money(v * Number(i.unit_cost))}</TableCell></TableRow>
           );
         })}</TableBody></Table>
     </Card>
