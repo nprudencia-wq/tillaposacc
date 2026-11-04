@@ -2,8 +2,9 @@
 const PREVIEW_LABEL = /^(?:id-preview|preview)(?:-[a-z0-9]+)?--.+$/;
 const LOVABLE_HOSTS = [".lovable.app", ".gpt-eng.com", ".gptengineer.run"];
 
-function refused(): boolean {
-  if (!import.meta.env.PROD) return true;
+// True inside the Lovable editor preview: an iframe, a preview hostname, or dev mode.
+export function isPreviewContext(): boolean {
+  if (typeof window === "undefined") return true;
   if (window.self !== window.top) return true;
   const h = window.location.hostname.toLowerCase();
   const label = h.split(".")[0] ?? "";
@@ -11,6 +12,12 @@ function refused(): boolean {
   for (const d of ["lovableproject.com", "lovableproject-dev.com", "beta.lovable.dev"]) {
     if (h === d || h.endsWith("." + d)) return true;
   }
+  return false;
+}
+
+function refused(): boolean {
+  if (!import.meta.env.PROD) return true;
+  if (isPreviewContext()) return true;
   if (new URLSearchParams(window.location.search).get("sw") === "off") return true;
   return false;
 }
