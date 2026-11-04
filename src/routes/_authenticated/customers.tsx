@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/customers")({
   component: CustomersPage,
 });
 
-type Entry = { date: string; kind: "sale" | "payment" | "refund"; ref: string; debit: number; credit: number; note: string };
+type Entry = { date: string; kind: "sale" | "payment" | "refund" | "adjustment"; ref: string; debit: number; credit: number; note: string };
 
 function useLedger() {
   return useQuery({
@@ -31,10 +31,11 @@ function useLedger() {
     queryFn: async () => {
       const { data: types } = await supabase.from("payment_types").select("code").eq("is_account", true);
       const codes = (types ?? []).map((t) => t.code);
-      const [sp, pays, refs] = await Promise.all([
+      const [sp, pays, refs, adjs] = await Promise.all([
         codes.length ? supabase.from("sale_payments").select("amount, currency, method, sales!inner(customer_id, created_at, exchange_rate, sale_number)").in("method", codes).not("sales.customer_id", "is", null) : Promise.resolve({ data: [] as never[] }),
         supabase.from("customer_payments").select("*").order("created_at"),
         codes.length ? supabase.from("refunds").select("amount, created_at, method, reason, sales!inner(customer_id, sale_number)").in("method", codes) : Promise.resolve({ data: [] as never[] }),
+        supabase.from("customer_adjustments").select("*").order("created_at"),
       ]);
       const entries: Record<string, Entry[]> = {};
       const push = (id: string, e: Entry) => (entries[id] ??= []).push(e);
@@ -47,6 +48,16 @@ function useLedger() {
       }
       for (const r of (refs.data ?? []) as { amount: number; created_at: string; reason: string; sales: { customer_id: string; sale_number: string } }[]) {
         push(r.sales.customer_id, { date: r.created_at, kind: "refund", ref: r.sales.sale_number, debit: 0, credit: Number(r.amount), note: `Return: ${r.reason}` });
+      }
+      for (const a of adjs.data ?? []) {
+        push(a.customer_id, {
+          date: a.created_at,
+          kind: "adjustment",
+          ref: "ADJ",
+          debit: a.kind === "charge" ? Number(a.amount) : 0,
+          credit: a.kind === "credit" ? Number(a.amount) : 0,
+          note: `${a.kind === "charge" ? "Balance added" : "Balance reduced"}${a.note ? `: ${a.note}` : ""}`,
+        });
       }
       for (const k in entries) entries[k]?.sort((a, b) => a.date.localeCompare(b.date));
       return { entries, payments: pays.data ?? [] };
