@@ -17,8 +17,6 @@ export const vendorDecide = createServerFn({ method: "POST" })
       p_payment: data.paymentId, p_approve: data.approve, p_note: data.note ?? "",
     });
     if (error) throw new Error(error.message);
-    const { error: e2 } = await supabaseAdmin.rpc("vendor_update_billing", { p_price: data.price, p_tills: Math.max(1, Math.round(data.tills)), p_exempt: data.exempt });
-    if (e2) throw new Error(e2.message);
     return { ok: true };
   });
 
