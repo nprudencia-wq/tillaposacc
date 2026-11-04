@@ -50,7 +50,7 @@ function StorePage() {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!f) return undefined;
+    if (!f) return;
     if (!f.business_name.trim()) { toast.error("Trading name is required"); return; }
     setBusy(true);
     const { error } = await supabase.from("settings").update({ ...f, updated_at: new Date().toISOString() }).eq("id", 1);
