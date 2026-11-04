@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      cashier_shifts: {
+        Row: {
+          actual_cash_usd: number | null
+          actual_cash_zig: number | null
+          cashier_id: string
+          closed_at: string | null
+          expected_cash_usd: number | null
+          expected_cash_zig: number | null
+          id: string
+          notes: string | null
+          opened_at: string
+          opening_float_usd: number
+          opening_float_zig: number
+          shift_number: string
+          status: string
+          variance_usd: number | null
+          variance_zig: number | null
+        }
+        Insert: {
+          actual_cash_usd?: number | null
+          actual_cash_zig?: number | null
+          cashier_id: string
+          closed_at?: string | null
+          expected_cash_usd?: number | null
+          expected_cash_zig?: number | null
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opening_float_usd?: number
+          opening_float_zig?: number
+          shift_number?: string
+          status?: string
+          variance_usd?: number | null
+          variance_zig?: number | null
+        }
+        Update: {
+          actual_cash_usd?: number | null
+          actual_cash_zig?: number | null
+          cashier_id?: string
+          closed_at?: string | null
+          expected_cash_usd?: number | null
+          expected_cash_zig?: number | null
+          id?: string
+          notes?: string | null
+          opened_at?: string
+          opening_float_usd?: number
+          opening_float_zig?: number
+          shift_number?: string
+          status?: string
+          variance_usd?: number | null
+          variance_zig?: number | null
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -252,6 +306,7 @@ export type Database = {
           reason: string
           refunded_by: string
           sale_id: string
+          shift_id: string | null
         }
         Insert: {
           amount: number
@@ -261,6 +316,7 @@ export type Database = {
           reason: string
           refunded_by: string
           sale_id: string
+          shift_id?: string | null
         }
         Update: {
           amount?: number
@@ -270,6 +326,7 @@ export type Database = {
           reason?: string
           refunded_by?: string
           sale_id?: string
+          shift_id?: string | null
         }
         Relationships: [
           {
@@ -277,6 +334,13 @@ export type Database = {
             columns: ["sale_id"]
             isOneToOne: false
             referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refunds_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "cashier_shifts"
             referencedColumns: ["id"]
           },
         ]
@@ -375,6 +439,7 @@ export type Database = {
           exchange_rate: number
           id: string
           sale_number: string
+          shift_id: string | null
           status: string
           subtotal: number
           total: number
@@ -389,6 +454,7 @@ export type Database = {
           exchange_rate?: number
           id?: string
           sale_number?: string
+          shift_id?: string | null
           status?: string
           subtotal: number
           total: number
@@ -403,11 +469,20 @@ export type Database = {
           exchange_rate?: number
           id?: string
           sale_number?: string
+          shift_id?: string | null
           status?: string
           subtotal?: number
           total?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sales_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "cashier_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       settings: {
         Row: {
@@ -432,6 +507,47 @@ export type Database = {
           zig_rate?: number
         }
         Relationships: []
+      }
+      shift_cash_movements: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          reason: string
+          shift_id: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency: string
+          id?: string
+          reason: string
+          shift_id: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          reason?: string
+          shift_id?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shift_cash_movements_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "cashier_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_movements: {
         Row: {
@@ -580,6 +696,10 @@ export type Database = {
       can_manage_stock: { Args: { _user_id: string }; Returns: boolean }
       can_post_expense: { Args: { _user_id: string }; Returns: boolean }
       can_refund: { Args: { _user_id: string }; Returns: boolean }
+      close_shift: {
+        Args: { p_actual_usd: number; p_actual_zig: number; p_notes: string }
+        Returns: string
+      }
       complete_sale: {
         Args: {
           p_currency: string
@@ -598,6 +718,10 @@ export type Database = {
       }
       is_owner_admin: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      open_shift: {
+        Args: { p_float_usd: number; p_float_zig: number }
+        Returns: Json
+      }
       pay_supplier: {
         Args: {
           p_amount: number
@@ -629,6 +753,15 @@ export type Database = {
         }
         Returns: Json
       }
+      record_cash_movement: {
+        Args: {
+          p_amount: number
+          p_currency: string
+          p_reason: string
+          p_type: string
+        }
+        Returns: undefined
+      }
       refund_sale: {
         Args: {
           p_items: Json
@@ -645,6 +778,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      shift_summary: { Args: { p_shift: string }; Returns: Json }
     }
     Enums: {
       app_role:

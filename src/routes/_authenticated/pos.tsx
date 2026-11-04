@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
+import { OpenShiftGate, ShiftBar, useOpenShift } from "@/components/Shift";
 import {
   cartSubtotal, changeDueUSD, fromUSD, money, methodLabels, paidUSD, resolveDiscount,
   type CartLine, type Currency, type Payment, type PayMethod,
@@ -24,6 +25,19 @@ type Held = { id: string; at: string; lines: CartLine[] };
 const HELD_KEY = "tilla-held-sales";
 
 function PosPage() {
+  const { data: me } = useStaff();
+  const { data: shift, isLoading } = useOpenShift();
+  if (isLoading) return <p className="p-8 text-muted-foreground">Loading till…</p>;
+  if (!shift) return <OpenShiftGate />;
+  return (
+    <div className="flex h-screen flex-col">
+      <ShiftBar shift={shift} canReadX={!!me?.canRefund} />
+      <div className="min-h-0 flex-1"><Till /></div>
+    </div>
+  );
+}
+
+function Till() {
   const qc = useQueryClient();
   const { data: me } = useStaff();
   const { data: settings } = useSettings();
@@ -106,7 +120,7 @@ function PosPage() {
       p_discount: discount,
       p_currency: currency,
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(error.message); qc.invalidateQueries({ queryKey: ["open-shift"] }); return; }
     const res = data as { sale_number: string; total: number; change: number; rate: number };
     setReceipt({
       sale_number: res.sale_number, created_at: new Date().toISOString(),
@@ -123,7 +137,7 @@ function PosPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-56px)] flex-col lg:h-screen lg:flex-row md:h-screen">
+    <div className="flex h-full flex-col lg:flex-row">
       {/* Products */}
       <section className="flex min-h-0 flex-1 flex-col p-4 lg:p-6">
         <div className="relative">
