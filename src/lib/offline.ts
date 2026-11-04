@@ -31,7 +31,8 @@ export type QueuedSale = {
   shift_id: string;
   currency: Currency;
   discount: number;
-  items: { product_id: string; quantity: number }[];
+  items: { product_id: string; quantity: number; unit_price?: number }[];
+  rate?: number;
   payments: Payment[];
   total: number;
   error?: string;
