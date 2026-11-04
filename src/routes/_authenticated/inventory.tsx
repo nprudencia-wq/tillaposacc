@@ -112,6 +112,15 @@ function InventoryPage() {
   );
 }
 
+export function catOptions(cats: { id: string; name: string; parent_id: string | null }[]) {
+  const out: { id: string; label: string }[] = [];
+  for (const c of cats.filter((x) => !x.parent_id)) {
+    out.push({ id: c.id, label: c.name });
+    for (const s of cats.filter((x) => x.parent_id === c.id)) out.push({ id: s.id, label: `${c.name} › ${s.name}` });
+  }
+  return out;
+}
+
 function Stat({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
   return (
     <div className={`rounded-xl border bg-card p-5 shadow-soft ${warn ? "border-warning" : ""}`}>
@@ -168,7 +177,7 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
           <div className="space-y-1.5"><Label>Category</Label>
             <Select value={f.category_id ?? ""} onValueChange={(v) => set("category_id", v)}>
               <SelectTrigger><SelectValue placeholder="Choose" /></SelectTrigger>
-              <SelectContent>{cats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+              <SelectContent>{catOptions(cats).map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           {field("image_url", "Image link (optional)")}
