@@ -6,6 +6,7 @@ import { useStaff } from "@/hooks/use-staff";
 import { roleLabels } from "@/lib/pos";
 import { OfflineBar } from "@/components/OfflineBar";
 import { ClockButton } from "@/components/Clock";
+import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -36,6 +37,7 @@ const nav = [
   { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/staff", label: "Staff", icon: Users },
   { to: "/store", label: "Store profile", icon: Store },
+  { to: "/billing", label: "Billing", icon: CreditCard },
 ] as const;
 
 function AppLayout() {
@@ -67,7 +69,7 @@ function AppLayout() {
             </button>
           </div>
         </header>
-        <main className="min-w-0 flex-1"><OfflineBar /><Outlet /></main>
+        <main className="min-w-0 flex-1"><SubscriptionBanner /><OfflineBar /><Outlet /></main>
       </div>
     );
   }
@@ -102,7 +104,7 @@ function AppLayout() {
           </button>
         </div>
       </aside>
-      <main className="min-w-0 flex-1"><OfflineBar /><Outlet /></main>
+      <main className="min-w-0 flex-1"><SubscriptionBanner /><OfflineBar /><Outlet /></main>
     </div>
   );
 }
