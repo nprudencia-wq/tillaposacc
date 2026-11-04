@@ -15,6 +15,13 @@
       "when": 1793784477968,
       "tag": "0001_staff_suppliers_refunds",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793785134598,
+      "tag": "0002_expenses",
+      "breakpoints": true
     }
   ]
 }

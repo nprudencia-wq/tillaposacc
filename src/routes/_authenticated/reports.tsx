@@ -41,7 +41,7 @@ function ReportsPage() {
     queryFn: async () => {
       const start = new Date(from + "T00:00:00").toISOString();
       const end = new Date(to + "T23:59:59.999").toISOString();
-      const [{ data: sales }, { data: items }, { data: pays }, { data: refunds }, { data: products }, { data: profiles }, { data: movements }] = await Promise.all([
+      const [{ data: sales }, { data: items }, { data: pays }, { data: refunds }, { data: products }, { data: profiles }, { data: movements }, { data: expenses }] = await Promise.all([
         supabase.from("sales").select("*").gte("created_at", start).lte("created_at", end),
         supabase.from("sale_items").select("*, sales!inner(created_at, cashier_id), products(category_id, categories(name))").gte("sales.created_at", start).lte("sales.created_at", end),
         supabase.from("sale_payments").select("*, sales!inner(created_at)").gte("sales.created_at", start).lte("sales.created_at", end),
@@ -49,8 +49,9 @@ function ReportsPage() {
         supabase.from("products").select("*, categories(name)").order("name"),
         supabase.from("profiles").select("id, full_name"),
         supabase.from("stock_movements").select("*, products(name)").gte("created_at", start).lte("created_at", end).order("created_at", { ascending: false }).limit(1000),
+        supabase.from("expenses").select("*").gte("expense_date", from).lte("expense_date", to),
       ]);
-      return { sales: sales ?? [], items: items ?? [], pays: pays ?? [], refunds: refunds ?? [], products: products ?? [], profiles: profiles ?? [], movements: movements ?? [] };
+      return { sales: sales ?? [], items: items ?? [], pays: pays ?? [], refunds: refunds ?? [], products: products ?? [], profiles: profiles ?? [], movements: movements ?? [], expenses: expenses ?? [] };
     },
   });
 
@@ -62,6 +63,10 @@ function ReportsPage() {
     const refunds = data.refunds.reduce((a, r) => a + Number(r.amount), 0);
     const cogs = data.items.reduce((a, i) => a + Number(i.cost_price) * (Number(i.quantity) - Number(i.refunded_qty)), 0);
     const net = revenue - discounts - refunds;
+    const expByCat = group(data.expenses, (e) => e.category, (e) => ({ total: Number(e.amount) }));
+    const expenses = data.expenses.reduce((a, e) => a + Number(e.amount), 0);
+    const gross = net - cogs;
+    const netProfit = gross - expenses;
     const moneyCols = (first: string): Col[] => [{ key: "name", label: first }, { key: "qty", label: "Qty" }, { key: "total", label: "Sales (USD)", money: true }, { key: "profit", label: "Gross profit", money: true }];
     const soldBySold = (g: ReturnType<typeof group>) => g.map((x) => ({ name: x.name, qty: r2(x.qty), total: r2(x.total), profit: r2(x.total - x.cost) }));
 
@@ -79,9 +84,19 @@ function ReportsPage() {
           { name: "Less: refunds", total: r2(-refunds) },
           { name: "Net sales", total: r2(net) },
           { name: "Cost of goods sold", total: r2(-cogs) },
-          { name: "Gross profit", total: r2(net - cogs) },
-          { name: "Gross margin %", total: net ? r2(((net - cogs) / net) * 100) : 0 },
+          { name: "Gross profit", total: r2(gross) },
+          { name: "Gross margin %", total: net ? r2((gross / net) * 100) : 0 },
+          ...expByCat.map((e) => ({ name: `Less expense: ${e.name}`, total: r2(-e.total) })),
+          { name: "Total operating expenses", total: r2(-expenses) },
+          { name: "Net profit", total: r2(netProfit) },
+          { name: "Net margin %", total: net ? r2((netProfit / net) * 100) : 0 },
         ],
+      },
+      {
+        id: "expenses", label: "Expenses",
+        cols: [{ key: "name", label: "Date" }, { key: "category", label: "Category" }, { key: "description", label: "Description" }, { key: "total", label: "USD", money: true }],
+        rows: [...data.expenses].sort((a, b) => a.expense_date.localeCompare(b.expense_date)).map((e) => ({ name: e.expense_date, category: e.category, description: e.description ?? "", total: r2(Number(e.amount)) })),
+        totals: { name: "Total", category: "", description: "", total: r2(expenses) },
       },
       {
         id: "daily", label: "Daily sales",
