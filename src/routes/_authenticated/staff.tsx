@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { KeyRound, UserPlus, ShieldCheck } from "lucide-react";
+import { KeyRound, UserPlus, ShieldCheck, Hash } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaff } from "@/hooks/use-staff";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { money, roleLabels } from "@/lib/pos";
 import { PERMISSIONS, ROLE_DEFAULTS, effectivePermission, type Permission } from "@/lib/username";
 import { createStaffAccount, resetStaffPassword } from "@/lib/staff.functions";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ActivityTab, AttendanceTab, PerformanceTab, PinDialog } from "@/components/StaffTabs";
 import type { Database } from "@/integrations/supabase/types";
 
 type Role = Database["public"]["Enums"]["app_role"];
@@ -35,6 +37,7 @@ function StaffPage() {
   const [adding, setAdding] = useState(false);
   const [resetFor, setResetFor] = useState<Row | null>(null);
   const [accessFor, setAccessFor] = useState<Row | null>(null);
+  const [pinFor, setPinFor] = useState<Row | null>(null);
 
   const { data } = useQuery({
     queryKey: ["staff-list"],
@@ -82,7 +85,18 @@ function StaffPage() {
         </div>
         {me?.canManageStaff && <Button onClick={() => setAdding(true)}><UserPlus className="h-4 w-4" />Add staff</Button>}
       </div>
-      <div className="mt-6 overflow-x-auto rounded-xl border bg-card shadow-soft">
+      <Tabs defaultValue="staff" className="mt-6">
+        <TabsList className="flex-wrap">
+          <TabsTrigger value="staff">Staff</TabsTrigger>
+          <TabsTrigger value="performance">Sales performance</TabsTrigger>
+          {me?.canManageStaff && <TabsTrigger value="attendance">Clock-in / out</TabsTrigger>}
+          {me?.canManageStaff && <TabsTrigger value="activity">Activity log</TabsTrigger>}
+        </TabsList>
+        <TabsContent value="performance"><PerformanceTab /></TabsContent>
+        <TabsContent value="attendance"><AttendanceTab /></TabsContent>
+        <TabsContent value="activity"><ActivityTab /></TabsContent>
+        <TabsContent value="staff">
+      <div className="overflow-x-auto rounded-xl border bg-card shadow-soft">
         <Table>
           <TableHeader><TableRow>
             <TableHead>Name</TableHead><TableHead>Username</TableHead><TableHead>Role</TableHead><TableHead>Login</TableHead>
@@ -113,16 +127,20 @@ function StaffPage() {
                     <Button size="sm" variant="ghost" onClick={() => setAccessFor(s)}><ShieldCheck className="h-4 w-4" />Access</Button>
                     <Button size="sm" variant="ghost" onClick={() => setResetFor(s)}><KeyRound className="h-4 w-4" />Password</Button>
                   </>}
+                  {(canEdit(s) || s.id === me?.id) && <Button size="sm" variant="ghost" onClick={() => setPinFor(s)}><Hash className="h-4 w-4" />PIN</Button>}
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+        </TabsContent>
+      </Tabs>
       {!me?.canManageStaff && <p className="mt-3 text-sm text-muted-foreground">Only an Owner, Administrator or Manager can manage staff.</p>}
 
       {adding && <AddStaffDialog roles={roleChoices} onClose={() => setAdding(false)} onDone={refresh} />}
       {resetFor && <ResetDialog row={resetFor} onClose={() => setResetFor(null)} />}
+      {pinFor && <PinDialog userId={pinFor.id} name={pinFor.full_name} onClose={() => setPinFor(null)} />}
       {accessFor && <AccessDialog row={(data ?? []).find((r) => r.id === accessFor.id) ?? accessFor} onClose={() => setAccessFor(null)} onDone={refresh} />}
     </div>
   );
