@@ -17,7 +17,7 @@ import {
   type CartLine, type Currency, type Payment, type PayMethod,
 } from "@/lib/pos";
 import { activeTypes, isAccountMethod, isCashMethod, methodLabel, usePaymentTypes } from "@/lib/payment-types";
-import { CustomerDialog, useCustomers } from "@/routes/_authenticated/customers";
+import { CustomerDialog, useCustomers } from "@/components/Customers";
 
 export const Route = createFileRoute("/_authenticated/pos")({
   head: () => ({ meta: [{ title: "Till — Tilla POS" }, { name: "description", content: "Point of sale till." }] }),
