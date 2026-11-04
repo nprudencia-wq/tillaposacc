@@ -6,7 +6,7 @@ function refused(): boolean {
   if (!import.meta.env.PROD) return true;
   if (window.self !== window.top) return true;
   const h = window.location.hostname.toLowerCase();
-  const label = h.split(".")[0];
+  const label = h.split(".")[0] ?? "";
   if (LOVABLE_HOSTS.some((d) => h.endsWith(d)) && (PREVIEW_LABEL.test(label) || /^project--.+-dev$/.test(label))) return true;
   for (const d of ["lovableproject.com", "lovableproject-dev.com", "beta.lovable.dev"]) {
     if (h === d || h.endsWith("." + d)) return true;
