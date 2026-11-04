@@ -6,6 +6,7 @@ import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { isValidUsername, loginEmail, normalizeUsername } from "@/lib/username";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -38,15 +39,17 @@ function AuthPage() {
     setBusy(true);
     try {
       if (mode === "in") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        const { error } = await supabase.auth.signInWithPassword({ email: loginEmail(email), password });
+        if (error) throw new Error(/invalid/i.test(error.message) ? "Wrong username or password" : error.message);
         navigate({ to: "/pos", replace: true });
       } else {
+        if (!isValidUsername(email)) throw new Error("Username must be 3–30 letters, numbers, dots, dashes or underscores");
+        const username = normalizeUsername(email);
         const { data, error } = await supabase.auth.signUp({
-          email, password,
-          options: { emailRedirectTo: window.location.origin + "/auth", data: { full_name: name } },
+          email: loginEmail(username), password,
+          options: { emailRedirectTo: window.location.origin + "/auth", data: { full_name: name, username } },
         });
-        if (error) throw error;
+        if (error) throw new Error(/already|database error/i.test(error.message) ? "That username is taken" : error.message);
         if (data.session) navigate({ to: "/pos", replace: true });
         else toast.success("Check your email to confirm your account.");
       }
@@ -69,14 +72,14 @@ function AuthPage() {
         <Link to="/" className="font-display text-xl font-bold">Tilla<span className="text-primary">POS</span></Link>
         <h1 className="mt-6 text-2xl font-bold">{mode === "in" ? "Staff sign in" : "Create staff account"}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {mode === "in" ? "Welcome back." : "The first account becomes the Business Owner. Others start as Cashiers."}
+          {mode === "in" ? "Sign in with your username and password. Forgot it? Ask your manager to reset it." : "The first account becomes the Business Owner. Others start as Cashiers."}
         </p>
         <form onSubmit={submit} className="mt-6 space-y-4">
           {mode === "up" && (
             <div className="space-y-1.5"><Label>Full name</Label><Input value={name} onChange={(e) => setName(e.target.value)} required /></div>
           )}
-          <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
-          <div className="space-y-1.5"><Label>Password</Label><Input type="password" minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
+          <div className="space-y-1.5"><Label htmlFor="username">Username</Label><Input id="username" autoComplete="username" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+          <div className="space-y-1.5"><Label htmlFor="password">Password</Label><Input id="password" autoComplete={mode === "in" ? "current-password" : "new-password"} type="password" minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
           <Button type="submit" className="w-full" size="lg" disabled={busy}>{mode === "in" ? "Sign in" : "Create account"}</Button>
         </form>
         <Button variant="outline" className="mt-3 w-full" onClick={google}>Continue with Google</Button>
