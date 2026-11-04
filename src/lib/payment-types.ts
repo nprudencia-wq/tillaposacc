@@ -8,6 +8,7 @@ export interface PaymentType {
   code: string;
   name: string;
   is_cash: boolean;
+  is_account?: boolean;
   active: boolean;
   sort_order: number;
 }
@@ -64,4 +65,9 @@ export function usePaymentTypes() {
       return list;
     },
   });
+}
+
+/** Is this method "put it on the customer's tab" rather than money received? */
+export function isAccountMethod(code: string) {
+  return !!cache.find((x) => x.code === code)?.is_account;
 }
