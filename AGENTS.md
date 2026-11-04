@@ -16,3 +16,4 @@
 - The service worker registers only from src/lib/pwa.ts and never in dev/preview. Why: stale caches break the editor preview.
 - Staff log in by username mapped to `<username>@staff.tilla.local` (src/lib/username.ts); accounts with real emails still log in by email. Why: auth requires an email; auto-confirm is on because placeholder addresses can't receive mail.
 - Access rights = role default overridden per person in `user_permissions`, resolved by `has_permission()`; `can_refund`/`can_manage_stock`/`can_post_expense` wrap it and disabled profiles fail `is_staff`. Keep src/lib/username.ts ROLE_DEFAULTS in sync with `role_allows()`.
+- Payment methods are data, not code: `payment_types` (code, name, is_cash, active) holds the shop's own list, a trigger rejects sale/refund methods that aren't in it, and drawer cash is whatever row has `is_cash` (`is_cash_method()`). Why: adding EcoCash or InnBucks must need no code change, and shift maths stay right.
