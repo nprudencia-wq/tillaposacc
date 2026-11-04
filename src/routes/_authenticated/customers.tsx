@@ -191,6 +191,7 @@ function CustomersPage() {
 
       {edit && <CustomerDialog customer={edit === "new" ? null : edit} onClose={() => setEdit(null)} />}
       {payFor && <PayDialog customer={payFor} owed={agingFor(ledger?.entries[payFor.id]).total} onClose={() => setPayFor(null)} />}
+      {adjustFor && <AdjustDialog customer={adjustFor} owed={agingFor(ledger?.entries[adjustFor.id]).total} onClose={() => setAdjustFor(null)} />}
       {open && <StatementDialog customer={open} entries={ledger?.entries[open.id] ?? []} biz={biz} onClose={() => setOpen(null)} />}
     </div>
   );
