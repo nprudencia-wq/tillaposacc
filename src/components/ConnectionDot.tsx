@@ -8,14 +8,14 @@ const dotClass: Record<ConnectionState, string> = {
   offline: "bg-destructive",
 };
 
-const textClass: Record<ConnectionState, string> = {
-  online: "text-success",
-  syncing: "text-warning-foreground",
-  offline: "text-destructive",
+// Light text for the dark till bar, dark text for light surfaces — the dot colour is the same either way.
+const textClass: Record<"onDark" | "onLight", Record<ConnectionState, string>> = {
+  onDark: { online: "text-success", syncing: "text-warning", offline: "text-destructive" },
+  onLight: { online: "text-success", syncing: "text-warning-foreground", offline: "text-destructive" },
 };
 
 /** Always-on connection light for the till: green Online, amber Syncing, red Offline. */
-export function ConnectionDot({ className = "" }: { className?: string }) {
+export function ConnectionDot({ className = "", tone = "onDark" }: { className?: string; tone?: "onDark" | "onLight" }) {
   const [state, setState] = useState<ConnectionState>("online");
 
   useEffect(() => {
@@ -38,7 +38,7 @@ export function ConnectionDot({ className = "" }: { className?: string }) {
     <span
       role="status"
       aria-live="polite"
-      className={`flex items-center gap-2 text-xs font-semibold ${textClass[state]} ${className}`}
+      className={`flex items-center gap-2 text-xs font-semibold ${textClass[tone][state]} ${className}`}
     >
       <span
         aria-hidden="true"
