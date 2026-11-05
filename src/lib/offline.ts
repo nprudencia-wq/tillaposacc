@@ -48,10 +48,17 @@ function writeQueue(q: QueuedSale[]) {
 export function enqueueSale(s: QueuedSale) { writeQueue([...readQueue(), s]); }
 
 let syncing = false;
+/** True while queued sales are being uploaded, so the till can show "Syncing". */
+export function isSyncing() { return syncing; }
+function setSyncing(v: boolean) {
+  syncing = v;
+  window.dispatchEvent(new Event("tilla-sync"));
+}
+
 /** Upload queued sales one by one. The server ignores duplicates, so retries are safe. */
 export async function syncQueue(): Promise<{ synced: number; failed: number }> {
   if (syncing || !navigator.onLine) return { synced: 0, failed: 0 };
-  syncing = true;
+  setSyncing(true);
   let synced = 0, failed = 0;
   try {
     for (const s of readQueue()) {
@@ -64,6 +71,6 @@ export async function syncQueue(): Promise<{ synced: number; failed: number }> {
       if (error) { failed++; writeQueue([...rest, { ...s, error: error.message }]); }
       else { synced++; writeQueue(rest); }
     }
-  } finally { syncing = false; }
+  } finally { setSyncing(false); }
   return { synced, failed };
 }
