@@ -128,6 +128,20 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
   const isNew = !p.id;
   const { data: cats = [] } = useQuery({ queryKey: ["categories"], queryFn: async () => (await supabase.from("categories").select("*").order("name")).data ?? [] });
   const set = (k: keyof Product, v: unknown) => setF((x) => ({ ...x, [k]: v }));
+  const [uploading, setUploading] = useState(false);
+
+  async function upload(file: File) {
+    if (file.size > 5 * 1024 * 1024) { toast.error("Photo must be under 5 MB"); return; }
+    setUploading(true);
+    const path = `${crypto.randomUUID()}.${file.name.split(".").pop() || "jpg"}`;
+    const { error } = await supabase.storage.from("product-images").upload(path, file, { contentType: file.type });
+    if (error) { setUploading(false); toast.error(error.message); return; }
+    const { data, error: e2 } = await supabase.storage.from("product-images").createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+    setUploading(false);
+    if (e2 || !data) { toast.error(e2?.message ?? "Upload failed"); return; }
+    set("image_url", data.signedUrl);
+    toast.success("Photo added — press Save to keep it");
+  }
 
   async function save() {
     if (!f.name) { toast.error("Name is required"); return; }
@@ -165,14 +179,23 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
         <DialogHeader><DialogTitle>{isNew ? "Add product" : "Edit product"}</DialogTitle></DialogHeader>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">{field("name", "Name")}</div>
-          {field("sku", "SKU")}{field("barcode", "Barcode")}
+          <div className="space-y-1.5"><Label>Product number (SKU)</Label>
+            <Input value={f.sku ?? ""} placeholder={isNew ? "Automatic (e.g. P1001)" : ""} onChange={(e) => set("sku", e.target.value)} /></div>
+          {field("barcode", "Barcode")}
           <div className="space-y-1.5"><Label>Category</Label>
             <Select value={f.category_id ?? ""} onValueChange={(v) => set("category_id", v)}>
               <SelectTrigger><SelectValue placeholder="Choose" /></SelectTrigger>
               <SelectContent>{catOptions(cats).map((c) => <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          {field("image_url", "Image link (optional)")}
+          <div className="space-y-1.5"><Label>Product photo</Label>
+            <div className="flex items-center gap-3">
+              {f.image_url && <img src={f.image_url} alt="" className="h-12 w-12 rounded-md border object-cover" />}
+              <Input type="file" accept="image/*" disabled={uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) void upload(file); }} />
+            </div>
+            {uploading && <p className="text-xs text-muted-foreground">Uploading…</p>}
+            {f.image_url && !uploading && <button type="button" className="text-xs text-destructive underline" onClick={() => set("image_url", null)}>Remove photo</button>}
+          </div>
           {field("cost_price", "Cost price (USD)", "number")}{field("selling_price", "Selling price (USD)", "number")}
           {field("wholesale_price", "Wholesale price (USD)", "number")}
           {isNew ? field("stock", "Opening stock", "number") : <div />}
@@ -184,7 +207,10 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
             </label>
           )}
         </div>
-        <Button onClick={save} className="w-full">Save</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+          <Button onClick={save} disabled={uploading} className="flex-1">Save changes</Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
