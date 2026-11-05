@@ -8,14 +8,10 @@ const dotClass: Record<ConnectionState, string> = {
   offline: "bg-destructive",
 };
 
-// Light text for the dark till bar, dark text for light surfaces — the dot colour is the same either way.
-const toneClass: Record<"onDark" | "onLight", string> = {
-  onDark: "rounded-full bg-sidebar-accent/80 px-2.5 py-1",
-  onLight: "",
-};
-
+// On the dark till bar the word stays in the bar's own text colour (the dot carries the colour);
+// on light surfaces the coloured words read well.
 const textClass: Record<"onDark" | "onLight", Record<ConnectionState, string>> = {
-  onDark: { online: "text-success", syncing: "text-warning", offline: "text-destructive" },
+  onDark: { online: "text-sidebar-foreground", syncing: "text-sidebar-foreground", offline: "text-sidebar-foreground" },
   onLight: { online: "text-success", syncing: "text-warning-foreground", offline: "text-destructive" },
 };
 
