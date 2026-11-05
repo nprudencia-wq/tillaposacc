@@ -120,6 +120,13 @@
       "when": 1793802763934,
       "tag": "0016_general_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793862811874,
+      "tag": "0017_auto_product_numbers_and_images",
+      "breakpoints": true
     }
   ]
 }
