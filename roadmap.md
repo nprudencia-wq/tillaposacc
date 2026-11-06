@@ -6,10 +6,18 @@
 - [ ] Phase 1: starter catalog and three-step trial checklist
 - [ ] Phase 1: vendor-only trial leads, expiry sorting, WhatsApp/call and audited extensions
 - [ ] Phase 1: cross-store security tests and real signed-in onboarding verification before public release
+- [ ] Phase 2 (master list): USD/ZiG/Rand till, rates, split payments, three-currency cash-up and historical reporting
+- [ ] Phase 2 (master list): zero-stock enforcement, list/tile switcher and fast post-sale printing with updated receipts
+- [ ] Phase 4: quotations, invoices and credit notes with stock, customer and accounting integration
+- [ ] Phase 5: VAT rate and inclusive/exclusive settings; genuine ZIMRA integration (requires official access and certification)
+- [ ] Phase 6: discounts, configurable loyalty, opt-in debtor interest, provisions and audited bad-debt write-offs
+- [ ] Phase 7: live camera capture, retake, compression and secure product-photo upload
+- [ ] All phases: regression tests and signed-in financial, stock and store-isolation checks
 - [ ] Phase 2: visible editable inventory quantity with audited override and Save
 - [ ] Phase 2: supplier edit and safe deletion
 - [ ] Phase 2: USD/ZiG/Rand goods received, invoice rate, automatic entry lines
 - [ ] Phase 2: tests and signed-in verification
+- Existing inventory/supplier work above belongs to Phase 3 in the seven-phase master list.
 - [x] Inventory: subcategories, branches & transfers, supplier returns, write-offs, stocktake, reorder, valuation, movement history
 - [x] Till: authorised manual price override (supervisor+ by default, per-person on Staff page)
 - [ ] Till: email receipt (share/print already exist; waiting on user go-ahead)
