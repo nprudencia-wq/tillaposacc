@@ -34,6 +34,15 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
   const [pin, setPin] = useState("");
   const pinFn = useServerFn(pinLogin);
+  const [recent, setRecent] = useState<string[]>([]);
+  useEffect(() => {
+    try { const r = JSON.parse(localStorage.getItem("tilla-recent-users") || "[]"); setRecent(r); if (r[0]) setEmail(r[0]); } catch { /* none */ }
+  }, []);
+  const remember = (u: string) => {
+    const n = u.trim().toLowerCase();
+    const list = [n, ...recent.filter((x) => x !== n)].slice(0, 8);
+    localStorage.setItem("tilla-recent-users", JSON.stringify(list));
+  };
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -43,8 +52,10 @@ function AuthPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (mode === "pin" && pin.length < 4) { toast.error("Enter your 4–6 digit PIN"); return; }
     setBusy(true);
     try {
+      if (mode === "pin") remember(email);
       if (mode === "pin" && !navigator.onLine) {
         const r = await checkOfflinePin(email, pin);
         if (!r.ok) throw new Error(r.reason);
@@ -95,7 +106,28 @@ function AuthPage() {
         <form onSubmit={submit} className="mt-6 space-y-4">
           <div className="space-y-1.5"><Label htmlFor="username">Username</Label><Input id="username" autoComplete="username" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
           {mode === "pin" ? (
-            <div className="space-y-1.5"><Label htmlFor="pin">PIN</Label><Input id="pin" type="password" inputMode="numeric" pattern="[0-9]{4,6}" maxLength={6} autoComplete="off" className="text-center text-2xl tracking-[0.5em]" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} required /></div>
+            <div className="space-y-3">
+              {recent.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {recent.map((u) => (
+                    <Button key={u} type="button" size="sm" variant={email === u ? "default" : "outline"} onClick={() => { setEmail(u); setPin(""); }}>{u}</Button>
+                  ))}
+                </div>
+              )}
+              <div className="flex justify-center gap-3 py-2" aria-label={`${pin.length} digits entered`}>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <span key={i} className={`h-4 w-4 rounded-full border-2 border-primary ${i < pin.length ? "bg-primary" : ""}`} />
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {["1","2","3","4","5","6","7","8","9"].map((d) => (
+                  <Button key={d} type="button" variant="outline" className="h-14 text-2xl font-bold" onClick={() => setPin((p) => (p.length < 6 ? p + d : p))}>{d}</Button>
+                ))}
+                <Button type="button" variant="ghost" className="h-14" onClick={() => setPin("")}>Clear</Button>
+                <Button type="button" variant="outline" className="h-14 text-2xl font-bold" onClick={() => setPin((p) => (p.length < 6 ? p + "0" : p))}>0</Button>
+                <Button type="button" variant="ghost" className="h-14" aria-label="Delete digit" onClick={() => setPin((p) => p.slice(0, -1))}>⌫</Button>
+              </div>
+            </div>
           ) : (
             <div className="space-y-1.5"><Label htmlFor="password">Password</Label><Input id="password" autoComplete="current-password" type="password" minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
           )}
