@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useStaff } from "@/hooks/use-staff";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export type Customer = { id: string; name: string; phone: string | null; email: string | null; address: string | null; credit_limit: number; notes: string | null; active: boolean };
@@ -24,6 +25,8 @@ export function CustomerDialog({ customer, onClose, onSaved }: { customer: Custo
   const qc = useQueryClient();
   const [f, setF] = useState({ name: customer?.name ?? "", phone: customer?.phone ?? "", email: customer?.email ?? "", address: customer?.address ?? "", credit_limit: String(customer?.credit_limit ?? 0), notes: customer?.notes ?? "", active: customer?.active ?? true });
   const [busy, setBusy] = useState(false);
+  const { data: me } = useStaff();
+  const canCredit = (me?.roles ?? []).some((r) => ["owner", "admin", "manager"].includes(r));
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!f.name.trim()) { toast.error("Enter the customer's name"); return; }
@@ -48,9 +51,10 @@ export function CustomerDialog({ customer, onClose, onSaved }: { customer: Custo
         <DialogHeader><DialogTitle>{customer ? "Edit customer" : "New customer"}</DialogTitle></DialogHeader>
         <form onSubmit={save} className="space-y-3">
           {fld("name", "Name")}{fld("phone", "Mobile number")}{fld("email", "Email")}{fld("address", "Address")}
-          <div><Label htmlFor="c-limit">Credit limit (USD, 0 = no limit)</Label><Input id="c-limit" type="number" min={0} value={f.credit_limit} onChange={(e) => setF({ ...f, credit_limit: e.target.value })} /></div>
+          {canCredit ? <div><Label htmlFor="c-limit">Credit limit (USD, 0 = no limit)</Label><Input id="c-limit" type="number" min={0} value={f.credit_limit} onChange={(e) => setF({ ...f, credit_limit: e.target.value })} /></div>
+            : <p className="text-xs text-muted-foreground">A manager or owner must switch on buying on account and set the credit limit.</p>}
           {fld("notes", "Notes")}
-          {customer && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} />Can buy on account</label>}
+          {customer && canCredit && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} />Can buy on account</label>}
           <Button type="submit" className="w-full" disabled={busy}>Save</Button>
         </form>
       </DialogContent>
