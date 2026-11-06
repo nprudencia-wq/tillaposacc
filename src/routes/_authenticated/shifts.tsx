@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { fetchShiftSummary, ShiftReportDialog, type ShiftSummary } from "@/components/Shift";
 import { money } from "@/lib/pos";
+import { ShiftHandoverDialog } from "@/components/ShiftHandover";
 
 export const Route = createFileRoute("/_authenticated/shifts")({
   head: () => ({ meta: [{ title: "Shifts & cash-up — Tilla POS" }, { name: "description", content: "Cashier shifts, cash-ups and variances." }, { property: "og:title", content: "Shifts & cash-up — Tilla POS" }, { property: "og:description", content: "Cashier shifts, cash-ups and variances." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/_authenticated/shifts")({
 
 function ShiftsPage() {
   const [report, setReport] = useState<{ title: string; s: ShiftSummary } | null>(null);
+  const [handover, setHandover] = useState<(typeof shifts)[number] | null>(null);
   const { data: shifts = [] } = useQuery({
     queryKey: ["shifts"],
     queryFn: async () => {
@@ -52,13 +54,15 @@ function ShiftsPage() {
                 <td className="p-3">{s.status === "open" ? "Open" : "Closed"}</td>
                 <td className="tabular p-3">{v(s.variance_usd, "USD")}</td>
                 <td className="tabular p-3">{v(s.variance_zig, "ZiG")}</td><td className="tabular p-3">{v(s.variance_zar, "ZAR")}</td>
-                <td className="p-3"><Button size="sm" variant="outline" onClick={() => view(s.id, s.status === "closed")}>{s.status === "closed" ? "Z-report" : "X-report"}</Button></td>
+                <td className="flex gap-2 p-3"><Button size="sm" variant="outline" onClick={() => view(s.id, s.status === "closed")}>{s.status === "closed" ? "Z-report" : "X-report"}</Button>
+                  <Button size="sm" variant={s.handover_summary ? "secondary" : "outline"} onClick={() => setHandover(s)}>{s.handover_summary ? "Handover ✓" : "Handover"}</Button></td>
               </tr>
             ))}
             {!shifts.length && <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No shifts yet.</td></tr>}
           </tbody>
         </table>
       </div>
+      {handover && <ShiftHandoverDialog shift={handover} onClose={() => setHandover(null)} />}
       {report && <ShiftReportDialog title={report.title} s={report.s} onClose={() => setReport(null)} />}
     </div>
   );
