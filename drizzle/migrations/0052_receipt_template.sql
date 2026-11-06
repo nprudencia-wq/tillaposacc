@@ -1,0 +1,1 @@
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS receipt_config jsonb NOT NULL DEFAULT '{}'::jsonb;

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ZimraSettings } from "@/components/ZimraSettings";
+import { ReceiptDesigner } from "@/components/ReceiptDesigner";
 
 export const Route = createFileRoute("/_authenticated/store")({
   head: () => ({
@@ -96,6 +97,7 @@ function StorePage() {
         <Link to="/currencies" className="text-sm font-medium text-primary underline">Currency settings →</Link>
         {canEdit ? <Button type="submit" disabled={busy}>Save</Button> : <p className="text-sm text-muted-foreground">Only managers and owners can change these.</p>}
       </form>
+      <div className="mt-6 rounded-2xl bg-card p-6 shadow-soft"><ReceiptDesigner /></div>
       <div className="mt-6 rounded-2xl bg-card p-6 shadow-soft"><ZimraSettings canEdit={!!me?.isOwner} /></div>
     </div>
   );
