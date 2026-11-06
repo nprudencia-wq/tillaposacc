@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut, Truck, BarChart3, Users, Wallet, Clock, CreditCard, Contact, ClipboardList, Store, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaff } from "@/hooks/use-staff";
+import { deviceSession } from "@/lib/offline-session";
 import { roleLabels } from "@/lib/pos";
 import { OfflineBar } from "@/components/OfflineBar";
 import { ConnectionDot } from "@/components/ConnectionDot";
@@ -15,8 +16,7 @@ export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
     // Offline: trust the saved session so the till keeps working without internet.
     if (!navigator.onLine) {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session) throw redirect({ to: "/auth" });
+      if (!(await deviceSession())) throw redirect({ to: "/auth" });
       return;
     }
     const { data } = await supabase.auth.getUser();

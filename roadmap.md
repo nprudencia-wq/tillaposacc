@@ -41,4 +41,5 @@
 - [x] Staff: till PIN login, clock-in/out, activity log, cashier sales performance
 
 - [x] Hybrid offline: IndexedDB catalog + sale queue, auto-sync on reconnect/15s/tab focus
-- [ ] Offline shift open/close without internet (not built yet)
+- [x] Offline shift open + offline till PIN unlock (built; real no-internet test only possible in the published app)
+- [ ] Offline shift close (still needs internet)
