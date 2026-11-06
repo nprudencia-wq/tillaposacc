@@ -25,6 +25,9 @@ export function updateReceivingLine(lines: ReceivingLine[], index: number, patch
 export function receivingTotal(lines: ReceivingLine[]) {
   return Math.round(lines.filter(completeReceivingLine).reduce((sum, line) => sum + Math.round(Number(line.quantity) * Number(line.unit_cost) * 100) / 100, 0) * 100) / 100;
 }
+export function receivingQuantity(lines: ReceivingLine[]) {
+  return lines.filter(completeReceivingLine).reduce((sum, line) => sum + Number(line.quantity), 0);
+}
 export function invoiceUSD(amount: number, currency: InvoiceCurrency, rate: number) {
   if (!Number.isFinite(rate) || rate <= 0 || (currency === "USD" && rate !== 1)) throw new Error("Enter a valid exchange rate");
   return Math.round(amount / rate * 100) / 100;
