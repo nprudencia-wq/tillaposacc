@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useStaff } from "@/hooks/use-staff";
 import { deviceSession } from "@/lib/offline-session";
 import { roleLabels } from "@/lib/pos";
+import type { Permission } from "@/lib/username";
 import { OfflineBar } from "@/components/OfflineBar";
 import { ConnectionDot } from "@/components/ConnectionDot";
 import { ClockButton } from "@/components/Clock";
@@ -57,6 +58,9 @@ const navGroups = [
   ] },
 ] as const;
 
+const MODULE_PERM: Record<string, Permission> = {"/dashboard": "module_dashboard", "/inventory": "module_inventory", "/stock": "module_stock", "/suppliers": "module_suppliers", "/sales": "module_sales", "/documents": "module_documents", "/customers": "module_customers", "/staff": "module_staff", "/shifts": "module_shifts", "/expenses": "module_expenses", "/accounting": "module_accounting", "/reports": "view_reports", "/payment-types": "module_settings", "/currencies": "module_settings", "/store": "module_settings", "/billing": "module_settings"};
+function moduleFor(path: string) { const k = Object.keys(MODULE_PERM).find((p) => path === p || path.startsWith(p + "/")); return k ? MODULE_PERM[k] : undefined; }
+
 function AppLayout() {
   const { data: me } = useStaff();
   const qc = useQueryClient();
@@ -93,12 +97,15 @@ function AppLayout() {
     );
   }
 
+  const allowed = (path: string) => { const p = moduleFor(path); return !p || !me || me.perms?.[p] !== false; };
+  if (me && !allowed(pathname)) return <Navigate to="/pos" replace />;
+
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="flex shrink-0 items-center gap-1 bg-sidebar px-3 py-2 text-sidebar-foreground md:w-56 md:flex-col md:items-stretch md:px-3 md:py-5 print:hidden">
         <div className="hidden px-3 pb-6 font-display text-xl font-bold md:block">Tilla<span className="text-sidebar-primary">POS</span></div>
         <nav className="flex flex-1 gap-1 overflow-x-auto md:flex-col">
-          {navGroups.map((g) => (
+          {navGroups.map((g) => ({ ...g, items: g.items.filter((n) => allowed(n.to)) })).filter((g) => g.items.length).map((g) => (
             <div key={g.title || "main"} className="flex gap-1 md:flex-col md:pb-3">
               {g.title && <div className="hidden px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider opacity-50 md:block">{g.title}</div>}
               {g.items.map((n) => (
