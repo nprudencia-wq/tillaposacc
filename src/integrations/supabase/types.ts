@@ -137,7 +137,11 @@ export type Database = {
           expected_cash_usd: number | null
           expected_cash_zar: number | null
           expected_cash_zig: number | null
+          handover_at: string | null
+          handover_by: string | null
+          handover_summary: string | null
           id: string
+          manager_notes: string | null
           notes: string | null
           opened_at: string
           opening_float_usd: number
@@ -159,7 +163,11 @@ export type Database = {
           expected_cash_usd?: number | null
           expected_cash_zar?: number | null
           expected_cash_zig?: number | null
+          handover_at?: string | null
+          handover_by?: string | null
+          handover_summary?: string | null
           id?: string
+          manager_notes?: string | null
           notes?: string | null
           opened_at?: string
           opening_float_usd?: number
@@ -181,7 +189,11 @@ export type Database = {
           expected_cash_usd?: number | null
           expected_cash_zar?: number | null
           expected_cash_zig?: number | null
+          handover_at?: string | null
+          handover_by?: string | null
+          handover_summary?: string | null
           id?: string
+          manager_notes?: string | null
           notes?: string | null
           opened_at?: string
           opening_float_usd?: number
@@ -2615,6 +2627,10 @@ export type Database = {
           p_notes: string
         }
         Returns: string
+      }
+      save_shift_handover: {
+        Args: { p_notes: string; p_shift: string; p_summary: string }
+        Returns: undefined
       }
       set_staff_pin: {
         Args: { p_pin: string; p_user: string }

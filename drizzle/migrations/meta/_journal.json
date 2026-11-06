@@ -344,6 +344,13 @@
       "when": 1793971766174,
       "tag": "0048_fix_delete_supplier_log",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1793972630718,
+      "tag": "0049_shift_handover",
+      "breakpoints": true
     }
   ]
 }
