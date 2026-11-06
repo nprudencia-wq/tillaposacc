@@ -1,0 +1,82 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Trash2, Printer, FileDown } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+import { useSettings, useStaff } from "@/hooks/use-staff";
+import { useCustomers } from "@/components/Customers";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { money, type Currency } from "@/lib/pos";
+import { documentTotals, creditLines, type DocumentLine } from "@/lib/documents";
+import { activeTypes, usePaymentTypes } from "@/lib/payment-types";
+import { exportPDF } from "@/lib/export";
+
+export const Route = createFileRoute("/_authenticated/documents")({
+  head: () => ({ meta: [{title:"Quotations, invoices & credit notes — Tilla POS"},{name:"description",content:"Manage Tilla POS quotations, invoices, customer payments and credit notes."},{property:"og:title",content:"Sales documents — Tilla POS"},{property:"og:description",content:"Quotations, invoices and credit notes for your shop."},{property:"og:type",content:"website"},{name:"twitter:card",content:"summary"}] }),
+  component: DocumentsPage,
+});
+
+type Doc = Database["public"]["Tables"]["sales_documents"]["Row"];
+const labels: Record<string,string> = {quotation:"Quotation",invoice:"Invoice",credit_note:"Credit note"};
+
+function DocumentsPage() {
+  const qc=useQueryClient();
+  const [kind,setKind]=useState("all"); const [search,setSearch]=useState("");
+  const [edit,setEdit]=useState<Doc|"quotation"|"invoice"|null>(null);
+  const [view,setView]=useState<Doc|null>(null); const [post,setPost]=useState<Doc|null>(null);
+  const {data:docs=[],error}=useQuery({queryKey:["documents"],queryFn:async()=>{const {data,error}=await supabase.from("sales_documents").select("*").order("created_at",{ascending:false}).limit(500);if(error)throw error;return data;}});
+  async function action(d:Doc,command:"convert"|"cancel") {
+    const res=command==="convert" ? await supabase.rpc("convert_quote_to_invoice",{p_document:d.id}) : await supabase.rpc("cancel_sales_document",{p_document:d.id});
+    if(res.error){toast.error(res.error.message);return;} qc.invalidateQueries({queryKey:["documents"]});toast.success(command==="convert"?"Invoice draft created":"Draft cancelled");setView(null);
+  }
+  const shown=docs.filter(d=>(kind==="all"||d.kind===kind)&&`${d.number} ${d.customer_name}`.toLowerCase().includes(search.toLowerCase()));
+  return <div className="mx-auto max-w-6xl space-y-5 p-4 lg:p-8">
+    <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="font-display text-3xl font-bold">Sales documents</h1><div className="flex gap-2"><Button variant="outline" onClick={()=>setEdit("quotation")}><Plus className="h-4 w-4"/>Quotation</Button><Button onClick={()=>setEdit("invoice")}><Plus className="h-4 w-4"/>Invoice</Button></div></div>
+    <div className="flex flex-wrap gap-2"><Input aria-label="Search documents" placeholder="Number or customer…" className="max-w-sm" value={search} onChange={e=>setSearch(e.target.value)}/><Select value={kind} onValueChange={setKind}><SelectTrigger className="w-44" aria-label="Document type"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="all">All documents</SelectItem>{Object.entries(labels).map(([v,l])=><SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent></Select></div>
+    {error&&<p className="text-destructive">{error.message}</p>}
+    <div className="overflow-x-auto border bg-card"><Table><TableHeader><TableRow><TableHead>Number</TableHead><TableHead>Customer</TableHead><TableHead>Date</TableHead><TableHead>Due / expiry</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Total</TableHead><TableHead/></TableRow></TableHeader><TableBody>{shown.map(d=><TableRow key={d.id}><TableCell className="font-mono font-semibold">{d.number}</TableCell><TableCell>{d.customer_name||"Walk-in customer"}</TableCell><TableCell>{d.created_at.slice(0,10)}</TableCell><TableCell>{d.due_date||"—"}</TableCell><TableCell>{d.status}</TableCell><TableCell className="text-right font-mono">{money(Number(d.total)*(d.currency==="USD"?1:Number(d.exchange_rate)),d.currency as Currency)}</TableCell><TableCell className="text-right"><Button size="sm" variant="outline" onClick={()=>setView(d)}>View</Button>{d.status==="draft"&&<Button size="sm" variant="ghost" onClick={()=>setEdit(d)}>Edit</Button>}</TableCell></TableRow>)}{!shown.length&&<TableRow><TableCell colSpan={7} className="py-10 text-center text-muted-foreground">No documents.</TableCell></TableRow>}</TableBody></Table></div>
+    {edit&&<DocumentEditor document={typeof edit==="string"?null:edit} kind={typeof edit==="string"?edit:edit.kind} onClose={()=>setEdit(null)}/>}
+    {view&&<DocumentView document={view} onClose={()=>setView(null)} onConvert={()=>action(view,"convert")} onCancel={()=>action(view,"cancel")} onPost={()=>{setPost(view);setView(null);}}/>}
+    {post&&<InvoicePayment document={post} onClose={()=>setPost(null)}/>}
+  </div>;
+}
+
+function DocumentEditor({document:d,kind,onClose}:{document:Doc|null;kind:string;onClose:()=>void}) {
+  const qc=useQueryClient();const {data:me}=useStaff();const {data:customers=[]}=useCustomers();const {data:settings}=useSettings();
+  const {data:products=[]}=useQuery({queryKey:["products","documents"],queryFn:async()=>{const {data,error}=await supabase.from("products").select("id,name,selling_price").eq("active",true).order("name");if(error)throw error;return data;}});
+  const [customer,setCustomer]=useState(d?.customer_id??"none");const [currency,setCurrency]=useState(d?.currency??"USD");const [due,setDue]=useState(d?.due_date??"");const [notes,setNotes]=useState(d?.notes??"");const [discount,setDiscount]=useState(String(d?.discount??0));const [lines,setLines]=useState<DocumentLine[]>((d?.lines??[]) as DocumentLine[]);const [product,setProduct]=useState("");const [busy,setBusy]=useState(false);
+  let total=0;try{total=documentTotals(lines,Number(discount)).total;}catch{/* form validation on save */}
+  async function save(){setBusy(true);try{documentTotals(lines,Number(discount));const {error}=await supabase.rpc("save_sales_document",{p_id:d?.id??null,p_kind:kind,p_customer:customer==="none"?null:customer,p_currency:currency,p_lines:lines as never,p_discount:Number(discount),p_due:due||null,p_notes:notes});if(error)throw error;qc.invalidateQueries({queryKey:["documents"]});toast.success("Document saved");onClose();}catch(e){toast.error((e as Error).message);}finally{setBusy(false);}}
+  return <Dialog open onOpenChange={o=>!o&&onClose()}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{d?d.number:`New ${labels[kind].toLowerCase()}`}</DialogTitle></DialogHeader>
+    <div className="grid gap-3 sm:grid-cols-3"><div><Label>Customer</Label><Select value={customer} onValueChange={setCustomer}><SelectTrigger aria-label="Document customer"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="none">Walk-in customer</SelectItem>{customers.filter(c=>c.active).map(c=><SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select></div><div><Label>Currency</Label><Select value={currency} onValueChange={setCurrency}><SelectTrigger aria-label="Document currency"><SelectValue/></SelectTrigger><SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem><SelectItem value="ZAR" disabled={!settings?.rand_rate}>Rand</SelectItem></SelectContent></Select></div><div><Label htmlFor="document-due">{kind==="quotation"?"Expires":"Due date"}</Label><Input id="document-due" type="date" value={due} onChange={e=>setDue(e.target.value)}/></div></div>
+    <Select value={product} onValueChange={id=>{const p=products.find(x=>x.id===id);if(p){setLines([...lines,{product_id:p.id,name:p.name,quantity:1,unit_price:Number(p.selling_price),line_total:Number(p.selling_price)}]);setProduct("");}}}><SelectTrigger aria-label="Add document product"><SelectValue placeholder="Add product…"/></SelectTrigger><SelectContent>{products.map(p=><SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent></Select>
+    <div className="space-y-2">{lines.map((l,i)=><div key={i} className="grid grid-cols-[1fr_70px_90px_36px] items-center gap-2 border-b pb-2"><span className="min-w-0 truncate text-sm">{l.name}</span><Input aria-label={`Quantity ${i+1}`} type="number" min={0.001} step="0.001" value={l.quantity} onChange={e=>setLines(lines.map((x,k)=>k===i?{...x,quantity:Number(e.target.value)}:x))}/><Input aria-label={`USD price ${i+1}`} disabled={!me?.canOverridePrice} type="number" min={0} step="0.01" value={l.unit_price} onChange={e=>setLines(lines.map((x,k)=>k===i?{...x,unit_price:Number(e.target.value)}:x))}/><Button size="icon" variant="ghost" aria-label={`Remove line ${i+1}`} onClick={()=>setLines(lines.filter((_,k)=>k!==i))}><Trash2 className="h-4 w-4"/></Button></div>)}</div>
+    <div className="flex items-end justify-between gap-3"><div><Label htmlFor="document-discount">Discount (USD)</Label><Input id="document-discount" type="number" min={0} step="0.01" disabled={!me?.canDiscount} value={discount} onChange={e=>setDiscount(e.target.value)}/></div><span className="font-mono text-xl font-semibold">{money(total)} USD</span></div><Textarea aria-label="Document notes" placeholder="Notes" value={notes} onChange={e=>setNotes(e.target.value)}/><div className="flex justify-end gap-2"><Button variant="outline" onClick={onClose}>Cancel</Button><Button disabled={busy||!lines.length} onClick={save}>Save</Button></div>
+  </DialogContent></Dialog>;
+}
+
+function DocumentView({document:d,onClose,onConvert,onCancel,onPost}:{document:Doc;onClose:()=>void;onConvert:()=>void;onCancel:()=>void;onPost:()=>void}) {
+  const {data:settings}=useSettings();const raw=d.lines as DocumentLine[];const lines=d.kind==="credit_note"?creditLines(raw,Number(d.total)):raw;const rate=d.currency==="USD"?1:Number(d.exchange_rate);const currency=d.currency as Currency;
+  async function pdf(){await exportPDF(d.number,`${settings?.business_name??""} — ${labels[d.kind]} ${d.number}`,`${d.customer_name} | ${d.created_at.slice(0,10)} | ${d.currency} | Total ${money(Number(d.total)*rate,currency)}${d.due_date?` | Due/expiry ${d.due_date}`:""}`, [{key:"name",label:"Product"},{key:"quantity",label:"Qty"},{key:"unit_price",label:"Unit price"},{key:"line_total",label:"Amount"}],lines.map(l=>({...l,unit_price:money(l.unit_price*rate,currency),line_total:money(l.line_total*rate,currency)})));}
+  return <Dialog open onOpenChange={o=>!o&&onClose()}><DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>{d.number}</DialogTitle></DialogHeader><div id="receipt-print" className="space-y-4"><header className="border-b pb-4"><p className="font-display text-2xl font-bold">{settings?.business_name}</p><p className="text-sm">{settings?.address}</p><h2 className="mt-3 text-xl font-semibold">{labels[d.kind]} · {d.number}</h2><p>{d.customer_name||"Walk-in customer"}</p><p className="text-sm text-muted-foreground">{d.created_at.slice(0,10)} · {d.status}{d.due_date?` · Due/expiry ${d.due_date}`:""}</p></header><Table><TableHeader><TableRow><TableHead>Product</TableHead><TableHead>Qty</TableHead><TableHead className="text-right">Amount</TableHead></TableRow></TableHeader><TableBody>{lines.map((l,i)=><TableRow key={i}><TableCell>{l.name}</TableCell><TableCell>{l.quantity}</TableCell><TableCell className="text-right font-mono">{money(l.line_total*rate,currency)}</TableCell></TableRow>)}</TableBody></Table><div className="text-right font-mono">{Number(d.discount)>0&&<p>Discount −{money(Number(d.discount)*rate,currency)}</p>}<p className="text-xl font-bold">Total {money(Number(d.total)*rate,currency)}</p>{currency!=="USD"&&<p className="text-sm">{money(Number(d.total))} · Rate {d.exchange_rate}/USD</p>}</div>{d.notes&&<p className="whitespace-pre-line text-sm">{d.notes}</p>}{d.sale_id&&<InvoiceBalances saleId={d.sale_id} customerId={d.customer_id} kind={d.kind}/>}</div><div className="flex flex-wrap gap-2 print:hidden"><Button onClick={()=>window.print()}><Printer className="h-4 w-4"/>Print</Button><Button variant="outline" onClick={pdf}><FileDown className="h-4 w-4"/>PDF</Button>{d.status==="draft"&&d.kind==="quotation"&&<Button onClick={onConvert}>Convert to invoice</Button>}{d.status==="draft"&&d.kind==="invoice"&&<Button onClick={onPost}>Post invoice</Button>}{d.status==="draft"&&<Button variant="ghost" onClick={onCancel}>Cancel draft</Button>}</div></DialogContent></Dialog>;
+}
+
+function InvoiceBalances({saleId,customerId,kind}:{saleId:string;customerId:string|null;kind:string}) {
+  const {data}=useQuery({queryKey:["documents","balances",saleId],queryFn:async()=>{const [sale,refunds,balance]=await Promise.all([supabase.from("sales").select("sale_number,total,amount_paid").eq("id",saleId).single(),supabase.from("refunds").select("amount").eq("sale_id",saleId),customerId?supabase.rpc("customer_balance",{p_customer:customerId}):Promise.resolve({data:null,error:null})]);if(sale.error)throw sale.error;return {sale:sale.data,refunds:(refunds.data??[]).reduce((s,r)=>s+Number(r.amount),0),balance:balance.data};}});
+  if(!data)return null;
+  return <div className="border-t pt-3 text-sm"><p>Original sale: {data.sale.sale_number}</p>{kind==="invoice"&&<p>Credit notes / refunds: {money(data.refunds)}</p>}{data.balance!==null&&<p>Customer total outstanding: {money(Number(data.balance))}</p>}</div>;
+}
+
+function InvoicePayment({document:d,onClose}:{document:Doc;onClose:()=>void}) {
+  const qc=useQueryClient();const {data:types}=usePaymentTypes();const methods=activeTypes(types);const {data:settings}=useSettings();const [method,setMethod]=useState("");const [busy,setBusy]=useState(false);const current=method||methods[0]?.code||"";
+  async function post(){setBusy(true);try{const rate=d.currency==="USD"?1:d.currency==="ZiG"?Number(settings?.zig_rate):Number(settings?.rand_rate);if(!rate)throw new Error("Set an exchange rate first");const {error}=await supabase.rpc("post_sales_invoice",{p_document:d.id,p_payments:[{method:current,currency:d.currency,amount:Math.round(Number(d.total)*rate*100)/100}]});if(error)throw error;await Promise.all([qc.invalidateQueries({queryKey:["documents"]}),qc.invalidateQueries({queryKey:["sales"]}),qc.invalidateQueries({queryKey:["products"]}),qc.invalidateQueries({queryKey:["customer-ledger"]})]);toast.success("Invoice posted");onClose();}catch(e){toast.error((e as Error).message);}finally{setBusy(false);}}
+  return <Dialog open onOpenChange={o=>!o&&onClose()}><DialogContent><DialogHeader><DialogTitle>Post {d.number}</DialogTitle></DialogHeader><p className="text-xl font-mono">{money(Number(d.total))} USD</p><Select value={current} onValueChange={setMethod}><SelectTrigger aria-label="Invoice payment method"><SelectValue/></SelectTrigger><SelectContent>{methods.map(m=><SelectItem key={m.code} value={m.code}>{m.name}{m.is_account?" · Customer account":""}</SelectItem>)}</SelectContent></Select><Button disabled={busy||!current} onClick={post}>Confirm and post invoice</Button></DialogContent></Dialog>;
+}
