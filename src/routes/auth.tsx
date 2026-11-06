@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useServerFn } from "@tanstack/react-start";
 import { pinLogin } from "@/lib/pin.functions";
 import { loginEmail } from "@/lib/username";
+import { checkOfflinePin, rememberPin } from "@/lib/offline-pin";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -43,10 +44,19 @@ function AuthPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      if (mode === "pin") {
+      if (mode === "pin" && !navigator.onLine) {
+        const r = await checkOfflinePin(email, pin);
+        if (!r.ok) throw new Error(r.reason);
+        // Put this cashier's saved sign-in back, then reload so the whole till picks it up.
+        const storageKey = (supabase.auth as unknown as { storageKey: string }).storageKey;
+        localStorage.setItem(storageKey, r.session);
+        window.location.assign("/pos");
+        return;
+      } else if (mode === "pin") {
         const { tokenHash } = await pinFn({ data: { username: email, pin } });
-        const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
-        if (error) throw new Error("Couldn't sign in, try your password");
+        const { data: v, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
+        if (error || !v.session) throw new Error("Couldn't sign in, try your password");
+        void rememberPin(email, pin, v.session.user.id, v.session).catch(() => { /* offline unlock just won't be available */ });
         await supabase.rpc("log_event", { p_action: "pin_login" });
         navigate({ to: "/pos", replace: true });
       } else if (mode === "in") {
