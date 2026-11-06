@@ -13,7 +13,9 @@
 - [ ] Phase 2: fast post-sale printing implemented; real sale/print verification still required
 - [ ] Phase 4: quotations, invoices and credit notes with stock, customer and accounting integration
 - [ ] Phase 5: VAT rate and inclusive/exclusive settings; genuine ZIMRA integration (requires official access and certification)
-- [ ] Phase 6: discounts, configurable loyalty, opt-in debtor interest, provisions and audited bad-debt write-offs
+- [ ] Phase 6: discounts and audited bad-debt write-offs; loyalty remains disabled by user choice
+- [ ] Phase 6: simple monthly debtor interest; awaiting monthly rate and interest-start threshold
+- [ ] Phase 6: 10% bad-debt provision on outstanding debt at least 60 days overdue; awaiting due-date basis
 - [x] Phase 7: camera capture, retake, compression and store-scoped upload verified with a simulated camera
 - [ ] Phase 7: real phone camera verification
 - [ ] All phases: regression tests and signed-in financial, stock and store-isolation checks
@@ -23,8 +25,8 @@
 - [x] Current regression suite: 58 tests passed
 - [ ] Phase 3: signed-in supplier and Rand receiving verification
 - Phase 1 blocker: privileged business functions, singleton store settings/account codes and global staff/PIN identities remain to be isolated; public trials disabled.
-- Phase 5 external blocker: official ZIMRA device access and approval.
-- Phase 6 input needed: loyalty earning/redemption and debtor-interest rules; no rates invented.
+- Phase 5 external blocker: user is not yet ZIMRA registered; official device access and approval required for live fiscalisation.
+- Phase 6 input needed: monthly simple-interest rate, start threshold and payment-due basis; existing aging measures sale age, not days overdue.
 - Stock verification item was zeroed and deactivated; its audit history is retained.
 - [x] Inventory: subcategories, branches & transfers, supplier returns, write-offs, stocktake, reorder, valuation, movement history
 - [x] Till: authorised manual price override (supervisor+ by default, per-person on Staff page)
