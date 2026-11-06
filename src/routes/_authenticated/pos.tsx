@@ -33,7 +33,7 @@ const HELD_KEY = "tilla-held-sales";
 
 function PosPage() {
   const { data: me } = useStaff();
-  const { data: shift, isLoading } = useOpenShift();
+  const { data: shift, isPending: isLoading } = useOpenShift();
   const sub = useSubscription();
   if (sub?.state === "locked") return (
     <div className="mx-auto max-w-md p-8 text-center">
