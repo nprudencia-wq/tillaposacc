@@ -220,7 +220,7 @@ export async function syncQueue(): Promise<{ synced: number; failed: number }> {
       await sales((x) => x.shift_id === sh.id);
       if (stopped) break;
       if (sh.status === "closed" && sh.count && !sh.closed_synced) {
-        if (readQueue().some((x) => x.shift_id === sh.id)) { stopped = true; break; }
+        if (readQueue().some((x) => x.shift_id === sh.id && !x.error)) { stopped = true; break; }
         const { error } = await supabase.rpc("close_offline_shift", {
           p_id: sh.id, p_closed_at: sh.closed_at!, p_actual_usd: sh.count.usd, p_actual_zig: sh.count.zig, p_actual_zar: sh.count.zar, p_notes: sh.count.notes,
         });

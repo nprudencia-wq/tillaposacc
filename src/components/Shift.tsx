@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { cached, readQueue, syncQueue } from "@/lib/offline";
+import { cached, closeDeviceShift, deviceShiftState, isNetworkError, openDeviceShift, readQueue, syncQueue } from "@/lib/offline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -32,15 +32,21 @@ const moveLabels: Record<string, string> = { cash_drop: "Safe drop", paid_out: "
 export function useOpenShift() {
   return useQuery({
     queryKey: ["open-shift"],
-    queryFn: () => cached("open-shift", async () => {
-      const { data: s } = await supabase.auth.getSession();
-      const uid = s.session?.user.id;
-      if (!uid) return null;
-      const { data, error } = await supabase.from("cashier_shifts").select("*")
-        .eq("cashier_id", uid).eq("status", "open").maybeSingle();
-      if (error) throw error;
-      return data;
-    }),
+    queryFn: async () => {
+      // A shift opened or closed on this device wins until it has uploaded.
+      const device = await deviceShiftState();
+      if (device.open) return device.open;
+      const server = await cached("open-shift", async () => {
+        const { data: s } = await supabase.auth.getSession();
+        const uid = s.session?.user.id;
+        if (!uid) return null;
+        const { data, error } = await supabase.from("cashier_shifts").select("*")
+          .eq("cashier_id", uid).eq("status", "open").maybeSingle();
+        if (error) throw error;
+        return data;
+      }).catch((e) => { if (isNetworkError(e)) return null; throw e; });
+      return server && device.closedIds.includes(server.id) ? null : server;
+    },
   });
 }
 
@@ -58,10 +64,19 @@ export function OpenShiftGate() {
   const [busy, setBusy] = useState(false);
   async function open() {
     setBusy(true);
-    const { error } = await supabase.rpc("open_shift_three", { p_float_zar: Number(zar) || 0, p_float_usd: Number(usd) || 0, p_float_zig: Number(zig) || 0 });
+    const floats = { usd: Number(usd) || 0, zig: Number(zig) || 0, zar: Number(zar) || 0 };
+    if (floats.usd < 0 || floats.zig < 0 || floats.zar < 0) { setBusy(false); toast.error("Float cannot be negative"); return; }
+    let offline = !navigator.onLine;
+    if (!offline) {
+      const { error } = await supabase.rpc("open_shift_three", { p_float_zar: floats.zar, p_float_usd: floats.usd, p_float_zig: floats.zig });
+      if (error && !isNetworkError(error)) { setBusy(false); toast.error(error.message); return; }
+      offline = !!error;
+    }
+    if (offline) {
+      try { openDeviceShift(floats); } catch (e) { setBusy(false); toast.error((e as Error).message); return; }
+      toast.success("Shift opened on this device — it will upload when you're back online");
+    } else toast.success("Shift opened");
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Shift opened");
     qc.invalidateQueries({ queryKey: ["open-shift"] });
   }
   return (
@@ -101,7 +116,7 @@ export function ShiftBar({ shift, canReadX }: { shift: { id: string; shift_numbe
         <Button size="sm" onClick={() => setCloseOpen(true)}>End shift</Button>
       </div>
       {moveOpen && <MovementDialog onClose={() => setMoveOpen(false)} />}
-      {closeOpen && <CloseDialog shiftId={shift.id} onClose={() => { setCloseOpen(false); qc.invalidateQueries({ queryKey: ["open-shift"] }); }} onClosed={(s) => { setCloseOpen(false); setReport({ title: "Z-report (shift closed)", s }); }} />}
+      {closeOpen && <CloseDialog shift={shift} onClose={() => { setCloseOpen(false); qc.invalidateQueries({ queryKey: ["open-shift"] }); }} onClosed={(s) => { setCloseOpen(false); setReport({ title: "Z-report (shift closed)", s }); }} />}
       {report && <ShiftReportDialog title={report.title} s={report.s} onClose={() => { const closed = report.s.shift.status === "closed"; setReport(null); if (closed) qc.invalidateQueries({ queryKey: ["open-shift"] }); }} />}
     </div>
   );
@@ -149,8 +164,9 @@ function MovementDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function CloseDialog({ shiftId, onClose, onClosed }: { shiftId: string; onClose: () => void; onClosed: (s: ShiftSummary) => void }) {
+function CloseDialog({ shift, onClose, onClosed }: { shift: { id: string; shift_number: string; opened_at: string }; onClose: () => void; onClosed: (s: ShiftSummary) => void }) {
   const qc = useQueryClient();
+  const shiftId = shift.id;
   const [usd, setUsd] = useState("");
   const [zig, setZig] = useState("");
   const [zar, setZar] = useState("");
@@ -158,12 +174,19 @@ function CloseDialog({ shiftId, onClose, onClosed }: { shiftId: string; onClose:
   const [busy, setBusy] = useState(false);
   async function submit() {
     if (usd === "" || zig === "" || zar === "") { toast.error("Enter the cash counted in all three currencies (0 if none)"); return; }
-    if (!navigator.onLine) { toast.error("You're offline. Reconnect to close the shift."); return; }
+    if (Number(usd) < 0 || Number(zig) < 0 || Number(zar) < 0) { toast.error("Counts cannot be negative"); return; }
     setBusy(true);
+    // The count is saved on this device first, then uploaded after the shift's sales.
+    closeDeviceShift(shift, { usd: Number(usd), zig: Number(zig), zar: Number(zar), notes });
     await syncQueue();
-    if (readQueue().length) { setBusy(false); toast.error("Some offline sales haven't uploaded yet. Check the offline bar at the top, then try again."); return; }
-    const { error } = await supabase.rpc("close_shift_three", { p_actual_zar: Number(zar), p_actual_usd: Number(usd), p_actual_zig: Number(zig), p_notes: notes });
-    if (error) { setBusy(false); { toast.error(error.message); return; } }
+    const waiting = (await deviceShiftState()).closedIds.includes(shiftId);
+    if (waiting) {
+      setBusy(false);
+      toast.success("Shift closed on this device. The Z-report will be ready once it uploads.");
+      qc.invalidateQueries({ queryKey: ["open-shift"] });
+      onClose();
+      return;
+    }
     try { onClosed(await fetchShiftSummary(shiftId)); } catch (e) { toast.error((e as Error).message); onClose(); }
     // open-shift is refreshed when the Z-report is dismissed, so the report stays visible
     qc.invalidateQueries({ queryKey: ["shifts"] });
