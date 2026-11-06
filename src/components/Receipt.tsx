@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { money, type Currency, type PayMethod } from "@/lib/pos";
 import { methodLabel } from "@/lib/payment-types";
 import { useSettings } from "@/hooks/use-staff";
+import { vatBreakdown } from "@/lib/vat";
 
 export interface ReceiptData {
   sale_number: string;
@@ -47,6 +48,15 @@ export function Receipt({ r }: { r: ReceiptData }) {
       {r.discount > 0 && <div className="flex justify-between"><span>Discount</span><span>-{money(cv(r.discount), r.currency)}</span></div>}
       <div className="flex justify-between text-sm font-bold"><span>TOTAL</span><span>{money(cv(r.total), r.currency)}</span></div>
       {r.currency !== "USD" && <div className="text-right opacity-70">= {money(r.total)} @ {r.rate}</div>}
+      {st?.vat_enabled && (() => {
+        const b = vatBreakdown(cv(r.total), Number(st.vat_rate));
+        return (
+          <div className="mt-1 opacity-80">
+            <div className="flex justify-between"><span>Excl. VAT</span><span>{money(b.net, r.currency)}</span></div>
+            <div className="flex justify-between"><span>VAT {Number(st.vat_rate)}% (incl.)</span><span>{money(b.vat, r.currency)}</span></div>
+          </div>
+        );
+      })()}
       <div className="my-2 border-t border-dashed border-foreground/40" />
       {r.payments.map((p, k) => (
         <div key={k} className="flex justify-between"><span>{methodLabel(p.method)} ({p.currency})</span><span>{money(p.amount, p.currency)}</span></div>

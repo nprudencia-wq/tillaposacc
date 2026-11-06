@@ -330,6 +330,13 @@
       "when": 1793969949442,
       "tag": "0046_offline_shift_close",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1793971405022,
+      "tag": "0047_vat_settings",
+      "breakpoints": true
     }
   ]
 }
