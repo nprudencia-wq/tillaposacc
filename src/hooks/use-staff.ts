@@ -56,7 +56,9 @@ export function useSettings() {
     queryFn: () => cached("settings", async () => {
       const { data, error } = await supabase.from("settings").select("*").single();
       if (error) throw error;
-      return { ...data, zig_rate: Number(data.zig_rate), rand_rate: Number(data.rand_rate) };
+      const { data: confirmation, error: confirmationError } = await supabase.from("currency_confirmations").select("rand_rate,confirmed_at").eq("store_id", data.store_id).maybeSingle();
+      if (confirmationError) throw confirmationError;
+      return { ...data, zig_rate: Number(data.zig_rate), rand_rate: Number(data.rand_rate), rand_confirmed_rate: confirmation ? Number(confirmation.rand_rate) : null, rand_confirmed_at: confirmation?.confirmed_at ?? null };
     }),
   });
 }

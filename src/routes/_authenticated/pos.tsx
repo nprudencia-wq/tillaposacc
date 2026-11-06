@@ -20,6 +20,7 @@ import {
 } from "@/lib/pos";
 import { activeTypes, isAccountMethod, isCashMethod, methodLabel, usePaymentTypes } from "@/lib/payment-types";
 import { CustomerDialog, useCustomers } from "@/components/Customers";
+import { randCheckoutEnabled } from "@/lib/currency-settings";
 
 export const Route = createFileRoute("/_authenticated/pos")({
   head: () => ({ meta: [{ title: "Till — Tilla POS" }, { name: "description", content: "Tilla POS checkout, product list and receipt printing." }, { property: "og:title", content: "Till — Tilla POS" }, { property: "og:description", content: "Checkout, product list and receipt printing." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -54,7 +55,8 @@ function Till({ shiftId }: { shiftId: string }) {
   const { data: me } = useStaff();
   const { data: settings } = useSettings();
   const rate = settings?.zig_rate ?? 1;
-  const randRate = settings?.rand_rate ?? 0;
+  const randEnabled = randCheckoutEnabled(settings?.rand_rate ?? 0, settings?.rand_confirmed_rate);
+  const randRate = randEnabled ? settings?.rand_rate ?? 0 : 0;
 
   const { data: products = [] } = useQuery({
     queryKey: ["products", "active"],
@@ -80,6 +82,9 @@ function Till({ shiftId }: { shiftId: string }) {
   const [discKind, setDiscKind] = useState<"percent" | "fixed">("percent");
   const [discVal, setDiscVal] = useState(0);
   const [currency, setCurrency] = useState<Currency>("USD");
+  useEffect(() => {
+    if (!randEnabled && currency === "ZAR") { setCurrency("USD"); setPayOpen(false); }
+  }, [randEnabled, currency]);
   const [payOpen, setPayOpen] = useState(false);
   const [held, setHeld] = useState<Held[]>([]);
   const [heldOpen, setHeldOpen] = useState(false);
@@ -177,6 +182,9 @@ function Till({ shiftId }: { shiftId: string }) {
   }
 
   async function complete(payments: Payment[]) {
+    if (!randEnabled && (currency === "ZAR" || payments.some((p) => p.currency === "ZAR"))) {
+      toast.error("Confirm the Rand conversion in Currency settings first"); return;
+    }
     for (const line of lines) {
       const stock = Number(products.find((p) => p.id === line.product_id)?.stock ?? 0);
       const error = saleStockError(line.name, line.quantity, stock);
