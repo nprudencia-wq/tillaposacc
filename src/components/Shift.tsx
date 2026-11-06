@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { cached, readQueue, syncQueue } from "@/lib/offline";
+import { cached, isNetworkError, openLocalShift, readLocalShift, readQueue, syncQueue } from "@/lib/offline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -32,7 +32,20 @@ const moveLabels: Record<string, string> = { cash_drop: "Safe drop", paid_out: "
 export function useOpenShift() {
   return useQuery({
     queryKey: ["open-shift"],
-    queryFn: () => cached("open-shift", async () => {
+    queryFn: async () => {
+      // A shift opened on this device without internet stays in charge until it has uploaded.
+      const local = await readLocalShift();
+      if (local) {
+        if (navigator.onLine) { await syncQueue(); if (!(await readLocalShift())) return fetchOpen(); }
+        return local;
+      }
+      return fetchOpen();
+    },
+  });
+}
+
+function fetchOpen() {
+  return cached("open-shift", async () => {
       const { data: s } = await supabase.auth.getSession();
       const uid = s.session?.user.id;
       if (!uid) return null;
@@ -40,8 +53,7 @@ export function useOpenShift() {
         .eq("cashier_id", uid).eq("status", "open").maybeSingle();
       if (error) throw error;
       return data;
-    }),
-  });
+    });
 }
 
 export async function fetchShiftSummary(id: string) {
@@ -58,7 +70,16 @@ export function OpenShiftGate() {
   const [busy, setBusy] = useState(false);
   async function open() {
     setBusy(true);
-    const { error } = await supabase.rpc("open_shift_three", { p_float_zar: Number(zar) || 0, p_float_usd: Number(usd) || 0, p_float_zig: Number(zig) || 0 });
+    const floats = { usd: Number(usd) || 0, zig: Number(zig) || 0, zar: Number(zar) || 0 };
+    const openOffline = async () => {
+      try { await openLocalShift(floats); } catch (e) { setBusy(false); toast.error((e as Error).message); return; }
+      setBusy(false);
+      toast.success("Shift opened offline — it will upload when the internet is back");
+      qc.invalidateQueries({ queryKey: ["open-shift"] });
+    };
+    if (!navigator.onLine) { await openOffline(); return; }
+    const { error } = await supabase.rpc("open_shift_three", { p_float_zar: floats.zar, p_float_usd: floats.usd, p_float_zig: floats.zig });
+    if (error && isNetworkError(error)) { await openOffline(); return; }
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Shift opened");
