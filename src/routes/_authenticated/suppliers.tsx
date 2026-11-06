@@ -2,8 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, PackagePlus, Wallet, Trash2, FileText } from "lucide-react";
+import { Plus, PackagePlus, Wallet, Trash2, FileText, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { blankReceivingLine, completeReceivingLine, updateReceivingLine, receivingTotal, invoiceUSD, invoiceMoney, type InvoiceCurrency, type ReceivingLine } from "@/lib/receiving";
+import type { Database } from "@/integrations/supabase/types";
 import { useStaff } from "@/hooks/use-staff";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +20,8 @@ export const Route = createFileRoute("/_authenticated/suppliers")({
   head: () => ({ meta: [{ title: "Suppliers — Tilla POS" }, { name: "description", content: "Suppliers, goods received and balances owed." }] }),
   component: SuppliersPage,
 });
+
+type Supplier = Database["public"]["Tables"]["suppliers"]["Row"];
 
 function useSupplierData() {
   return useQuery({
@@ -48,6 +52,8 @@ function SuppliersPage() {
   const can = !!me?.canManageStock;
   const { data } = useSupplierData();
   const [newOpen, setNewOpen] = useState(false);
+  const [editSupplier, setEditSupplier] = useState<Supplier | null>(null);
+  const [deleteSupplier, setDeleteSupplier] = useState<Supplier | null>(null);
   const [grnOpen, setGrnOpen] = useState(false);
   const [payFor, setPayFor] = useState<string | null>(null);
   const [stmtFor, setStmtFor] = useState<string | null>(null);
@@ -81,6 +87,8 @@ function SuppliersPage() {
                 <TableCell className="tabular text-right">{money(s.paid)}</TableCell>
                 <TableCell className={`tabular text-right font-semibold ${s.balance > 0 ? "text-destructive" : ""}`}>{money(s.balance)}</TableCell>
                 <TableCell className="whitespace-nowrap text-right">
+                  {can && <Button size="icon" variant="ghost" aria-label={`Edit supplier ${s.name}`} title="Edit supplier" onClick={() => setEditSupplier(s)}><Pencil className="h-4 w-4" /></Button>}
+                  {can && <Button size="icon" variant="ghost" aria-label={`Delete supplier ${s.name}`} title="Delete supplier" onClick={() => setDeleteSupplier(s)}><Trash2 className="h-4 w-4" /></Button>}
                   <Button size="sm" variant="ghost" onClick={() => setStmtFor(s.id)}><FileText className="h-4 w-4" />Statement</Button>
                   {(can || me?.roles.includes("accountant")) && <Button size="sm" variant="ghost" onClick={() => setPayFor(s.id)}><Wallet className="h-4 w-4" />Pay</Button>}
                 </TableCell>
@@ -94,7 +102,7 @@ function SuppliersPage() {
       <h2 className="mt-10 text-xl font-bold">Goods received</h2>
       <div className="mt-3 overflow-x-auto rounded-xl border bg-card shadow-soft">
         <Table>
-          <TableHeader><TableRow><TableHead>GRN</TableHead><TableHead>Date</TableHead><TableHead>Supplier</TableHead><TableHead>Invoice</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>GRN</TableHead><TableHead>Date</TableHead><TableHead>Supplier</TableHead><TableHead>Invoice</TableHead><TableHead className="text-right">Invoice total</TableHead><TableHead className="text-right">Total (USD)</TableHead></TableRow></TableHeader>
           <TableBody>
             {(data?.grns ?? []).slice(0, 50).map((g) => (
               <TableRow key={g.id}>
@@ -102,15 +110,17 @@ function SuppliersPage() {
                 <TableCell className="text-sm">{new Date(g.created_at).toLocaleDateString()}</TableCell>
                 <TableCell>{name(g.supplier_id)}</TableCell>
                 <TableCell>{g.invoice_number ?? "—"}</TableCell>
-                <TableCell className="tabular text-right">{money(Number(g.total))}</TableCell>
+                <TableCell className="tabular text-right">{invoiceMoney(Number(g.original_total), g.currency as InvoiceCurrency)}</TableCell><TableCell className="tabular text-right">{money(Number(g.total))}</TableCell>
               </TableRow>
             ))}
-            {!data?.grns.length && <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">No deliveries recorded.</TableCell></TableRow>}
+            {!data?.grns.length && <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">No deliveries recorded.</TableCell></TableRow>}
           </TableBody>
         </Table>
       </div>
 
-      {newOpen && <NewSupplier onClose={() => setNewOpen(false)} />}
+      {newOpen && <SupplierForm onClose={() => setNewOpen(false)} />}
+      {editSupplier && <SupplierForm supplier={editSupplier} onClose={() => setEditSupplier(null)} />}
+      {deleteSupplier && <DeleteSupplier supplier={deleteSupplier} onClose={() => setDeleteSupplier(null)} />}
       {grnOpen && <ReceiveGoods suppliers={data?.suppliers ?? []} onClose={() => setGrnOpen(false)} />}
       {payFor && <PaySupplier id={payFor} name={name(payFor)} onClose={() => setPayFor(null)} />}
       {stmtFor && data && (
@@ -152,31 +162,50 @@ function Statement({ grns, pays }: { grns: { created_at: string; grn_number: str
   );
 }
 
-function NewSupplier({ onClose }: { onClose: () => void }) {
+function SupplierForm({ supplier, onClose }: { supplier?: Supplier; onClose: () => void }) {
   const qc = useQueryClient();
-  const [f, setF] = useState({ name: "", contact_person: "", phone: "", email: "", address: "" });
+  const [f, setF] = useState({ name: supplier?.name ?? "", contact_person: supplier?.contact_person ?? "", phone: supplier?.phone ?? "", email: supplier?.email ?? "", address: supplier?.address ?? "" });
+  const [busy, setBusy] = useState(false);
   async function save() {
-    if (!f.name) { toast.error("Name is required"); return; }
-    const { error } = await supabase.from("suppliers").insert(f);
+    if (busy) return;
+    if (!f.name.trim()) { toast.error("Name is required"); return; }
+    setBusy(true);
+    const payload = { ...f, name: f.name.trim() };
+    const { error } = supplier ? await supabase.from("suppliers").update(payload).eq("id", supplier.id) : await supabase.from("suppliers").insert(payload);
+    setBusy(false);
     if (error) { toast.error(error.message); return; }
     qc.invalidateQueries({ queryKey: ["suppliers"] });
-    toast.success("Supplier added");
+    toast.success(supplier ? "Supplier updated" : "Supplier added");
     onClose();
   }
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>New supplier</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{supplier ? "Edit supplier" : "New supplier"}</DialogTitle></DialogHeader>
         {(["name", "contact_person", "phone", "email", "address"] as const).map((k) => (
-          <div key={k} className="space-y-1.5"><Label className="capitalize">{k.replace("_", " ")}</Label><Input value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></div>
+          <div key={k} className="space-y-1.5"><Label htmlFor={`supplier-${k}`} className="capitalize">{k.replace("_", " ")}</Label><Input id={`supplier-${k}`} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></div>
         ))}
-        <Button onClick={save}>Save supplier</Button>
+        <div className="flex justify-end gap-2"><Button variant="outline" onClick={onClose}>Cancel</Button><Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save supplier"}</Button></div>
       </DialogContent>
     </Dialog>
   );
 }
 
-type GrnLine = { product_id: string; quantity: number; unit_cost: number };
+function DeleteSupplier({ supplier, onClose }: { supplier: Supplier; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  async function remove() {
+    if (busy) return;
+    setBusy(true);
+    const { error } = await supabase.rpc("delete_supplier", { p_id: supplier.id });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    await qc.invalidateQueries({ queryKey: ["suppliers"] });
+    toast.success("Supplier deleted");
+    onClose();
+  }
+  return <Dialog open onOpenChange={(open) => !open && onClose()}><DialogContent><DialogHeader><DialogTitle>Delete {supplier.name}?</DialogTitle></DialogHeader><p className="text-sm text-muted-foreground">Suppliers with deliveries, payments or returns cannot be deleted.</p><div className="flex justify-end gap-2"><Button variant="outline" onClick={onClose}>Cancel</Button><Button variant="destructive" disabled={busy} onClick={remove}>{busy ? "Deleting…" : "Delete supplier"}</Button></div></DialogContent></Dialog>;
+}
 
 function ReceiveGoods({ suppliers, onClose }: { suppliers: { id: string; name: string }[]; onClose: () => void }) {
   const qc = useQueryClient();
@@ -186,56 +215,63 @@ function ReceiveGoods({ suppliers, onClose }: { suppliers: { id: string; name: s
   });
   const [supplier, setSupplier] = useState(suppliers[0]?.id ?? "");
   const [invoice, setInvoice] = useState("");
-  const [paid, setPaid] = useState(0);
-  const [lines, setLines] = useState<GrnLine[]>([]);
+  const [currency, setCurrency] = useState<InvoiceCurrency>("USD");
+  const [rate, setRate] = useState("1");
+  const [paid, setPaid] = useState("");
+  const [note, setNote] = useState("");
+  const [method, setMethod] = useState("");
+  const { data: types } = usePaymentTypes();
+  const methods = activeTypes(types).filter((type) => !type.is_account);
+  const currentMethod = methods.some((type) => type.code === method) ? method : methods[0]?.code ?? "";
+  const [lines, setLines] = useState<ReceivingLine[]>([blankReceivingLine()]);
   const [busy, setBusy] = useState(false);
-  const total = lines.reduce((a, l) => a + l.quantity * l.unit_cost, 0);
-  const upd = (i: number, p: Partial<GrnLine>) => setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...p } : l)));
+  const total = receivingTotal(lines);
+  const usdTotal = Number(rate) > 0 ? invoiceUSD(total, currency, Number(rate)) : null;
+  const upd = (index: number, patch: Partial<ReceivingLine>) => setLines((previous) => updateReceivingLine(previous, index, patch));
 
   async function save() {
-    if (!supplier || !lines.length || lines.some((l) => !l.product_id || l.quantity <= 0)) { toast.error("Choose a supplier and complete every line"); return; }
+    if (busy) return;
+    const entered = lines.filter((line) => line.product_id || line.quantity || line.unit_cost);
+    if (!supplier || !entered.length || entered.some((line) => !completeReceivingLine(line))) { toast.error("Choose a supplier and complete every entered line"); return; }
+    if (!Number.isFinite(Number(rate)) || Number(rate) <= 0) { toast.error("Enter a positive exchange rate"); return; }
+    if (!Number.isFinite(Number(paid)) || Number(paid) < 0 || Number(paid) > total) { toast.error("Paid now must be between zero and the total"); return; }
+    if (Number(paid) > 0 && !currentMethod) { toast.error("Choose a payment type"); return; }
     setBusy(true);
-    const { data, error } = await supabase.rpc("receive_goods", { p_supplier: supplier, p_invoice: invoice, p_items: lines as never, p_paid: paid, p_note: "" });
-    setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    qc.invalidateQueries({ queryKey: ["suppliers"] });
-    qc.invalidateQueries({ queryKey: ["products"] });
-    toast.success(`${(data as { grn_number: string }).grn_number} received — stock updated`);
-    onClose();
+    try {
+      const { data, error } = await supabase.rpc("receive_goods_currency", { p_supplier: supplier, p_invoice: invoice, p_items: entered.map((line) => ({ product_id: line.product_id, quantity: Number(line.quantity), unit_cost: Number(line.unit_cost) })), p_paid: Number(paid), p_note: note, p_currency: currency, p_rate: Number(rate), p_method: currentMethod });
+      if (error) throw error;
+      await Promise.all(["suppliers", "products", "movements", "gl-lines", "branch_stock", "activity"].map((key) => qc.invalidateQueries({ queryKey: [key] })));
+      toast.success(`${(data as { grn_number: string }).grn_number} received — stock updated`);
+      onClose();
+    } catch (error) { toast.error(String((error as { message?: string }).message ?? "Receive goods failed")); }
+    finally { setBusy(false); }
   }
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+    <Dialog open onOpenChange={(open) => !open && !busy && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
         <DialogHeader><DialogTitle>Receive goods (GRN)</DialogTitle></DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5"><Label>Supplier</Label>
-            <Select value={supplier} onValueChange={setSupplier}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5"><Label>Supplier invoice number</Label><Input value={invoice} onChange={(e) => setInvoice(e.target.value)} /></div>
+          <div className="space-y-1.5"><Label>Supplier</Label><Select value={supplier} onValueChange={setSupplier}><SelectTrigger aria-label="Supplier"><SelectValue /></SelectTrigger><SelectContent>{suppliers.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-1.5"><Label htmlFor="grn-invoice">Supplier invoice number</Label><Input id="grn-invoice" value={invoice} onChange={(event) => setInvoice(event.target.value)} /></div>
+          <div className="space-y-1.5"><Label>Invoice currency</Label><Select value={currency} onValueChange={(value) => { setCurrency(value as InvoiceCurrency); setRate(value === "USD" ? "1" : ""); }}><SelectTrigger aria-label="Invoice currency"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem><SelectItem value="ZAR">Rand (ZAR)</SelectItem></SelectContent></Select></div>
+          <div className="space-y-1.5"><Label htmlFor="grn-rate">{currency === "USD" ? "Exchange rate" : `${currency === "ZAR" ? "Rand" : "ZiG"} per US$1`}</Label><Input id="grn-rate" type="number" min="0.000001" step="0.000001" disabled={currency === "USD"} value={rate} onChange={(event) => setRate(event.target.value)} /></div>
         </div>
-        <div className="space-y-2">
-          {lines.map((l, i) => (
-            <div key={i} className="flex gap-2">
-              <Select value={l.product_id} onValueChange={(v) => upd(i, { product_id: v, unit_cost: Number(products.find((p) => p.id === v)?.cost_price ?? 0) })}>
-                <SelectTrigger className="flex-1"><SelectValue placeholder="Product" /></SelectTrigger>
-                <SelectContent>{products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-              </Select>
-              <Input type="number" className="w-24" placeholder="Qty" value={l.quantity || ""} onChange={(e) => upd(i, { quantity: Number(e.target.value) })} />
-              <Input type="number" step="0.01" className="w-28" placeholder="Unit cost" value={l.unit_cost || ""} onChange={(e) => upd(i, { unit_cost: Number(e.target.value) })} />
-              <Button size="icon" variant="ghost" aria-label={`Remove line ${i + 1} from this goods received note`} onClick={() => setLines(lines.filter((_, k) => k !== i))}><Trash2 className="h-4 w-4" /></Button>
-            </div>
-          ))}
-          <Button variant="outline" size="sm" onClick={() => setLines([...lines, { product_id: "", quantity: 1, unit_cost: 0 }])}><Plus className="h-4 w-4" />Add line</Button>
+        <div className="overflow-x-auto border rounded-md"><Table><TableHeader><TableRow><TableHead>Product</TableHead><TableHead>Quantity</TableHead><TableHead>Unit cost ({currency === "ZAR" ? "Rand" : currency})</TableHead><TableHead className="text-right">Line total</TableHead><TableHead /></TableRow></TableHeader><TableBody>
+          {lines.map((line, index) => <TableRow key={index}>
+            <TableCell className="min-w-48"><Select value={line.product_id} onValueChange={(value) => upd(index, { product_id: value })}><SelectTrigger aria-label={`Product line ${index + 1}`}><SelectValue placeholder="Product" /></SelectTrigger><SelectContent>{products.map((product) => <SelectItem key={product.id} value={product.id}>{product.name} · {product.sku}</SelectItem>)}</SelectContent></Select></TableCell>
+            <TableCell><Input aria-label={`Quantity line ${index + 1}`} type="number" min="0.001" step="0.001" className="w-24" value={line.quantity} onChange={(event) => upd(index, { quantity: event.target.value })} /></TableCell>
+            <TableCell><Input aria-label={`Unit cost line ${index + 1}`} type="number" min="0" step="0.01" className="w-28" value={line.unit_cost} onChange={(event) => upd(index, { unit_cost: event.target.value })} /></TableCell>
+            <TableCell className="tabular text-right whitespace-nowrap">{completeReceivingLine(line) ? invoiceMoney(Number(line.quantity) * Number(line.unit_cost), currency) : "—"}</TableCell>
+            <TableCell><Button size="icon" variant="ghost" aria-label={`Remove line ${index + 1}`} disabled={lines.length === 1} onClick={() => setLines((previous) => { const next = previous.filter((_, i) => i !== index); const last = next.at(-1); return !last || completeReceivingLine(last) ? [...next, blankReceivingLine()] : next; })}><Trash2 className="h-4 w-4" /></Button></TableCell>
+          </TableRow>)}
+        </TableBody></Table></div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5"><Label htmlFor="grn-paid">Paid now ({currency === "ZAR" ? "Rand" : currency})</Label><Input id="grn-paid" type="number" min="0" step="0.01" value={paid} onChange={(event) => setPaid(event.target.value)} /></div>
+          <div className="space-y-1.5"><Label>Payment type</Label><Select value={currentMethod} onValueChange={setMethod}><SelectTrigger aria-label="Payment type"><SelectValue placeholder="Choose payment type" /></SelectTrigger><SelectContent>{methods.map((type) => <SelectItem key={type.code} value={type.code}>{type.name}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="grn-note">Note</Label><Input id="grn-note" value={note} onChange={(event) => setNote(event.target.value)} /></div>
         </div>
-        <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl bg-muted p-4">
-          <div className="space-y-1.5"><Label>Paid now (USD, leave 0 for credit)</Label><Input type="number" step="0.01" value={paid || ""} onChange={(e) => setPaid(Number(e.target.value))} className="w-40" /></div>
-          <div className="tabular font-display text-2xl font-bold">{money(total)}</div>
-        </div>
-        <Button onClick={save} disabled={busy}>Receive and add to stock</Button>
+        <div className="flex flex-wrap justify-between gap-3 border-t pt-4"><div><div className="text-sm text-muted-foreground">Invoice total</div><div className="tabular text-2xl font-bold">{invoiceMoney(total, currency)}</div>{currency !== "USD" && <div className="text-sm text-muted-foreground">USD equivalent: {usdTotal === null ? "—" : money(usdTotal)}</div>}</div><div className="flex items-center gap-2"><Button variant="outline" disabled={busy} onClick={onClose}>Cancel</Button><Button onClick={save} disabled={busy}>{busy ? "Receiving…" : "Receive and add to stock"}</Button></div></div>
       </DialogContent>
     </Dialog>
   );
