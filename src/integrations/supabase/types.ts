@@ -1993,6 +1993,15 @@ export type Database = {
         Args: { p_actual_usd: number; p_actual_zig: number; p_notes: string }
         Returns: string
       }
+      close_shift_three: {
+        Args: {
+          p_actual_usd: number
+          p_actual_zar: number
+          p_actual_zig: number
+          p_notes: string
+        }
+        Returns: string
+      }
       complete_offline_sale: {
         Args: {
           p_client_ref: string
@@ -2065,6 +2074,10 @@ export type Database = {
       }
       open_shift: {
         Args: { p_float_usd: number; p_float_zig: number }
+        Returns: Json
+      }
+      open_shift_three: {
+        Args: { p_float_usd: number; p_float_zar: number; p_float_zig: number }
         Returns: Json
       }
       pay_supplier: {
