@@ -170,7 +170,7 @@ export function PinDialog({ userId, name, onClose }: { userId: string; name: str
   const [busy, setBusy] = useState(false);
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!isValidPin(pin)) { toast.error("PIN must be 4 to 6 digits"); return; }
+    if (!isValidPin(pin)) { toast.error("PIN must be exactly 4 digits"); return; }
     setBusy(true);
     const { error } = await supabase.rpc("set_staff_pin", { p_user: userId, p_pin: pin });
     setBusy(false);
@@ -183,8 +183,8 @@ export function PinDialog({ userId, name, onClose }: { userId: string; name: str
         <DialogHeader><DialogTitle>Till PIN · {name}</DialogTitle></DialogHeader>
         <form onSubmit={submit} className="space-y-3">
           <p className="text-sm text-muted-foreground">They sign in at the till with their username and this PIN. 5 wrong tries locks PIN sign-in for 5 minutes.</p>
-          <div className="space-y-1.5"><Label htmlFor="newpin">New PIN (4–6 digits)</Label>
-            <Input id="newpin" inputMode="numeric" maxLength={6} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} required /></div>
+          <div className="space-y-1.5"><Label htmlFor="newpin">New PIN (4 digits)</Label>
+            <Input id="newpin" inputMode="numeric" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} required /></div>
           <Button type="submit" className="w-full" disabled={busy}>Save PIN</Button>
         </form>
       </DialogContent>

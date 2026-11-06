@@ -65,7 +65,7 @@ export function effectivePermission(roles: string[], perm: Permission, overrides
   return overrides[perm] ?? roles.some((r) => ROLE_DEFAULTS[perm].includes(r));
 }
 
-/** Till PINs are 4–6 digits. Mirrors public.set_staff_pin. */
+/** Till PINs are exactly 4 digits. Mirrors public.set_staff_pin. */
 export function isValidPin(p: string) {
-  return /^[0-9]{4,6}$/.test(p ?? "");
+  return /^[0-9]{4}$/.test(p ?? "");
 }

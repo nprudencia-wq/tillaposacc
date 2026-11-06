@@ -28,7 +28,7 @@ export const createStaffAccount = createServerFn({ method: "POST" })
     if (!d.fullName?.trim()) throw new Error("Enter the person's name");
     if (!d.password || d.password.length < 6) throw new Error("Password must be at least 6 characters");
     if (!ROLES.includes(d.role as never)) throw new Error("Pick a role");
-    if (d.pin && !/^[0-9]{4,6}$/.test(d.pin)) throw new Error("PIN must be 4 to 6 digits");
+    if (d.pin && !/^[0-9]{4}$/.test(d.pin)) throw new Error("PIN must be exactly 4 digits");
     return d;
   })
   .handler(async ({ data, context }) => {

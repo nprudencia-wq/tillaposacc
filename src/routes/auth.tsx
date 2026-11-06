@@ -52,7 +52,7 @@ function AuthPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (mode === "pin" && pin.length < 4) { toast.error("Enter your 4–6 digit PIN"); return; }
+    if (mode === "pin" && pin.length < 4) { toast.error("Enter your 4-digit PIN"); return; }
     setBusy(true);
     try {
       if (mode === "pin") remember(email);
