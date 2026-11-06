@@ -275,7 +275,7 @@ function ReceiveGoods({ suppliers, onClose, draft }: { suppliers: { id: string; 
   }
   async function persist() {
     const payload: GrnForm = { supplier, invoice, currency, rate, paid, note, method: currentMethod, lines };
-    const { data, error } = await supabase.rpc("save_grn_draft", { p_id: savedDraft?.id ?? null, p_version: savedDraft?.version ?? 0, p_payload: payload as unknown as Database["public"]["Tables"]["grn_drafts"]["Row"]["payload"] });
+    const { data, error } = await supabase.rpc("save_grn_draft", { p_id: savedDraft?.id ?? crypto.randomUUID(), p_version: savedDraft?.version ?? 0, p_payload: payload as unknown as Database["public"]["Tables"]["grn_drafts"]["Row"]["payload"] });
     if (error) throw error;
     if (!data) throw new Error("Draft could not be saved");
     setSavedDraft(data);
