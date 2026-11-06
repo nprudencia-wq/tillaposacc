@@ -5,6 +5,7 @@ import { money, type Currency, type PayMethod } from "@/lib/pos";
 import { methodLabel } from "@/lib/payment-types";
 import { useSettings } from "@/hooks/use-staff";
 import { vatBreakdown } from "@/lib/vat";
+import { ZimraReceiptBlock } from "@/components/ZimraSettings";
 
 export interface ReceiptData {
   sale_number: string;
@@ -62,6 +63,7 @@ export function Receipt({ r }: { r: ReceiptData }) {
         <div key={k} className="flex justify-between"><span>{methodLabel(p.method)} ({p.currency})</span><span>{money(p.amount, p.currency)}</span></div>
       ))}
       <div className="flex justify-between font-bold"><span>Change</span><span>{money(cv(r.change), r.currency)}</span></div>
+      <ZimraReceiptBlock saleNumber={r.sale_number} />
       <div className="mt-3 whitespace-pre-line text-center">{st?.receipt_footer || "Thank you for shopping with us!"}</div>
     </div>
   );

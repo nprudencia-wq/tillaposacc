@@ -2257,6 +2257,245 @@ export type Database = {
           },
         ]
       }
+      zimra_config: {
+        Row: {
+          activation_key_set: boolean
+          bp_number: string
+          certificate_set: boolean
+          device_id: string
+          device_model: string
+          device_serial: string
+          device_version: string
+          enabled: boolean
+          environment: string
+          store_id: string
+          taxpayer_name: string
+          taxpayer_tin: string
+          updated_at: string
+          vat_number: string
+        }
+        Insert: {
+          activation_key_set?: boolean
+          bp_number?: string
+          certificate_set?: boolean
+          device_id?: string
+          device_model?: string
+          device_serial?: string
+          device_version?: string
+          enabled?: boolean
+          environment?: string
+          store_id?: string
+          taxpayer_name?: string
+          taxpayer_tin?: string
+          updated_at?: string
+          vat_number?: string
+        }
+        Update: {
+          activation_key_set?: boolean
+          bp_number?: string
+          certificate_set?: boolean
+          device_id?: string
+          device_model?: string
+          device_serial?: string
+          device_version?: string
+          enabled?: boolean
+          environment?: string
+          store_id?: string
+          taxpayer_name?: string
+          taxpayer_tin?: string
+          updated_at?: string
+          vat_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zimra_config_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: true
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zimra_fiscal_days: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          day_no: number
+          id: string
+          opened_at: string
+          opened_by: string | null
+          receipt_counter: number
+          status: string
+          store_id: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          day_no: number
+          id?: string
+          opened_at?: string
+          opened_by?: string | null
+          receipt_counter?: number
+          status?: string
+          store_id?: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          day_no?: number
+          id?: string
+          opened_at?: string
+          opened_by?: string | null
+          receipt_counter?: number
+          status?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zimra_fiscal_days_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zimra_receipts: {
+        Row: {
+          attempts: number
+          created_at: string
+          currency: string
+          day_no: number
+          error: string | null
+          fiscal_day_id: string
+          global_no: number
+          id: string
+          previous_hash: string | null
+          receipt_counter: number
+          receipt_hash: string
+          receipt_type: string
+          refund_id: string | null
+          sale_id: string | null
+          signature: string | null
+          status: string
+          store_id: string
+          submitted_at: string | null
+          tax_amount: number
+          tax_rate: number
+          total: number
+          zimra_receipt_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          currency: string
+          day_no: number
+          error?: string | null
+          fiscal_day_id: string
+          global_no: number
+          id?: string
+          previous_hash?: string | null
+          receipt_counter: number
+          receipt_hash: string
+          receipt_type: string
+          refund_id?: string | null
+          sale_id?: string | null
+          signature?: string | null
+          status?: string
+          store_id: string
+          submitted_at?: string | null
+          tax_amount?: number
+          tax_rate?: number
+          total: number
+          zimra_receipt_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          currency?: string
+          day_no?: number
+          error?: string | null
+          fiscal_day_id?: string
+          global_no?: number
+          id?: string
+          previous_hash?: string | null
+          receipt_counter?: number
+          receipt_hash?: string
+          receipt_type?: string
+          refund_id?: string | null
+          sale_id?: string | null
+          signature?: string | null
+          status?: string
+          store_id?: string
+          submitted_at?: string | null
+          tax_amount?: number
+          tax_rate?: number
+          total?: number
+          zimra_receipt_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zimra_receipts_fiscal_day_id_fkey"
+            columns: ["fiscal_day_id"]
+            isOneToOne: false
+            referencedRelation: "zimra_fiscal_days"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zimra_receipts_refund_id_fkey"
+            columns: ["refund_id"]
+            isOneToOne: true
+            referencedRelation: "refunds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zimra_receipts_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: true
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "zimra_receipts_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zimra_secrets: {
+        Row: {
+          activation_key: string | null
+          certificate: string | null
+          private_key: string | null
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          activation_key?: string | null
+          certificate?: string | null
+          private_key?: string | null
+          store_id: string
+          updated_at?: string
+        }
+        Update: {
+          activation_key?: string | null
+          certificate?: string | null
+          private_key?: string | null
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zimra_secrets_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: true
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2632,6 +2871,7 @@ export type Database = {
         Args: { p_notes: string; p_shift: string; p_summary: string }
         Returns: undefined
       }
+      save_zimra_config: { Args: { p: Json }; Returns: undefined }
       set_staff_pin: {
         Args: { p_pin: string; p_user: string }
         Returns: undefined
@@ -2685,6 +2925,18 @@ export type Database = {
         Returns: undefined
       }
       verify_payment: { Args: { p_payment: string }; Returns: undefined }
+      zimra_close_fiscal_day: { Args: never; Returns: undefined }
+      zimra_record_receipt: {
+        Args: {
+          p_currency: string
+          p_refund: string
+          p_sale: string
+          p_store: string
+          p_total: number
+          p_type: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role:
