@@ -26,3 +26,5 @@
 - Supplier deletion uses `delete_supplier`, which rejects suppliers with transaction history. Why: correcting unused entries must never erase purchases, payments or returns.
 - Phase 1 uses `stores` and protected `store_memberships` as its additive ownership foundation; do not provision other stores until all business tables, security-definer functions, storage and browser queues are isolated and negative cross-store tests pass. Why: the legacy POS still has singleton assumptions.
 - Privileged staff password resets must verify the caller and target share a store before loading the admin client. Why: global management roles must not authorize cross-store account changes.
+- All legacy business rows carry a backfilled store_id with restrictive authenticated policies and immutable ownership guards; these are not a substitute for auditing privileged reads and related IDs. Why: security-definer routines bypass row policies.
+- Device persistence keys include both store and staff identity; unidentified legacy queues remain quarantined rather than reassigned. Why: changing login must never upload another cashier's sales.
