@@ -158,7 +158,7 @@ function AddStaffDialog({ roles, onClose, onDone }: { roles: [string, string][];
     e.preventDefault();
     if (!/^[0-9]{4,6}$/.test(f.pin)) { toast.error("PIN must be 4 to 6 digits"); return; }
     setBusy(true);
-    const password = f.password || `Tilla-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`;
+    const password = f.password || `Tilla-${crypto.getRandomValues(new Uint32Array(1))[0]!.toString(36)}`;
     try {
       const r = await create({ data: { ...f, password } });
       setDone({ username: r.username, pin: f.pin, password, pinSet: r.pinSet }); onDone();
