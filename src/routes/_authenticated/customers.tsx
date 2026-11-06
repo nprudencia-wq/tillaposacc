@@ -332,7 +332,7 @@ function DebtorRules({ settings, canEdit }: { settings: ReturnType<typeof useSet
   const v = f ?? { i: String(settings?.debtor_interest_rate ?? 5), id: String(settings?.interest_after_days ?? 30), p: String(settings?.bad_debt_provision_rate ?? 1), pd: String(settings?.provision_after_days ?? 120) };
   const save = async () => {
     const { error } = await supabase.rpc("save_debtor_rules", { p_interest: Number(v.i), p_interest_days: Number(v.id), p_provision: Number(v.p), p_provision_days: Number(v.pd) });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Debtor rules saved"); setF(null);
     qc.invalidateQueries({ queryKey: ["settings"] });
   };
