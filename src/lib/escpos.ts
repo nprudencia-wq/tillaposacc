@@ -22,7 +22,7 @@ export function row(left: string, right: string, cols: number) {
 
 export class EscPos {
   private parts: number[] = [];
-  raw(b: ArrayLike<number>) { for (let i = 0; i < b.length; i++) this.parts.push(b[i]); return this; }
+  raw(b: ArrayLike<number>) { for (let i = 0; i < b.length; i++) this.parts.push(b[i] as number); return this; }
   init() { return this.raw([ESC, 0x40]); }
   align(a: "left" | "center") { return this.raw([ESC, 0x61, a === "center" ? 1 : 0]); }
   bold(on: boolean) { return this.raw([ESC, 0x45, on ? 1 : 0]); }
