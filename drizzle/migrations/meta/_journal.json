@@ -302,6 +302,13 @@
       "when": 1793949581454,
       "tag": "0042_debtor_interest_and_provision",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1793949851916,
+      "tag": "0043_seed_chart_of_accounts_for_new_stores",
+      "breakpoints": true
     }
   ]
 }
