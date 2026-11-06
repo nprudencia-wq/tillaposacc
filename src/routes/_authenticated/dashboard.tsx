@@ -78,7 +78,7 @@ function Dashboard() {
   const byMethod = Object.values((summary?.pays ?? []).reduce<Record<string, { key: string; label: string; usd: number; count: Set<string> }>>((acc, p) => {
     const key = `${p.method}-${p.currency}`;
     const rateUsed = Number(p.exchange_rate) || 1;
-    const usd = p.currency === "ZIG" ? Number(p.amount) / rateUsed : Number(p.amount);
+    const usd = Number(p.amount) / rateUsed;
     const e = (acc[key] ??= { key, label: `${methodLabel(p.method)} (${p.currency})`, usd: 0, count: new Set() });
     e.usd += usd; e.count.add(p.sale_id);
     return acc;
