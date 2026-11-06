@@ -285,7 +285,11 @@ function ReceiveGoods({ suppliers, onClose, draft }: { suppliers: { id: string; 
   async function saveTemporary() {
     if (busy) return;
     setBusy(true);
-    try { await persist(); toast.success("GRN draft saved — inventory unchanged"); onClose(); }
+    try {
+      await persist();
+      window.__lovableEvents?.track?.("project.grn_draft_saved", { currency, line_count: entered.length });
+      toast.success("GRN draft saved — inventory unchanged"); onClose();
+    }
     catch (error) { toast.error((error as { message?: string }).message ?? "Could not save draft"); }
     finally { setBusy(false); }
   }
@@ -295,8 +299,10 @@ function ReceiveGoods({ suppliers, onClose, draft }: { suppliers: { id: string; 
     setBusy(true);
     try {
       const d = await persist();
+      window.__lovableEvents?.track?.("project.grn_review_confirmed", { currency, line_count: entered.length });
       const { data, error } = await supabase.rpc("post_grn_draft", { p_id: d.id, p_version: d.version });
       if (error) throw error;
+      window.__lovableEvents?.track?.("project.grn_inventory_posted", { currency, line_count: entered.length });
       await Promise.all(["grn-drafts", "suppliers", "products", "movements", "gl-lines", "branch_stock", "activity"].map((key) => qc.invalidateQueries({ queryKey: [key] })));
       toast.success(`${(data as { grn_number: string }).grn_number} received — stock updated`);
       onClose();

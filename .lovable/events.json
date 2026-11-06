@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "events": {
+    "project.grn_draft_saved": {
+      "event_schema_version": 1,
+      "description": "A user successfully temporarily saves an editable GRN draft without updating inventory.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "currency",
+          "line_count"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD",
+              "ZiG",
+              "ZAR"
+            ]
+          },
+          "line_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "project.grn_inventory_posted": {
+      "event_schema_version": 1,
+      "description": "The protected GRN posting operation succeeds after review confirmation.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "currency",
+          "line_count"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD",
+              "ZiG",
+              "ZAR"
+            ]
+          },
+          "line_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "project.grn_review_confirmed": {
+      "event_schema_version": 1,
+      "description": "A validated GRN review is confirmed and its snapshot is saved before requesting inventory posting.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "currency",
+          "line_count"
+        ],
+        "properties": {
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD",
+              "ZiG",
+              "ZAR"
+            ]
+          },
+          "line_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    }
+  }
+}
