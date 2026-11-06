@@ -379,6 +379,13 @@
       "when": 1793978766435,
       "tag": "0053_trusted_staff_provisioning",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1793979362805,
+      "tag": "0054_provision_staff_on_app_metadata",
+      "breakpoints": true
     }
   ]
 }
