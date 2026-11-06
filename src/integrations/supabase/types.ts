@@ -943,6 +943,7 @@ export type Database = {
           plan_name: string
           plan_price_usd: number
           receipt_footer: string
+          store_id: string | null
           tax_number: string
           till_count: number
           updated_at: string
@@ -964,6 +965,7 @@ export type Database = {
           plan_name?: string
           plan_price_usd?: number
           receipt_footer?: string
+          store_id?: string | null
           tax_number?: string
           till_count?: number
           updated_at?: string
@@ -985,6 +987,7 @@ export type Database = {
           plan_name?: string
           plan_price_usd?: number
           receipt_footer?: string
+          store_id?: string | null
           tax_number?: string
           till_count?: number
           updated_at?: string
@@ -993,7 +996,15 @@ export type Database = {
           vendor_pay_details?: string
           zig_rate?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "settings_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shift_cash_movements: {
         Row: {
@@ -1245,6 +1256,69 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      store_memberships: {
+        Row: {
+          created_at: string
+          store_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          store_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          store_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_memberships_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_memberships_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stores: {
+        Row: {
+          billing_exempt: boolean
+          created_at: string
+          id: string
+          is_vendor_store: boolean
+          name: string
+          trial_ends_at: string | null
+          trial_started_at: string | null
+        }
+        Insert: {
+          billing_exempt?: boolean
+          created_at?: string
+          id?: string
+          is_vendor_store?: boolean
+          name: string
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
+        }
+        Update: {
+          billing_exempt?: boolean
+          created_at?: string
+          id?: string
+          is_vendor_store?: boolean
+          name?: string
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
+        }
+        Relationships: []
       }
       subscription_payments: {
         Row: {

@@ -141,6 +141,13 @@
       "when": 1793936563317,
       "tag": "0019_phase_two_inventory_suppliers",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1793945107844,
+      "tag": "0020_phase_one_vendor_store_safety_foundation",
+      "breakpoints": true
     }
   ]
 }
