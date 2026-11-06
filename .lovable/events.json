@@ -91,6 +91,83 @@
         }
       }
     },
+    "project.offline_shift_closed": {
+      "event_schema_version": 1,
+      "description": "A cashier ended a shift on the till without internet; it uploads later.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "opened_offline"
+        ],
+        "properties": {
+          "opened_offline": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "project.offline_sync_completed": {
+      "event_schema_version": 1,
+      "description": "A till upload run finished after sending queued offline sales or an offline shift closure.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "synced",
+          "failed",
+          "shift_close_uploaded"
+        ],
+        "properties": {
+          "synced": {
+            "type": "number"
+          },
+          "failed": {
+            "type": "number"
+          },
+          "shift_close_uploaded": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "project.offline_upload_failed": {
+      "event_schema_version": 1,
+      "description": "An offline sale, shift opening or shift closure failed to upload from the till.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "network"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "sale",
+              "shift_open",
+              "shift_close"
+            ]
+          },
+          "network": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
     "project.till_sale_completed": {
       "event_schema_version": 1,
       "description": "A till sale completes after the protected online sale succeeds or the offline sale is successfully queued locally; queue uploads do not emit again. Group event times by Harare day; offline arrival is best-effort, not an accounting total.",
