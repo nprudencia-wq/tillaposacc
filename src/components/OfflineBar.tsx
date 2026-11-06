@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CloudOff, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { isSyncing, pendingShiftCount, shiftErrors, readQueue, syncQueue, type QueuedSale } from "@/lib/offline";
+import { isSyncing, readQueue, syncQueue, type QueuedSale } from "@/lib/offline";
 
 export function OfflineBar() {
   const qc = useQueryClient();
@@ -28,7 +28,7 @@ export function OfflineBar() {
   useEffect(() => {
     const refresh = () => {
       setOnline(navigator.onLine); setQueue(readQueue());
-      if (navigator.onLine && (readQueue().length || pendingShiftCount())) void sync();
+      if (navigator.onLine && readQueue().length) void sync();
     };
     // Back online: upload queued sales, then pull fresh prices, stock and rates.
     const goOnline = () => { refresh(); void sync().then(() => qc.invalidateQueries()); };
@@ -39,7 +39,7 @@ export function OfflineBar() {
     window.addEventListener("offline", refresh);
     window.addEventListener("tilla-queue", refresh);
     document.addEventListener("visibilitychange", onVisible);
-    const t = setInterval(() => { if (navigator.onLine && (readQueue().length || pendingShiftCount())) void sync(); }, 15_000);
+    const t = setInterval(() => { if (navigator.onLine && readQueue().length) void sync(); }, 15_000);
     return () => {
       window.removeEventListener("online", goOnline);
       window.removeEventListener("offline", refresh);
@@ -50,18 +50,14 @@ export function OfflineBar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const shiftsWaiting = pendingShiftCount();
-  const shiftProblems = shiftErrors();
-  if (online && !queue.length && !shiftsWaiting) return null;
+  if (online && !queue.length) return null;
   const failed = queue.filter((q) => q.error);
   return (
     <div role="status" className={`flex flex-wrap items-center gap-3 px-4 py-2 text-sm print:hidden ${online ? "bg-warning/15" : "bg-destructive/10"}`}>
       {!online && <span className="flex items-center gap-2 font-semibold text-destructive"><CloudOff className="h-4 w-4" />Offline — sales are saved on this device</span>}
       {queue.length > 0 && <span>{queue.length} sale{queue.length > 1 ? "s" : ""} waiting to upload</span>}
-      {shiftsWaiting > 0 && <span>{shiftsWaiting} shift{shiftsWaiting > 1 ? "s" : ""} waiting to upload</span>}
-      {shiftProblems.length > 0 && <span className="text-destructive">{shiftProblems[0]}</span>}
       {failed.length > 0 && <span className="text-destructive">{failed.length} rejected: {failed[0]?.error}</span>}
-      {online && (queue.length > 0 || shiftsWaiting > 0) && (
+      {online && queue.length > 0 && (
         <Button size="sm" variant="outline" disabled={busy} onClick={() => sync(true)}>
           <RefreshCw className={`h-4 w-4 ${busy ? "animate-spin" : ""}`} />Upload now
         </Button>
