@@ -12,7 +12,7 @@
 - Sales and stock changes go through the `complete_sale` / `adjust_stock` database functions only; tables have no direct write grants for sales or stock movements, so prices and the stock audit trail can't be bypassed by cashiers.
 - Roles live in `user_roles`; `handle_new_user` only accepts trusted administrative staff creation. Public staff signup is rejected to prevent outsiders entering the existing shop.
 - Money is stored in USD; ZiG amounts are converted with `settings.zig_rate` at sale time and the rate is saved on each sale.
-- Offline sales queue in localStorage (src/lib/offline.ts) and upload via `complete_offline_sale`, which dedupes on `client_ref`; non-cash offline payments start unverified. Why: retries must never double-sell.
+- Offline sales queue and catalog cache live in IndexedDB via src/lib/local-db.ts (src/lib/offline.ts keeps an in-memory mirror; older localStorage queues migrate on load) and upload via `complete_offline_sale`, which dedupes on `client_ref`; non-cash offline payments start unverified. Why: retries must never double-sell.
 - The service worker registers only from src/lib/pwa.ts and never in dev/preview. Why: stale caches break the editor preview.
 - Staff log in by username mapped to `<username>@staff.tilla.local` (src/lib/username.ts); accounts with real emails still log in by email. Why: auth requires an email; auto-confirm is on because placeholder addresses can't receive mail.
 - Access rights = role default overridden per person in `user_permissions`, resolved by `has_permission()`; `can_refund`/`can_manage_stock`/`can_post_expense` wrap it and disabled profiles fail `is_staff`. Keep src/lib/username.ts ROLE_DEFAULTS in sync with `role_allows()`.
