@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { money } from "@/lib/pos";
 import { catOptions } from "@/lib/categories";
+import { stockCorrection } from "@/lib/receiving";
 import type { Database } from "@/integrations/supabase/types";
 
 type Product = Database["public"]["Tables"]["products"]["Row"];
@@ -129,6 +130,8 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
   const { data: cats = [] } = useQuery({ queryKey: ["categories"], queryFn: async () => (await supabase.from("categories").select("*").order("name")).data ?? [] });
   const set = (k: keyof Product, v: unknown) => setF((x) => ({ ...x, [k]: v }));
   const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [reason, setReason] = useState("");
 
   async function upload(file: File) {
     if (file.size > 5 * 1024 * 1024) { toast.error("Photo must be under 5 MB"); return; }
@@ -144,33 +147,31 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
   }
 
   async function save() {
-    if (!f.name) { toast.error("Name is required"); return; }
+    if (saving) return;
+    if (!f.name?.trim()) { toast.error("Name is required"); return; }
+    const target = Number(f.stock ?? 0);
+    try { stockCorrection(isNew ? target : Number(p.stock ?? 0), target, reason); }
+    catch (error) { toast.error(error instanceof Error ? error.message : "Invalid stock"); return; }
     const payload = {
       name: f.name, sku: f.sku || null, barcode: f.barcode || null, description: f.description || null,
       category_id: f.category_id || null, image_url: f.image_url || null,
       cost_price: Number(f.cost_price || 0), selling_price: Number(f.selling_price || 0), wholesale_price: Number(f.wholesale_price || 0),
       min_stock: Number(f.min_stock || 0), max_stock: Number(f.max_stock || 0), active: f.active ?? true,
     };
-    if (isNew) {
-      const { data, error } = await supabase.from("products").insert(payload).select().single();
-      if (error) { toast.error(error.message); return; }
-      const opening = Number(f.stock || 0);
-      if (opening > 0) {
-        const { error: e2 } = await supabase.rpc("adjust_stock", { p_product: data.id, p_qty: opening, p_type: "opening", p_note: "Opening stock" });
-        if (e2) toast.error(e2.message);
-      }
-    } else {
-      const { error } = await supabase.from("products").update(payload).eq("id", p.id!);
-      if (error) { toast.error(error.message); return; }
-    }
-    qc.invalidateQueries({ queryKey: ["products"] });
-    toast.success("Product saved");
-    onClose();
+    setSaving(true);
+    try {
+      const { error } = await supabase.rpc("save_inventory_product", { p_id: p.id ?? null as unknown as string, p_fields: payload, p_stock: target, p_expected_stock: Number(p.stock ?? 0), p_reason: reason });
+      if (error) throw error;
+      await Promise.all(["products", "movements", "stock-movements", "branch_stock", "gl-lines", "activity"].map((key) => qc.invalidateQueries({ queryKey: [key] })));
+      toast.success("Product and stock saved");
+      onClose();
+    } catch (error) { toast.error(error instanceof Error ? error.message : String((error as { message?: string }).message ?? "Save failed")); }
+    finally { setSaving(false); }
   }
 
   const field = (k: keyof Product, label: string, type = "text") => (
-    <div className="space-y-1.5"><Label>{label}</Label>
-      <Input type={type} step="0.01" value={(f[k] as string | number | null) ?? ""} onChange={(e) => set(k, e.target.value)} /></div>
+    <div className="space-y-1.5"><Label htmlFor={`product-${k}`}>{label}</Label>
+      <Input id={`product-${k}`} type={type} step="0.01" value={(f[k] as string | number | null) ?? ""} onChange={(e) => set(k, e.target.value)} /></div>
   );
 
   return (
@@ -198,7 +199,8 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
           </div>
           {field("cost_price", "Cost price (USD)", "number")}{field("selling_price", "Selling price (USD)", "number")}
           {field("wholesale_price", "Wholesale price (USD)", "number")}
-          {isNew ? field("stock", "Opening stock", "number") : <div />}
+          {field("stock", isNew ? "Opening stock" : "Stock on hand", "number")}
+          {!isNew && Number(f.stock ?? 0) !== Number(p.stock ?? 0) && <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="stock-reason">Stock correction reason</Label><Input id="stock-reason" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for correction" /><p className="text-sm text-muted-foreground">{Number(p.stock)} → {Number(f.stock)} ({Number(f.stock) - Number(p.stock) > 0 ? "+" : ""}{Number(f.stock) - Number(p.stock)})</p></div>}
           {field("min_stock", "Minimum stock", "number")}{field("max_stock", "Maximum stock", "number")}
           <div className="sm:col-span-2">{field("description", "Description")}</div>
           {!isNew && (
@@ -209,7 +211,7 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
-          <Button onClick={save} disabled={uploading} className="flex-1">Save changes</Button>
+          <Button onClick={save} disabled={uploading || saving} className="flex-1">{saving ? "Saving…" : "Save changes"}</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -229,7 +231,7 @@ function AdjustDialog({ p, onClose }: { p: Product; onClose: () => void }) {
   const [type, setType] = useState("purchase");
   const [qty, setQty] = useState(0);
   const [note, setNote] = useState("");
-  const sign = adjTypes.find((t) => t.v === type)!.sign;
+  const sign = adjTypes.find((t) => t.v === type)?.sign ?? 0;
   const delta = sign === 0 ? qty : sign * Math.abs(qty);
 
   async function save() {
