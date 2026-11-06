@@ -169,6 +169,13 @@
       "when": 1793945650371,
       "tag": "0023_tenant_related_record_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793945696744,
+      "tag": "0024_tenant_product_photo_access",
+      "breakpoints": true
     }
   ]
 }
