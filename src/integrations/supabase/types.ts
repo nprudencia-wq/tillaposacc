@@ -1224,6 +1224,7 @@ export type Database = {
       }
       sales_documents: {
         Row: {
+          client_ref: string | null
           created_at: string
           created_by: string
           currency: string
@@ -1247,6 +1248,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          client_ref?: string | null
           created_at?: string
           created_by?: string
           currency?: string
@@ -1270,6 +1272,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          client_ref?: string | null
           created_at?: string
           created_by?: string
           currency?: string
@@ -2168,6 +2171,16 @@ export type Database = {
       convert_quote_to_invoice: {
         Args: { p_document: string }
         Returns: string
+      }
+      credit_note_refund: {
+        Args: {
+          p_client_ref: string
+          p_items: Json
+          p_method: string
+          p_reason: string
+          p_sale: string
+        }
+        Returns: Json
       }
       currency_rate: {
         Args: { p_currency: string; p_rand: number; p_zig: number }

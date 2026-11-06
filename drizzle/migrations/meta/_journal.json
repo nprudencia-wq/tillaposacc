@@ -225,6 +225,13 @@
       "when": 1793946743001,
       "tag": "0031_sales_documents_and_refund_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793946947663,
+      "tag": "0032_atomic_credit_notes_and_document_integrity",
+      "breakpoints": true
     }
   ]
 }
