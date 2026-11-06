@@ -14,6 +14,7 @@ import { methodLabel } from "@/lib/payment-types";
 export type ShiftSummary = {
   shift: {
     id: string; shift_number: string; status: string; opened_at: string; closed_at: string | null;
+    opening_float_zar: number; actual_cash_zar: number | null; variance_zar: number | null;
     opening_float_usd: number; opening_float_zig: number; actual_cash_usd: number | null; actual_cash_zig: number | null;
     variance_usd: number | null; variance_zig: number | null; notes: string | null; cashier_id: string;
   };
@@ -52,10 +53,11 @@ export function OpenShiftGate() {
   const qc = useQueryClient();
   const [usd, setUsd] = useState("");
   const [zig, setZig] = useState("");
+  const [zar, setZar] = useState("");
   const [busy, setBusy] = useState(false);
   async function open() {
     setBusy(true);
-    const { error } = await supabase.rpc("open_shift", { p_float_usd: Number(usd) || 0, p_float_zig: Number(zig) || 0 });
+    const { error } = await supabase.rpc("open_shift_three", { p_float_zar: Number(zar) || 0, p_float_usd: Number(usd) || 0, p_float_zig: Number(zig) || 0 });
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Shift opened");
@@ -72,6 +74,7 @@ export function OpenShiftGate() {
         <label className="mt-3 block text-sm font-medium">Opening float (ZiG)
           <Input type="number" min={0} step="0.01" value={zig} onChange={(e) => setZig(e.target.value)} className="tabular mt-1" placeholder="0.00" />
         </label>
+        <label className="mt-3 block text-sm font-medium">Opening float (Rand)<Input type="number" min={0} step="0.01" value={zar} onChange={(e) => setZar(e.target.value)} /></label>
         <Button size="lg" className="mt-5 w-full" disabled={busy} onClick={open}>Open shift</Button>
       </div>
     </div>
@@ -133,7 +136,7 @@ function MovementDialog({ onClose }: { onClose: () => void }) {
           <div className="flex gap-2">
             <Select value={currency} onValueChange={(v) => setCurrency(v as Currency)}>
               <SelectTrigger className="w-24" aria-label="Currency"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem><SelectItem value="ZAR">Rand</SelectItem></SelectContent>
             </Select>
             <Input type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" aria-label="Amount" className="tabular" />
           </div>
@@ -149,15 +152,16 @@ function CloseDialog({ shiftId, onClose, onClosed }: { shiftId: string; onClose:
   const qc = useQueryClient();
   const [usd, setUsd] = useState("");
   const [zig, setZig] = useState("");
+  const [zar, setZar] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   async function submit() {
-    if (usd === "" || zig === "") { toast.error("Enter the cash counted in both currencies (0 if none)"); return; }
+    if (usd === "" || zig === "" || zar === "") { toast.error("Enter the cash counted in all three currencies (0 if none)"); return; }
     if (!navigator.onLine) { toast.error("You're offline. Reconnect to close the shift."); return; }
     setBusy(true);
     await syncQueue();
     if (readQueue().length) { setBusy(false); toast.error("Some offline sales haven't uploaded yet. Check the offline bar at the top, then try again."); return; }
-    const { error } = await supabase.rpc("close_shift", { p_actual_usd: Number(usd), p_actual_zig: Number(zig), p_notes: notes });
+    const { error } = await supabase.rpc("close_shift_three", { p_actual_zar: Number(zar), p_actual_usd: Number(usd), p_actual_zig: Number(zig), p_notes: notes });
     if (error) { setBusy(false); { toast.error(error.message); return; } }
     try { onClosed(await fetchShiftSummary(shiftId)); } catch (e) { toast.error((e as Error).message); onClose(); }
     // open-shift is refreshed when the Z-report is dismissed, so the report stays visible
@@ -174,6 +178,7 @@ function CloseDialog({ shiftId, onClose, onClosed }: { shiftId: string; onClose:
         <label className="block text-sm font-medium">Cash counted (ZiG)
           <Input type="number" min={0} step="0.01" value={zig} onChange={(e) => setZig(e.target.value)} className="tabular mt-1" />
         </label>
+        <label className="block text-sm font-medium">Cash counted (Rand)<Input type="number" min={0} step="0.01" value={zar} onChange={(e) => setZar(e.target.value)} /></label>
         <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (optional)" aria-label="Notes" />
         <Button className="w-full" disabled={busy} onClick={submit}>Submit count and close shift</Button>
       </DialogContent>
@@ -193,8 +198,8 @@ function varianceText(v: number, c: Currency) {
 export function ShiftReport({ s, title }: { s: ShiftSummary; title: string }) {
   const sh = s.shift;
   const closed = sh.status === "closed";
-  const cur: Currency[] = ["USD", "ZiG"];
-  const k = (c: Currency) => (c === "USD" ? "usd" : "zig");
+  const cur: Currency[] = ["USD", "ZiG", "ZAR"];
+  const k = (c: Currency) => (c === "USD" ? "usd" : c === "ZiG" ? "zig" : "zar");
   return (
     <div className="space-y-3 text-sm">
       <div>
@@ -207,9 +212,9 @@ export function ShiftReport({ s, title }: { s: ShiftSummary; title: string }) {
       </div>
       {cur.map((c) => {
         const g = (f: string) => Number((s as unknown as Record<string, number>)[`${f}_${k(c)}`] ?? 0);
-        const float = Number(c === "USD" ? sh.opening_float_usd : sh.opening_float_zig);
-        const actual = c === "USD" ? sh.actual_cash_usd : sh.actual_cash_zig;
-        const variance = c === "USD" ? sh.variance_usd : sh.variance_zig;
+        const float = Number(c === "USD" ? sh.opening_float_usd : c === "ZiG" ? sh.opening_float_zig : sh.opening_float_zar);
+        const actual = c === "USD" ? sh.actual_cash_usd : c === "ZiG" ? sh.actual_cash_zig : sh.actual_cash_zar;
+        const variance = c === "USD" ? sh.variance_usd : c === "ZiG" ? sh.variance_zig : sh.variance_zar;
         const vt = variance != null ? varianceText(Number(variance), c) : null;
         return (
           <div key={c} className="space-y-1 border-t pt-2">

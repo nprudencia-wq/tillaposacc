@@ -15,7 +15,7 @@ import { cached, deviceStorageKey, enqueueSale, isNetworkError } from "@/lib/off
 import { useSubscription } from "@/components/SubscriptionBanner";
 import { OpenShiftGate, ShiftBar, useOpenShift } from "@/components/Shift";
 import {
-  cartSubtotal, changeDueUSD, fromUSD, money, paidUSD, resolveDiscount, saleStockError,
+  cartSubtotal, changeDueUSD, fromUSD, money, paidUSD, resolveDiscount, saleStockError, currencyRate,
   type CartLine, type Currency, type Payment, type PayMethod,
 } from "@/lib/pos";
 import { activeTypes, isAccountMethod, isCashMethod, methodLabel, usePaymentTypes } from "@/lib/payment-types";
@@ -54,6 +54,7 @@ function Till({ shiftId }: { shiftId: string }) {
   const { data: me } = useStaff();
   const { data: settings } = useSettings();
   const rate = settings?.zig_rate ?? 1;
+  const randRate = settings?.rand_rate ?? 0;
 
   const { data: products = [] } = useQuery({
     queryKey: ["products", "active"],
@@ -142,7 +143,7 @@ function Till({ shiftId }: { shiftId: string }) {
   const subtotal = cartSubtotal(lines);
   const discount = resolveDiscount(subtotal, discKind, discVal);
   const total = Math.round((subtotal - discount) * 100) / 100;
-  const show = (usd: number) => money(fromUSD(usd, currency, rate), currency);
+  const show = (usd: number) => money(fromUSD(usd, currency, rate, randRate), currency);
 
   function hold() {
     if (!lines.length) return;
@@ -169,8 +170,8 @@ function Till({ shiftId }: { shiftId: string }) {
     // Reduce the cached stock so the till shows sensible numbers while offline.
     qc.setQueryData(["products", "active"], (old: typeof products | undefined) =>
       old?.map((p) => { const l = lines.find((x) => x.product_id === p.id); return l ? { ...p, stock: Number(p.stock) - l.quantity } : p; }));
-    const change = Math.max(0, Math.round((paidUSD(paid, rate) - total) * 100) / 100);
-    finish({ sale_number: ref, created_at: new Date().toISOString(), rate, total, change }, paid);
+    const change = Math.max(0, Math.round((paidUSD(paid, rate, randRate) - total) * 100) / 100);
+    finish({ sale_number: ref, created_at: new Date().toISOString(), rate: currency === "ZAR" ? randRate : rate, total, change }, paid);
     const nonCash = paid.some((p) => !isCashMethod(p.method));
     toast.success(`Saved offline as ${ref}. It will upload when you're back online.${nonCash ? " Non-cash payments will need checking." : ""}`);
   }
@@ -181,7 +182,7 @@ function Till({ shiftId }: { shiftId: string }) {
       const error = saleStockError(line.name, line.quantity, stock);
       if (error) { toast.error(error); return; }
     }
-    const paid = payments.filter((p) => p.amount > 0);
+    const paid = payments.filter((p) => p.amount > 0).map((p) => ({ ...p, exchange_rate: currencyRate(p.currency, rate, randRate) }));
     const onAccount = paid.some((p) => isAccountMethod(p.method));
     if (onAccount && !customer) { toast.error("Choose the customer first to put this sale on account"); return; }
     if (onAccount && !navigator.onLine) { toast.error("On-account sales need the internet so the credit limit can be checked"); return; }
@@ -190,7 +191,7 @@ function Till({ shiftId }: { shiftId: string }) {
     if (!navigator.onLine) { saveOffline(paid); return; }
     const { data, error } = await supabase.rpc("complete_sale", {
       p_items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, ...(l.unit_price !== listPrice(l.product_id) ? { price: l.unit_price } : {}) })),
-      p_payments: payments.filter((p) => p.amount > 0) as never,
+      p_payments: paid as never,
       p_discount: discount,
       p_currency: currency,
       ...(customer ? { p_customer: customer.id } : {}),
@@ -309,8 +310,8 @@ function Till({ shiftId }: { shiftId: string }) {
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Currency</span>
             <div className="flex rounded-lg bg-muted p-1">
-              {(["USD", "ZiG"] as Currency[]).map((c) => (
-                <button key={c} onClick={() => setCurrency(c)} className={`rounded-md px-4 py-1 text-sm font-semibold ${currency === c ? "bg-card shadow-soft" : "text-muted-foreground"}`}>{c}</button>
+              {(["USD", "ZiG", "ZAR"] as Currency[]).map((c) => (
+                <Button key={c} size="sm" variant={currency === c ? "default" : "ghost"} disabled={c === "ZAR" && randRate <= 0} onClick={() => setCurrency(c)}>{c === "ZAR" ? "Rand" : c}</Button>
               ))}
             </div>
           </div>
@@ -325,7 +326,7 @@ function Till({ shiftId }: { shiftId: string }) {
       </aside>
 
       {addCust && <CustomerDialog customer={null} onClose={() => setAddCust(false)} onSaved={(c) => { qc.invalidateQueries({ queryKey: ["customers"] }); setCustomerId(c.id); }} />}
-      {payOpen && <PayDialog total={total} currency={currency} rate={rate} onClose={() => setPayOpen(false)} onPay={complete} />}
+      {payOpen && <PayDialog total={total} currency={currency} rate={rate} randRate={randRate} onClose={() => setPayOpen(false)} onPay={complete} />}
 
       <Dialog open={heldOpen} onOpenChange={setHeldOpen}>
         <DialogContent>
@@ -356,22 +357,22 @@ function Till({ shiftId }: { shiftId: string }) {
   );
 }
 
-function PayDialog({ total, currency, rate, onClose, onPay }: {
-  total: number; currency: Currency; rate: number; onClose: () => void; onPay: (p: Payment[]) => Promise<void>;
+function PayDialog({ total, currency, rate, randRate, onClose, onPay }: {
+  total: number; currency: Currency; rate: number; randRate: number; onClose: () => void; onPay: (p: Payment[]) => Promise<void>;
 }) {
   const { data: types } = usePaymentTypes();
   const methods = activeTypes(types);
   const first = methods[0]?.code ?? "cash";
   const second = methods.find((t) => !t.is_cash && t.code !== first)?.code ?? first;
-  const [payments, setPayments] = useState<Payment[]>([{ method: first, currency, amount: fromUSD(total, currency, rate) }]);
+  const [payments, setPayments] = useState<Payment[]>([{ method: first, currency, amount: fromUSD(total, currency, rate, randRate) }]);
   const [busy, setBusy] = useState(false);
-  const change = changeDueUSD(total, payments, rate);
+  const change = changeDueUSD(total, payments, rate, randRate);
   const upd = (i: number, p: Partial<Payment>) => setPayments((ps) => ps.map((x, k) => (k === i ? { ...x, ...p } : x)));
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle>Take payment · {money(fromUSD(total, currency, rate), currency)}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Take payment · {money(fromUSD(total, currency, rate, randRate), currency)}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           {payments.map((p, i) => (
             <div key={i} className="flex gap-2">
@@ -381,20 +382,20 @@ function PayDialog({ total, currency, rate, onClose, onPay }: {
               </Select>
               <Select value={p.currency} onValueChange={(v) => upd(i, { currency: v as Currency })}>
                 <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem></SelectContent>
+                <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem><SelectItem value="ZAR" disabled={randRate <= 0}>Rand</SelectItem></SelectContent>
               </Select>
               <Input type="number" min={0} step="0.01" value={p.amount || ""} onChange={(e) => upd(i, { amount: Number(e.target.value) })} className="tabular flex-1" />
               {payments.length > 1 && <Button size="icon" variant="ghost" aria-label={`Remove this ${methodLabel(p.method)} payment`} onClick={() => setPayments(payments.filter((_, k) => k !== i))}><X className="h-4 w-4" /></Button>}
             </div>
           ))}
-          <Button variant="outline" size="sm" onClick={() => setPayments([...payments, { method: second, currency, amount: Math.max(0, fromUSD(-change, currency, rate)) }])}>
+          <Button variant="outline" size="sm" onClick={() => setPayments([...payments, { method: second, currency, amount: Math.max(0, fromUSD(-change, currency, rate, randRate)) }])}>
             <Plus className="h-4 w-4" />Split payment
           </Button>
           <div className="tabular rounded-xl bg-muted p-4">
-            <div className="flex justify-between text-sm"><span>Paid</span><span>{money(fromUSD(paidUSD(payments, rate), currency, rate), currency)}</span></div>
+            <div className="flex justify-between text-sm"><span>Paid</span><span>{money(fromUSD(paidUSD(payments, rate, randRate), currency, rate, randRate), currency)}</span></div>
             <div className={`flex justify-between font-display text-xl font-bold ${change < 0 ? "text-destructive" : "text-success"}`}>
               <span>{change < 0 ? "Still owed" : "Change"}</span>
-              <span>{money(fromUSD(Math.abs(change), currency, rate), currency)}</span>
+              <span>{money(fromUSD(Math.abs(change), currency, rate, randRate), currency)}</span>
             </div>
             {change > 0 && currency === "USD" && <div className="text-right text-xs text-muted-foreground">or {money(fromUSD(change, "ZiG", rate), "ZiG")}</div>}
           </div>

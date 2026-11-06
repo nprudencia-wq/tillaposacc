@@ -21,7 +21,7 @@ export function SaleComplete({ receipt, onNext }: { receipt: ReceiptData; onNext
     return undefined;
   }, [receipt.sale_number]);
   async function share() {
-    const text = `${receipt.business}\n${receipt.sale_number}\nTotal: ${money(fromUSD(receipt.total, receipt.currency, receipt.rate), receipt.currency)}`;
+    const text = `${receipt.business}\n${receipt.sale_number}\nTotal: ${money(fromUSD(receipt.total, receipt.currency, receipt.rate, receipt.rate), receipt.currency)}`;
     try {
       if (navigator.share) await navigator.share({ title: receipt.sale_number, text });
       else { await navigator.clipboard.writeText(text); toast.success("Receipt copied"); }
@@ -30,8 +30,8 @@ export function SaleComplete({ receipt, onNext }: { receipt: ReceiptData; onNext
   return <div className="space-y-4">
     <div className="border-b pb-4">
       <p className="text-sm text-muted-foreground">Change due</p>
-      <p className="font-display text-3xl font-bold text-success">{money(fromUSD(receipt.change, receipt.currency, receipt.rate), receipt.currency)}</p>
-      <p className="mt-1 text-sm text-muted-foreground">{receipt.sale_number} · Total {money(fromUSD(receipt.total, receipt.currency, receipt.rate), receipt.currency)}</p>
+      <p className="font-display text-3xl font-bold text-success">{money(fromUSD(receipt.change, receipt.currency, receipt.rate, receipt.rate), receipt.currency)}</p>
+      <p className="mt-1 text-sm text-muted-foreground">{receipt.sale_number} · Total {money(fromUSD(receipt.total, receipt.currency, receipt.rate, receipt.rate), receipt.currency)}</p>
     </div>
     <Button ref={print} size="lg" className="h-12 w-full" onClick={() => window.print()}><Printer className="h-5 w-5" />Print Receipt</Button>
     <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={automatic} onChange={(e) => { setAutomatic(e.target.checked); localStorage.setItem(deviceStorageKey("tilla-auto-print"), String(e.target.checked)); }} />Always print automatically</label>

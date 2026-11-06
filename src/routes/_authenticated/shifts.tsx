@@ -29,7 +29,7 @@ function ShiftsPage() {
     try { setReport({ title: closed ? "Z-report (shift closed)" : "X-report (mid-shift)", s: await fetchShiftSummary(id) }); }
     catch (e) { toast.error((e as Error).message); }
   }
-  const v = (n: number | null, c: "USD" | "ZiG") => {
+  const v = (n: number | null, c: "USD" | "ZiG" | "ZAR") => {
     if (n == null) return "—";
     const x = Number(n);
     if (Math.abs(x) < 0.005) return <span className="text-success">Exact</span>;
@@ -42,7 +42,7 @@ function ShiftsPage() {
         <table className="w-full text-sm">
           <thead className="bg-muted text-left"><tr>
             <th className="p-3">Shift</th><th className="p-3">Cashier</th><th className="p-3">Opened</th><th className="p-3">Status</th>
-            <th className="p-3">USD variance</th><th className="p-3">ZiG variance</th><th className="p-3"></th></tr></thead>
+            <th className="p-3">USD variance</th><th className="p-3">ZiG variance</th><th className="p-3">Rand variance</th><th className="p-3"></th></tr></thead>
           <tbody>
             {shifts.map((s) => (
               <tr key={s.id} className="border-t">
@@ -51,11 +51,11 @@ function ShiftsPage() {
                 <td className="p-3">{new Date(s.opened_at).toLocaleString()}</td>
                 <td className="p-3">{s.status === "open" ? "Open" : "Closed"}</td>
                 <td className="tabular p-3">{v(s.variance_usd, "USD")}</td>
-                <td className="tabular p-3">{v(s.variance_zig, "ZiG")}</td>
+                <td className="tabular p-3">{v(s.variance_zig, "ZiG")}</td><td className="tabular p-3">{v(s.variance_zar, "ZAR")}</td>
                 <td className="p-3"><Button size="sm" variant="outline" onClick={() => view(s.id, s.status === "closed")}>{s.status === "closed" ? "Z-report" : "X-report"}</Button></td>
               </tr>
             ))}
-            {!shifts.length && <tr><td colSpan={7} className="p-8 text-center text-muted-foreground">No shifts yet.</td></tr>}
+            {!shifts.length && <tr><td colSpan={8} className="p-8 text-center text-muted-foreground">No shifts yet.</td></tr>}
           </tbody>
         </table>
       </div>

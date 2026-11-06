@@ -28,3 +28,6 @@
 - Privileged staff password resets must verify the caller and target share a store before loading the admin client. Why: global management roles must not authorize cross-store account changes.
 - All legacy business rows carry a backfilled store_id with restrictive authenticated policies and immutable ownership guards; these are not a substitute for auditing privileged reads and related IDs. Why: security-definer routines bypass row policies.
 - Device persistence keys include both store and staff identity; unidentified legacy queues remain quarantined rather than reassigned. Why: changing login must never upload another cashier's sales.
+
+- Sales documents are store-scoped snapshots linked to protected sales/refunds, never a second stock, debt or accounting ledger; posting locks the document to prevent duplicate transactions.
+- Tender exchange rates are stored per payment; Rand units per USD remain unconfigured until entered, and historical USD accounting never uses today's rates.

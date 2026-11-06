@@ -31,6 +31,7 @@ const nav = [
   { to: "/inventory", label: "Inventory", icon: Boxes },
   { to: "/stock", label: "Stock control", icon: ClipboardList },
   { to: "/sales", label: "Sales", icon: Receipt },
+  { to: "/documents", label: "Sales documents", icon: BookOpen },
   { to: "/customers", label: "Customers", icon: Contact },
   { to: "/suppliers", label: "Suppliers", icon: Truck },
   { to: "/shifts", label: "Shifts", icon: Clock },

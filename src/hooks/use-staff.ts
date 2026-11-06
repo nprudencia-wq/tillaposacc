@@ -54,9 +54,9 @@ export function useSettings() {
   return useQuery({
     queryKey: ["settings"],
     queryFn: () => cached("settings", async () => {
-      const { data, error } = await supabase.from("settings").select("*").eq("id", 1).single();
+      const { data, error } = await supabase.from("settings").select("*").single();
       if (error) throw error;
-      return { ...data, zig_rate: Number(data.zig_rate) };
+      return { ...data, zig_rate: Number(data.zig_rate), rand_rate: Number(data.rand_rate) };
     }),
   });
 }

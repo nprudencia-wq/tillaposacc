@@ -130,56 +130,68 @@ export type Database = {
       cashier_shifts: {
         Row: {
           actual_cash_usd: number | null
+          actual_cash_zar: number | null
           actual_cash_zig: number | null
           cashier_id: string
           closed_at: string | null
           expected_cash_usd: number | null
+          expected_cash_zar: number | null
           expected_cash_zig: number | null
           id: string
           notes: string | null
           opened_at: string
           opening_float_usd: number
+          opening_float_zar: number
           opening_float_zig: number
           shift_number: string
           status: string
           store_id: string | null
           variance_usd: number | null
+          variance_zar: number | null
           variance_zig: number | null
         }
         Insert: {
           actual_cash_usd?: number | null
+          actual_cash_zar?: number | null
           actual_cash_zig?: number | null
           cashier_id: string
           closed_at?: string | null
           expected_cash_usd?: number | null
+          expected_cash_zar?: number | null
           expected_cash_zig?: number | null
           id?: string
           notes?: string | null
           opened_at?: string
           opening_float_usd?: number
+          opening_float_zar?: number
           opening_float_zig?: number
           shift_number?: string
           status?: string
           store_id?: string | null
           variance_usd?: number | null
+          variance_zar?: number | null
           variance_zig?: number | null
         }
         Update: {
           actual_cash_usd?: number | null
+          actual_cash_zar?: number | null
           actual_cash_zig?: number | null
           cashier_id?: string
           closed_at?: string | null
           expected_cash_usd?: number | null
+          expected_cash_zar?: number | null
           expected_cash_zig?: number | null
           id?: string
           notes?: string | null
           opened_at?: string
           opening_float_usd?: number
+          opening_float_zar?: number
           opening_float_zig?: number
           shift_number?: string
           status?: string
           store_id?: string | null
           variance_usd?: number | null
+          variance_zar?: number | null
           variance_zig?: number | null
         }
         Relationships: [
@@ -389,6 +401,32 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "customers_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_counters: {
+        Row: {
+          kind: string
+          store_id: string
+          value: number
+        }
+        Insert: {
+          kind: string
+          store_id: string
+          value?: number
+        }
+        Update: {
+          kind?: string
+          store_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_counters_store_id_fkey"
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
@@ -892,18 +930,21 @@ export type Database = {
         Row: {
           effective_from: string
           id: string
+          rand_rate: number
           store_id: string | null
           zig_rate: number
         }
         Insert: {
           effective_from?: string
           id?: string
+          rand_rate?: number
           store_id?: string | null
           zig_rate: number
         }
         Update: {
           effective_from?: string
           id?: string
+          rand_rate?: number
           store_id?: string | null
           zig_rate?: number
         }
@@ -925,6 +966,7 @@ export type Database = {
           method: string
           reason: string
           refunded_by: string
+          returned_lines: Json
           sale_id: string
           shift_id: string | null
           store_id: string | null
@@ -936,6 +978,7 @@ export type Database = {
           method?: string
           reason: string
           refunded_by: string
+          returned_lines?: Json
           sale_id: string
           shift_id?: string | null
           store_id?: string | null
@@ -947,6 +990,7 @@ export type Database = {
           method?: string
           reason?: string
           refunded_by?: string
+          returned_lines?: Json
           sale_id?: string
           shift_id?: string | null
           store_id?: string | null
@@ -1043,6 +1087,7 @@ export type Database = {
         Row: {
           amount: number
           currency: string
+          exchange_rate: number
           id: string
           method: string
           sale_id: string
@@ -1052,6 +1097,7 @@ export type Database = {
         Insert: {
           amount: number
           currency: string
+          exchange_rate?: number
           id?: string
           method: string
           sale_id: string
@@ -1061,6 +1107,7 @@ export type Database = {
         Update: {
           amount?: number
           currency?: string
+          exchange_rate?: number
           id?: string
           method?: string
           sale_id?: string
@@ -1097,6 +1144,7 @@ export type Database = {
           exchange_rate: number
           id: string
           offline: boolean
+          rand_rate: number
           sale_number: string
           shift_id: string | null
           status: string
@@ -1104,6 +1152,7 @@ export type Database = {
           subtotal: number
           synced_at: string | null
           total: number
+          zig_rate: number | null
         }
         Insert: {
           amount_paid: number
@@ -1117,6 +1166,7 @@ export type Database = {
           exchange_rate?: number
           id?: string
           offline?: boolean
+          rand_rate?: number
           sale_number?: string
           shift_id?: string | null
           status?: string
@@ -1124,6 +1174,7 @@ export type Database = {
           subtotal: number
           synced_at?: string | null
           total: number
+          zig_rate?: number | null
         }
         Update: {
           amount_paid?: number
@@ -1137,6 +1188,7 @@ export type Database = {
           exchange_rate?: number
           id?: string
           offline?: boolean
+          rand_rate?: number
           sale_number?: string
           shift_id?: string | null
           status?: string
@@ -1144,6 +1196,7 @@ export type Database = {
           subtotal?: number
           synced_at?: string | null
           total?: number
+          zig_rate?: number | null
         }
         Relationships: [
           {
@@ -1169,6 +1222,117 @@ export type Database = {
           },
         ]
       }
+      sales_documents: {
+        Row: {
+          client_ref: string | null
+          created_at: string
+          created_by: string
+          currency: string
+          customer_id: string | null
+          customer_name: string
+          discount: number
+          due_date: string | null
+          exchange_rate: number
+          id: string
+          kind: string
+          lines: Json
+          notes: string
+          number: string
+          refund_id: string | null
+          sale_id: string | null
+          source_id: string | null
+          status: string
+          store_id: string
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          client_ref?: string | null
+          created_at?: string
+          created_by?: string
+          currency?: string
+          customer_id?: string | null
+          customer_name?: string
+          discount?: number
+          due_date?: string | null
+          exchange_rate?: number
+          id?: string
+          kind: string
+          lines?: Json
+          notes?: string
+          number: string
+          refund_id?: string | null
+          sale_id?: string | null
+          source_id?: string | null
+          status?: string
+          store_id?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          client_ref?: string | null
+          created_at?: string
+          created_by?: string
+          currency?: string
+          customer_id?: string | null
+          customer_name?: string
+          discount?: number
+          due_date?: string | null
+          exchange_rate?: number
+          id?: string
+          kind?: string
+          lines?: Json
+          notes?: string
+          number?: string
+          refund_id?: string | null
+          sale_id?: string | null
+          source_id?: string | null
+          status?: string
+          store_id?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_documents_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_documents_refund_id_fkey"
+            columns: ["refund_id"]
+            isOneToOne: false
+            referencedRelation: "refunds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_documents_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_documents_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sales_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_documents_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       settings: {
         Row: {
           address: string
@@ -1182,6 +1346,7 @@ export type Database = {
           phone: string
           plan_name: string
           plan_price_usd: number
+          rand_rate: number
           receipt_footer: string
           store_id: string | null
           tax_number: string
@@ -1204,6 +1369,7 @@ export type Database = {
           phone?: string
           plan_name?: string
           plan_price_usd?: number
+          rand_rate?: number
           receipt_footer?: string
           store_id?: string | null
           tax_number?: string
@@ -1226,6 +1392,7 @@ export type Database = {
           phone?: string
           plan_name?: string
           plan_price_usd?: number
+          rand_rate?: number
           receipt_footer?: string
           store_id?: string | null
           tax_number?: string
@@ -1956,6 +2123,10 @@ export type Database = {
       can_post_expense: { Args: { _user_id: string }; Returns: boolean }
       can_refund: { Args: { _user_id: string }; Returns: boolean }
       can_view_accounts: { Args: { _user_id: string }; Returns: boolean }
+      cancel_sales_document: {
+        Args: { p_document: string }
+        Returns: undefined
+      }
       check_staff_pin: {
         Args: { p_pin: string; p_username: string }
         Returns: string
@@ -1964,6 +2135,15 @@ export type Database = {
       clock_out: { Args: never; Returns: undefined }
       close_shift: {
         Args: { p_actual_usd: number; p_actual_zig: number; p_notes: string }
+        Returns: string
+      }
+      close_shift_three: {
+        Args: {
+          p_actual_usd: number
+          p_actual_zar: number
+          p_actual_zig: number
+          p_notes: string
+        }
         Returns: string
       }
       complete_offline_sale: {
@@ -1987,6 +2167,24 @@ export type Database = {
           p_payments: Json
         }
         Returns: Json
+      }
+      convert_quote_to_invoice: {
+        Args: { p_document: string }
+        Returns: string
+      }
+      credit_note_refund: {
+        Args: {
+          p_client_ref: string
+          p_items: Json
+          p_method: string
+          p_reason: string
+          p_sale: string
+        }
+        Returns: Json
+      }
+      currency_rate: {
+        Args: { p_currency: string; p_rand: number; p_zig: number }
+        Returns: number
       }
       current_store_id: { Args: never; Returns: string }
       customer_balance: { Args: { p_customer: string }; Returns: number }
@@ -2028,12 +2226,19 @@ export type Database = {
       is_cash_method: { Args: { p: string }; Returns: boolean }
       is_owner_admin: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      issue_credit_note: { Args: { p_refund: string }; Returns: string }
+      issue_sale_invoice: { Args: { p_sale: string }; Returns: string }
       log_event: {
         Args: { p_action: string; p_details?: string }
         Returns: undefined
       }
+      next_document_number: { Args: { p_kind: string }; Returns: string }
       open_shift: {
         Args: { p_float_usd: number; p_float_zig: number }
+        Returns: Json
+      }
+      open_shift_three: {
+        Args: { p_float_usd: number; p_float_zar: number; p_float_zig: number }
         Returns: Json
       }
       pay_supplier: {
@@ -2060,6 +2265,10 @@ export type Database = {
       post_journal: {
         Args: { p_date: string; p_lines: Json; p_memo: string }
         Returns: string
+      }
+      post_sales_invoice: {
+        Args: { p_document: string; p_payments: Json }
+        Returns: Json
       }
       receive_customer_payment: {
         Args: {
@@ -2144,6 +2353,19 @@ export type Database = {
           p_id: string
           p_reason: string
           p_stock: number
+        }
+        Returns: string
+      }
+      save_sales_document: {
+        Args: {
+          p_currency: string
+          p_customer: string
+          p_discount: number
+          p_due: string
+          p_id: string
+          p_kind: string
+          p_lines: Json
+          p_notes: string
         }
         Returns: string
       }
