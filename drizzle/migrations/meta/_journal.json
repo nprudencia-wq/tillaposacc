@@ -162,6 +162,13 @@
       "when": 1793945581975,
       "tag": "0022_store_ownership_backfill_and_read_boundaries",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793945650371,
+      "tag": "0023_tenant_related_record_integrity",
+      "breakpoints": true
     }
   ]
 }
