@@ -13,7 +13,7 @@ import { methodLabel } from "@/lib/payment-types";
 import { exportExcel, exportPDF, type Col, type Row } from "@/lib/export";
 
 export const Route = createFileRoute("/_authenticated/reports")({
-  head: () => ({ meta: [{ title: "Reports — Tilla POS" }, { name: "description", content: "Sales, stock and profit reports with PDF and Excel export." }] }),
+  head: () => ({ meta: [{ title: "Reports — Tilla POS" }, { name: "description", content: "Sales, stock and profit reports with PDF and Excel export." }, { property: "og:title", content: "Reports — Tilla POS" }, { property: "og:description", content: "Sales, stock and profit reports with PDF and Excel export." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: ReportsPage,
 });
 

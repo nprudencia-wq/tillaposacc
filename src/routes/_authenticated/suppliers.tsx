@@ -17,7 +17,7 @@ import { money } from "@/lib/pos";
 import { activeTypes, usePaymentTypes } from "@/lib/payment-types";
 
 export const Route = createFileRoute("/_authenticated/suppliers")({
-  head: () => ({ meta: [{ title: "Suppliers — Tilla POS" }, { name: "description", content: "Suppliers, goods received and balances owed." }] }),
+  head: () => ({ meta: [{ title: "Suppliers — Tilla POS" }, { name: "description", content: "Suppliers, goods received and balances owed." }, { property: "og:title", content: "Suppliers — Tilla POS" }, { property: "og:description", content: "Suppliers, goods received and balances owed." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: SuppliersPage,
 });
 

@@ -7,17 +7,25 @@
 - [ ] Phase 1: vendor-only trial leads, expiry sorting, WhatsApp/call and audited extensions
 - [ ] Phase 1: cross-store security tests and real signed-in onboarding verification before public release
 - [ ] Phase 2 (master list): USD/ZiG/Rand till, rates, split payments, three-currency cash-up and historical reporting
-- [ ] Phase 2 (master list): zero-stock enforcement, list/tile switcher and fast post-sale printing with updated receipts
+- [x] Phase 2: List/Tile switching and saved preference verified on the signed-in till
+- [x] Phase 2: zero-stock buttons and stock validation helper tests
+- [ ] Phase 2: concurrency and duplicate-line database stock tests; completed-sale print verification
+- [ ] Phase 2: fast post-sale printing implemented; real sale/print verification still required
 - [ ] Phase 4: quotations, invoices and credit notes with stock, customer and accounting integration
 - [ ] Phase 5: VAT rate and inclusive/exclusive settings; genuine ZIMRA integration (requires official access and certification)
 - [ ] Phase 6: discounts, configurable loyalty, opt-in debtor interest, provisions and audited bad-debt write-offs
-- [ ] Phase 7: live camera capture, retake, compression and secure product-photo upload
+- [x] Phase 7: camera capture, retake, compression and store-scoped upload verified with a simulated camera
+- [ ] Phase 7: real phone camera verification
 - [ ] All phases: regression tests and signed-in financial, stock and store-isolation checks
-- [ ] Phase 2: visible editable inventory quantity with audited override and Save
-- [ ] Phase 2: supplier edit and safe deletion
-- [ ] Phase 2: USD/ZiG/Rand goods received, invoice rate, automatic entry lines
-- [ ] Phase 2: tests and signed-in verification
-- Existing inventory/supplier work above belongs to Phase 3 in the seven-phase master list.
+- [x] Phase 3: editable inventory quantity, Save and audited override verified with a signed-in stock correction
+- [ ] Phase 3: supplier edit and safe deletion implemented; transaction verification pending
+- [ ] Phase 3: USD/ZiG/Rand goods received, invoice rate and automatic lines implemented; transaction verification pending
+- [x] Current regression suite: 58 tests passed
+- [ ] Phase 3: signed-in supplier and Rand receiving verification
+- Phase 1 blocker: privileged business functions, singleton store settings/account codes and global staff/PIN identities remain to be isolated; public trials disabled.
+- Phase 5 external blocker: official ZIMRA device access and approval.
+- Phase 6 input needed: loyalty earning/redemption and debtor-interest rules; no rates invented.
+- Stock verification item was zeroed and deactivated; its audit history is retained.
 - [x] Inventory: subcategories, branches & transfers, supplier returns, write-offs, stocktake, reorder, valuation, movement history
 - [x] Till: authorised manual price override (supervisor+ by default, per-person on Staff page)
 - [ ] Till: email receipt (share/print already exist; waiting on user go-ahead)

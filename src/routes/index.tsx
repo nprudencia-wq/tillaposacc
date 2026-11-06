@@ -9,6 +9,8 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Point of sale and stock control for bottle stores, butcheries and supermarkets in Zimbabwe. USD and ZiG." },
       { property: "og:title", content: "Tilla POS — Sell faster, track every bottle" },
       { property: "og:description", content: "Point of sale and stock control for Zimbabwean retailers, with USD and ZiG payments." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Index,

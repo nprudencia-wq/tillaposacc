@@ -8,7 +8,7 @@ import { fetchShiftSummary, ShiftReportDialog, type ShiftSummary } from "@/compo
 import { money } from "@/lib/pos";
 
 export const Route = createFileRoute("/_authenticated/shifts")({
-  head: () => ({ meta: [{ title: "Shifts & cash-up — Tilla POS" }, { name: "description", content: "Cashier shifts, cash-ups and variances." }] }),
+  head: () => ({ meta: [{ title: "Shifts & cash-up — Tilla POS" }, { name: "description", content: "Cashier shifts, cash-ups and variances." }, { property: "og:title", content: "Shifts & cash-up — Tilla POS" }, { property: "og:description", content: "Cashier shifts, cash-ups and variances." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: ShiftsPage,
 });
 

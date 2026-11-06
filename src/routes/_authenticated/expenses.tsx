@@ -14,7 +14,7 @@ import { money } from "@/lib/pos";
 import { activeTypes, methodLabel, usePaymentTypes } from "@/lib/payment-types";
 
 export const Route = createFileRoute("/_authenticated/expenses")({
-  head: () => ({ meta: [{ title: "Expenses — Tilla POS" }, { name: "description", content: "Post shop running costs so net profit is accurate." }] }),
+  head: () => ({ meta: [{ title: "Expenses — Tilla POS" }, { name: "description", content: "Post shop running costs so net profit is accurate." }, { property: "og:title", content: "Expenses — Tilla POS" }, { property: "og:description", content: "Post shop running costs so net profit is accurate." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: ExpensesPage,
 });
 
