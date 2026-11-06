@@ -33,3 +33,4 @@
 - Sales documents are store-scoped snapshots linked to protected sales/refunds, never a second stock, debt or accounting ledger; posting locks the document to prevent duplicate transactions.
 - Tender exchange rates are stored per payment; Rand units per USD remain unconfigured until entered, and historical USD accounting never uses today's rates.
 - Rand checkout requires a store-scoped confirmation matching the current rate; rate changes invalidate confirmation and database sale/payment triggers enforce it. Why: ambiguous conversions must not enable trading.
+- GRN drafts are store-scoped, version-checked snapshots; locked posting delegates to receive_goods_currency and retains the linked receipt for deduplication. Why: temporary saves cannot change stock or double-receive.

@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { blankReceivingLine, updateReceivingLine, receivingTotal, invoiceUSD, stockCorrection, suggestedReceivingCost, repriceReceivingLines } from "./receiving";
+import { blankReceivingLine, updateReceivingLine, receivingTotal, receivingQuantity, invoiceUSD, stockCorrection, suggestedReceivingCost, repriceReceivingLines } from "./receiving";
 
 describe("Phase 2 receiving and corrections", () => {
+  it("summarizes quantities and costs before posting and excludes unfinished lines", () => {
+    const lines = [{ product_id: "p", quantity: "2", unit_cost: "3" }, blankReceivingLine()];
+    expect(receivingQuantity(lines)).toBe(2);
+    expect(receivingTotal(lines)).toBe(6);
+  });
   it("defaults to the stored previous product cost in invoice currency", () => {
     expect(suggestedReceivingCost("p", [], 2.5, 20)).toBe("50");
   });

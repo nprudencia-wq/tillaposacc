@@ -281,6 +281,20 @@
       "when": 1793947955360,
       "tag": "0039_rand_checkout_confirmation",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1793948355434,
+      "tag": "0040_grn_drafts_and_review_posting",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793948407468,
+      "tag": "0041_grn_draft_client_identity",
+      "breakpoints": true
     }
   ]
 }

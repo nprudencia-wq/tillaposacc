@@ -557,6 +557,54 @@ export type Database = {
           },
         ]
       }
+      grn_drafts: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          payload: Json
+          posted_grn_id: string | null
+          store_id: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          payload?: Json
+          posted_grn_id?: string | null
+          store_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          payload?: Json
+          posted_grn_id?: string | null
+          store_id?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grn_drafts_posted_grn_id_fkey"
+            columns: ["posted_grn_id"]
+            isOneToOne: false
+            referencedRelation: "grns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grn_drafts_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grn_items: {
         Row: {
           grn_id: string
@@ -2344,6 +2392,10 @@ export type Database = {
         }
         Returns: string
       }
+      post_grn_draft: {
+        Args: { p_id: string; p_version: number }
+        Returns: Json
+      }
       post_journal: {
         Args: { p_date: string; p_lines: Json; p_memo: string }
         Returns: string
@@ -2446,6 +2498,25 @@ export type Database = {
           p_type: string
         }
         Returns: undefined
+      }
+      save_grn_draft: {
+        Args: { p_id: string; p_payload: Json; p_version: number }
+        Returns: {
+          created_at: string
+          created_by: string
+          id: string
+          payload: Json
+          posted_grn_id: string | null
+          store_id: string
+          updated_at: string
+          version: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "grn_drafts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       save_inventory_product: {
         Args: {

@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Current GRN request: editable temporary cloud drafts and quantity/cost review; signed-in save/reopen/edit verified without inventory changes. Final stock posting was not exercised on live inventory.
 - [ ] New rate request: user supplied $1 USD = ZAR 0.050, editable; confirm direction before applying to live trading
 - [x] Currency settings shows both conversion directions and requires explicit confirmation matching the saved rate before Rand checkout.
 - [ ] Current request: complete Rand checkout, safe self-serve trial onboarding, quotations, invoices and credit notes in verified releases
