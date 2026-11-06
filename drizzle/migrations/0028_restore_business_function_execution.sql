@@ -1,0 +1,2 @@
+DO $$ DECLARE f record; BEGIN FOR f IN SELECT p.oid::regprocedure AS signature FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND pg_get_userbyid(p.proowner)='tilla_store_operations' LOOP EXECUTE format('ALTER FUNCTION %s OWNER TO postgres',f.signature); END LOOP; END $$;
+COMMENT ON ROLE tilla_store_operations IS 'Inactive experimental ownership role. Managed auth schema grants are not retained; business functions retain explicit tenant checks and require further auditing before onboarding.';
