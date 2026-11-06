@@ -316,6 +316,13 @@
       "when": 1793951955442,
       "tag": "0044_debtor_interest_mode",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1793959777782,
+      "tag": "0045_offline_shift_open_close",
+      "breakpoints": true
     }
   ]
 }

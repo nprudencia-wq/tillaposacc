@@ -2280,6 +2280,17 @@ export type Database = {
       }
       clock_in: { Args: never; Returns: string }
       clock_out: { Args: never; Returns: undefined }
+      close_offline_shift: {
+        Args: {
+          p_actual_usd: number
+          p_actual_zar: number
+          p_actual_zig: number
+          p_closed_at: string
+          p_id: string
+          p_notes: string
+        }
+        Returns: string
+      }
       close_shift: {
         Args: { p_actual_usd: number; p_actual_zig: number; p_notes: string }
         Returns: string
@@ -2400,6 +2411,16 @@ export type Database = {
         Returns: undefined
       }
       next_document_number: { Args: { p_kind: string }; Returns: string }
+      open_offline_shift: {
+        Args: {
+          p_float_usd: number
+          p_float_zar: number
+          p_float_zig: number
+          p_id: string
+          p_opened_at: string
+        }
+        Returns: Json
+      }
       open_shift: {
         Args: { p_float_usd: number; p_float_zig: number }
         Returns: Json
