@@ -45,6 +45,13 @@ export const createStaffAccount = createServerFn({ method: "POST" })
       app_metadata: { initial_role: data.role, store_id: storeId },
     });
     if (error) throw new Error(/already|exists|duplicate/i.test(error.message) ? "That username is taken" : error.message);
+    if (created.user) {
+      const { data: prof } = await supabaseAdmin.from("profiles").select("id").eq("id", created.user.id).maybeSingle();
+      if (!prof) {
+        const { error: provError } = await supabaseAdmin.auth.admin.updateUserById(created.user.id, { app_metadata: { initial_role: data.role, store_id: storeId } });
+        if (provError) { await supabaseAdmin.auth.admin.deleteUser(created.user.id); throw new Error("Could not finish setting up this staff member. Please try again."); }
+      }
+    }
     let pinSet = false;
     if (data.pin && created.user) {
       const { error: pinError } = await context.supabase.rpc("set_staff_pin", { p_user: created.user.id, p_pin: data.pin });
