@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedAccountingRouteImport } from './routes/_authenticated/accounting'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
+import { Route as AuthenticatedCurrenciesRouteImport } from './routes/_authenticated/currencies'
 import { Route as AuthenticatedCustomersRouteImport } from './routes/_authenticated/customers'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
@@ -51,6 +52,11 @@ const AuthenticatedAccountingRoute = AuthenticatedAccountingRouteImport.update({
 const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
   id: '/billing',
   path: '/billing',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCurrenciesRoute = AuthenticatedCurrenciesRouteImport.update({
+  id: '/currencies',
+  path: '/currencies',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedCustomersRoute = AuthenticatedCustomersRouteImport.update({
@@ -130,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/accounting': typeof AuthenticatedAccountingRoute
   '/billing': typeof AuthenticatedBillingRoute
+  '/currencies': typeof AuthenticatedCurrenciesRoute
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/accounting': typeof AuthenticatedAccountingRoute
   '/billing': typeof AuthenticatedBillingRoute
+  '/currencies': typeof AuthenticatedCurrenciesRoute
   '/customers': typeof AuthenticatedCustomersRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
@@ -172,6 +180,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/accounting': typeof AuthenticatedAccountingRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
+  '/_authenticated/currencies': typeof AuthenticatedCurrenciesRoute
   '/_authenticated/customers': typeof AuthenticatedCustomersRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/documents': typeof AuthenticatedDocumentsRoute
@@ -194,6 +203,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/accounting'
     | '/billing'
+    | '/currencies'
     | '/customers'
     | '/dashboard'
     | '/documents'
@@ -214,6 +224,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/accounting'
     | '/billing'
+    | '/currencies'
     | '/customers'
     | '/dashboard'
     | '/documents'
@@ -235,6 +246,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/accounting'
     | '/_authenticated/billing'
+    | '/_authenticated/currencies'
     | '/_authenticated/customers'
     | '/_authenticated/dashboard'
     | '/_authenticated/documents'
@@ -292,6 +304,13 @@ declare module '@tanstack/react-router' {
       path: '/billing'
       fullPath: '/billing'
       preLoaderRoute: typeof AuthenticatedBillingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/currencies': {
+      id: '/_authenticated/currencies'
+      path: '/currencies'
+      fullPath: '/currencies'
+      preLoaderRoute: typeof AuthenticatedCurrenciesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/customers': {
@@ -398,6 +417,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccountingRoute: typeof AuthenticatedAccountingRoute
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
+  AuthenticatedCurrenciesRoute: typeof AuthenticatedCurrenciesRoute
   AuthenticatedCustomersRoute: typeof AuthenticatedCustomersRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDocumentsRoute: typeof AuthenticatedDocumentsRoute
@@ -417,6 +437,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccountingRoute: AuthenticatedAccountingRoute,
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
+  AuthenticatedCurrenciesRoute: AuthenticatedCurrenciesRoute,
   AuthenticatedCustomersRoute: AuthenticatedCustomersRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,

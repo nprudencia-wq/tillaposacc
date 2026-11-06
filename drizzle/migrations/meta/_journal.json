@@ -274,6 +274,13 @@
       "when": 1793947426411,
       "tag": "0038_trusted_store_staff_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1793947955360,
+      "tag": "0039_rand_checkout_confirmation",
+      "breakpoints": true
     }
   ]
 }

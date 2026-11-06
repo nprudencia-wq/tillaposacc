@@ -1,5 +1,6 @@
 # Roadmap
 - [ ] New rate request: user supplied $1 USD = ZAR 0.050, editable; confirm direction before applying to live trading
+- [x] Currency settings shows both conversion directions and requires explicit confirmation matching the saved rate before Rand checkout.
 - [ ] Current request: complete Rand checkout, safe self-serve trial onboarding, quotations, invoices and credit notes in verified releases
 - [x] Phase 1 foundation: register original store and staff without changing trading data; permanently protect unlimited free tills
 - [x] Phase 1 foundation: reject public staff registration and protect password resets with same-store checks

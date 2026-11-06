@@ -38,6 +38,7 @@ const nav = [
   { to: "/expenses", label: "Expenses", icon: Wallet },
   { to: "/accounting", label: "Accounting", icon: BookOpen },
   { to: "/payment-types", label: "Payment types", icon: CreditCard },
+  { to: "/currencies", label: "Currency settings", icon: Wallet },
   { to: "/reports", label: "Reports", icon: BarChart3 },
   { to: "/staff", label: "Staff", icon: Users },
   { to: "/store", label: "Store profile", icon: Store },

@@ -243,6 +243,35 @@ export type Database = {
           },
         ]
       }
+      currency_confirmations: {
+        Row: {
+          confirmed_at: string
+          confirmed_by: string
+          rand_rate: number
+          store_id: string
+        }
+        Insert: {
+          confirmed_at?: string
+          confirmed_by: string
+          rand_rate: number
+          store_id: string
+        }
+        Update: {
+          confirmed_at?: string
+          confirmed_by?: string
+          rand_rate?: number
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "currency_confirmations_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: true
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_adjustments: {
         Row: {
           amount: number
@@ -2400,6 +2429,14 @@ export type Database = {
       save_branch: {
         Args: { p_active: boolean; p_id: string; p_name: string }
         Returns: string
+      }
+      save_currency_settings: {
+        Args: {
+          p_confirm_rand: boolean
+          p_rand_rate: number
+          p_zig_rate: number
+        }
+        Returns: undefined
       }
       save_gl_account: {
         Args: {
