@@ -1,7 +1,8 @@
 # Roadmap
-- [ ] Phase 1: preserve original store data and unlimited billing exemption during multi-tenant migration
+- [x] Phase 1 foundation: register original store and staff without changing trading data; permanently protect unlimited free tills
+- [x] Phase 1 foundation: reject public staff registration and protect password resets with same-store checks
 - [ ] Phase 1: isolate every store's records, protected operations, photos, offline queues and staff access
-- [ ] Phase 1: replace public staff signup with instant separate-store trial onboarding (14 days, no extra grace)
+- [ ] Phase 1: instant separate-store trial onboarding (14 days, no extra grace); blocked until complete isolation passes security tests
 - [ ] Phase 1: starter catalog and three-step trial checklist
 - [ ] Phase 1: vendor-only trial leads, expiry sorting, WhatsApp/call and audited extensions
 - [ ] Phase 1: cross-store security tests and real signed-in onboarding verification before public release
