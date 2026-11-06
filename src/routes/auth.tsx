@@ -121,10 +121,10 @@ function AuthPage() {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {["1","2","3","4","5","6","7","8","9"].map((d) => (
-                  <Button key={d} type="button" variant="outline" className="h-14 text-2xl font-bold" onClick={() => setPin((p) => (p.length < 6 ? p + d : p))}>{d}</Button>
+                  <Button key={d} type="button" variant="outline" className="h-14 text-2xl font-bold" onClick={() => setPin((p) => (p.length < 4 ? p + d : p))}>{d}</Button>
                 ))}
                 <Button type="button" variant="ghost" className="h-14" onClick={() => setPin("")}>Clear</Button>
-                <Button type="button" variant="outline" className="h-14 text-2xl font-bold" onClick={() => setPin((p) => (p.length < 6 ? p + "0" : p))}>0</Button>
+                <Button type="button" variant="outline" className="h-14 text-2xl font-bold" onClick={() => setPin((p) => (p.length < 4 ? p + "0" : p))}>0</Button>
                 <Button type="button" variant="ghost" className="h-14" aria-label="Delete digit" onClick={() => setPin((p) => p.slice(0, -1))}>⌫</Button>
               </div>
             </div>
