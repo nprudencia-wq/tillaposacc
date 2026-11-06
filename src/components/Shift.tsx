@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { money, type Currency, type PayMethod } from "@/lib/pos";
 import { methodLabel } from "@/lib/payment-types";
 import { summarizeItemsSold, type SoldSummary } from "@/lib/items-sold";
+import { useStaff } from "@/hooks/use-staff";
 
 export type ShiftSummary = {
   shift: {
@@ -30,8 +31,10 @@ export type ShiftSummary = {
 const moveLabels: Record<string, string> = { cash_drop: "Safe drop", paid_out: "Paid out", paid_in: "Paid in" };
 
 export function useOpenShift() {
+  const { data: me } = useStaff();
   return useQuery({
-    queryKey: ["open-shift"],
+    queryKey: ["open-shift", me?.id, me?.storeId],
+    enabled: !!me,
     queryFn: async () => {
       // A shift opened on this device without internet stays in charge until it has uploaded.
       const local = await readLocalShift();
@@ -182,7 +185,7 @@ function CloseDialog({ shiftId, onClose, onClosed }: { shiftId: string; onClose:
     if (!navigator.onLine) { toast.error("You're offline. Reconnect to close the shift."); return; }
     setBusy(true);
     await syncQueue();
-    if (readQueue().length) { setBusy(false); toast.error("Some offline sales haven't uploaded yet. Check the offline bar at the top, then try again."); return; }
+    if (readQueue().length || (await readLocalShift())) { setBusy(false); toast.error("Some offline sales haven't uploaded yet. Check the offline bar at the top, then try again."); return; }
     const { error } = await supabase.rpc("close_shift_three", { p_actual_zar: Number(zar), p_actual_usd: Number(usd), p_actual_zig: Number(zig), p_notes: notes });
     if (error) { setBusy(false); { toast.error(error.message); return; } }
     try { onClosed(await fetchShiftSummary(shiftId)); } catch (e) { toast.error((e as Error).message); onClose(); }
