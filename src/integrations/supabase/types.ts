@@ -130,56 +130,68 @@ export type Database = {
       cashier_shifts: {
         Row: {
           actual_cash_usd: number | null
+          actual_cash_zar: number | null
           actual_cash_zig: number | null
           cashier_id: string
           closed_at: string | null
           expected_cash_usd: number | null
+          expected_cash_zar: number | null
           expected_cash_zig: number | null
           id: string
           notes: string | null
           opened_at: string
           opening_float_usd: number
+          opening_float_zar: number
           opening_float_zig: number
           shift_number: string
           status: string
           store_id: string | null
           variance_usd: number | null
+          variance_zar: number | null
           variance_zig: number | null
         }
         Insert: {
           actual_cash_usd?: number | null
+          actual_cash_zar?: number | null
           actual_cash_zig?: number | null
           cashier_id: string
           closed_at?: string | null
           expected_cash_usd?: number | null
+          expected_cash_zar?: number | null
           expected_cash_zig?: number | null
           id?: string
           notes?: string | null
           opened_at?: string
           opening_float_usd?: number
+          opening_float_zar?: number
           opening_float_zig?: number
           shift_number?: string
           status?: string
           store_id?: string | null
           variance_usd?: number | null
+          variance_zar?: number | null
           variance_zig?: number | null
         }
         Update: {
           actual_cash_usd?: number | null
+          actual_cash_zar?: number | null
           actual_cash_zig?: number | null
           cashier_id?: string
           closed_at?: string | null
           expected_cash_usd?: number | null
+          expected_cash_zar?: number | null
           expected_cash_zig?: number | null
           id?: string
           notes?: string | null
           opened_at?: string
           opening_float_usd?: number
+          opening_float_zar?: number
           opening_float_zig?: number
           shift_number?: string
           status?: string
           store_id?: string | null
           variance_usd?: number | null
+          variance_zar?: number | null
           variance_zig?: number | null
         }
         Relationships: [
@@ -892,18 +904,21 @@ export type Database = {
         Row: {
           effective_from: string
           id: string
+          rand_rate: number
           store_id: string | null
           zig_rate: number
         }
         Insert: {
           effective_from?: string
           id?: string
+          rand_rate?: number
           store_id?: string | null
           zig_rate: number
         }
         Update: {
           effective_from?: string
           id?: string
+          rand_rate?: number
           store_id?: string | null
           zig_rate?: number
         }
@@ -1043,6 +1058,7 @@ export type Database = {
         Row: {
           amount: number
           currency: string
+          exchange_rate: number
           id: string
           method: string
           sale_id: string
@@ -1052,6 +1068,7 @@ export type Database = {
         Insert: {
           amount: number
           currency: string
+          exchange_rate?: number
           id?: string
           method: string
           sale_id: string
@@ -1061,6 +1078,7 @@ export type Database = {
         Update: {
           amount?: number
           currency?: string
+          exchange_rate?: number
           id?: string
           method?: string
           sale_id?: string
@@ -1097,6 +1115,7 @@ export type Database = {
           exchange_rate: number
           id: string
           offline: boolean
+          rand_rate: number
           sale_number: string
           shift_id: string | null
           status: string
@@ -1104,6 +1123,7 @@ export type Database = {
           subtotal: number
           synced_at: string | null
           total: number
+          zig_rate: number | null
         }
         Insert: {
           amount_paid: number
@@ -1117,6 +1137,7 @@ export type Database = {
           exchange_rate?: number
           id?: string
           offline?: boolean
+          rand_rate?: number
           sale_number?: string
           shift_id?: string | null
           status?: string
@@ -1124,6 +1145,7 @@ export type Database = {
           subtotal: number
           synced_at?: string | null
           total: number
+          zig_rate?: number | null
         }
         Update: {
           amount_paid?: number
@@ -1137,6 +1159,7 @@ export type Database = {
           exchange_rate?: number
           id?: string
           offline?: boolean
+          rand_rate?: number
           sale_number?: string
           shift_id?: string | null
           status?: string
@@ -1144,6 +1167,7 @@ export type Database = {
           subtotal?: number
           synced_at?: string | null
           total?: number
+          zig_rate?: number | null
         }
         Relationships: [
           {
@@ -1182,6 +1206,7 @@ export type Database = {
           phone: string
           plan_name: string
           plan_price_usd: number
+          rand_rate: number
           receipt_footer: string
           store_id: string | null
           tax_number: string
@@ -1204,6 +1229,7 @@ export type Database = {
           phone?: string
           plan_name?: string
           plan_price_usd?: number
+          rand_rate?: number
           receipt_footer?: string
           store_id?: string | null
           tax_number?: string
@@ -1226,6 +1252,7 @@ export type Database = {
           phone?: string
           plan_name?: string
           plan_price_usd?: number
+          rand_rate?: number
           receipt_footer?: string
           store_id?: string | null
           tax_number?: string
@@ -1987,6 +2014,10 @@ export type Database = {
           p_payments: Json
         }
         Returns: Json
+      }
+      currency_rate: {
+        Args: { p_currency: string; p_rand: number; p_zig: number }
+        Returns: number
       }
       current_store_id: { Args: never; Returns: string }
       customer_balance: { Args: { p_customer: string }; Returns: number }

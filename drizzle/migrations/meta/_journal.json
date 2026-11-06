@@ -204,6 +204,13 @@
       "when": 1793945932187,
       "tag": "0028_restore_business_function_execution",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1793946607338,
+      "tag": "0029_rand_currency_foundation",
+      "breakpoints": true
     }
   ]
 }
