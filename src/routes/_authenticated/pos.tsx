@@ -91,6 +91,7 @@ function Till({ shiftId }: { shiftId: string }) {
   const [held, setHeld] = useState<Held[]>([]);
   const [heldOpen, setHeldOpen] = useState(false);
   const [reprintOpen, setReprintOpen] = useState(false);
+  const [hwOpen, setHwOpen] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const { data: customers = [] } = useCustomers();
