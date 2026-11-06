@@ -1,4 +1,10 @@
 # Roadmap
+- [ ] Phase 1: preserve original store data and unlimited billing exemption during multi-tenant migration
+- [ ] Phase 1: isolate every store's records, protected operations, photos, offline queues and staff access
+- [ ] Phase 1: replace public staff signup with instant separate-store trial onboarding (14 days, no extra grace)
+- [ ] Phase 1: starter catalog and three-step trial checklist
+- [ ] Phase 1: vendor-only trial leads, expiry sorting, WhatsApp/call and audited extensions
+- [ ] Phase 1: cross-store security tests and real signed-in onboarding verification before public release
 - [ ] Phase 2: visible editable inventory quantity with audited override and Save
 - [ ] Phase 2: supplier edit and safe deletion
 - [ ] Phase 2: USD/ZiG/Rand goods received, invoice rate, automatic entry lines
