@@ -155,6 +155,13 @@
       "when": 1793945164208,
       "tag": "0021_phase_one_staff_target_store_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793945581975,
+      "tag": "0022_store_ownership_backfill_and_read_boundaries",
+      "breakpoints": true
     }
   ]
 }
