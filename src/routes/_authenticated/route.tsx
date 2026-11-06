@@ -1,3 +1,4 @@
+import { BackBar } from "@/components/BackBar";
 import { createFileRoute, Outlet, redirect, Link, useNavigate, Navigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut, Truck, BarChart3, Users, Wallet, Clock, CreditCard, Contact, ClipboardList, Store, BookOpen } from "lucide-react";
@@ -137,7 +138,7 @@ function AppLayout() {
           </button>
         </div>
       </aside>
-      <main className="min-w-0 flex-1"><SubscriptionBanner /><OfflineBar /><Outlet /></main>
+      <main className="min-w-0 flex-1"><SubscriptionBanner /><OfflineBar /><BackBar /><Outlet /></main>
     </div>
   );
 }
