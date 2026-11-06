@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, List, LayoutGrid, ReceiptText, Printer } from "lucide-react";
+import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, List, LayoutGrid, ReceiptText, Printer, Archive, Settings2 } from "lucide-react";
+import { openDrawer } from "@/lib/hardware";
 import { RecentReceipts } from "@/components/RecentReceipts";
 import { HardwareSettings } from "@/components/HardwareSettings";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { type ReceiptData } from "@/components/Receipt";
-import { SaleComplete } from "@/components/SaleComplete";
+import { SaleComplete, printReceipt } from "@/components/SaleComplete";
 import { cached, deviceStorageKey, enqueueSale, isNetworkError } from "@/lib/offline";
 import { useSubscription } from "@/components/SubscriptionBanner";
 import { OpenShiftGate, ShiftBar, useOpenShift } from "@/components/Shift";
@@ -92,6 +93,7 @@ function Till({ shiftId }: { shiftId: string }) {
   const [heldOpen, setHeldOpen] = useState(false);
   const [reprintOpen, setReprintOpen] = useState(false);
   const [hwOpen, setHwOpen] = useState(false);
+  const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const { data: customers = [] } = useCustomers();
@@ -162,11 +164,12 @@ function Till({ shiftId }: { shiftId: string }) {
   }
 
   function finish(r: Omit<ReceiptData, "business" | "cashier" | "currency" | "items" | "subtotal" | "discount" | "payments">, paid: Payment[]) {
-    setReceipt({
+    const full: ReceiptData = {
       ...r, business: settings?.business_name ?? "", cashier: me?.name ?? "", currency,
       items: lines.map((l) => ({ name: l.name, quantity: l.quantity, unit_price: l.unit_price, line_total: l.unit_price * l.quantity })),
       subtotal, discount, payments: paid,
-    });
+    };
+    setReceipt(full); setLastReceipt(full);
     setPayOpen(false); setLines([]); setDiscVal(0); setCustomerId("none");
   }
 
@@ -280,8 +283,12 @@ function Till({ shiftId }: { shiftId: string }) {
             <Button size="sm" variant="ghost" onClick={hold} disabled={!lines.length}><PauseCircle className="h-4 w-4" />Hold</Button>
             <Button size="sm" variant="ghost" onClick={() => setHeldOpen(true)}><PlayCircle className="h-4 w-4" />Held ({held.length})</Button>
             <Button size="sm" variant="ghost" onClick={() => setReprintOpen(true)}><ReceiptText className="h-4 w-4" />Receipts</Button>
-            <Button size="sm" variant="ghost" onClick={() => setHwOpen(true)}><Printer className="h-4 w-4" />Hardware</Button>
           </div>
+        </div>
+        <div className="flex gap-2 border-b bg-muted/40 px-4 py-2">
+          <Button size="sm" variant="outline" className="flex-1" onClick={() => openDrawer().then(() => toast.success("Drawer opened"), (e) => toast.error(e instanceof Error ? e.message : "Drawer failed"))}><Archive className="h-4 w-4" />Open drawer</Button>
+          <Button size="sm" variant="outline" className="flex-1" disabled={!lastReceipt} onClick={() => lastReceipt && void printReceipt(lastReceipt, settings)}><Printer className="h-4 w-4" />Reprint last</Button>
+          <Button size="sm" variant="ghost" aria-label="Printer and drawer setup" onClick={() => setHwOpen(true)}><Settings2 className="h-4 w-4" /></Button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {!lines.length && <p className="p-8 text-center text-sm text-muted-foreground">Tap a product or scan a barcode.</p>}

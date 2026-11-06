@@ -11,17 +11,21 @@ import { receiptBytes, type StoreInfo } from "@/lib/escpos";
 import { loadHardware, openDrawer, saveHardware, sendToPrinter } from "@/lib/hardware";
 import { toast } from "sonner";
 
+export async function printReceipt(receipt: ReceiptData, settings: unknown) {
+  const hw = loadHardware();
+  if (hw.printer === "none") { window.print(); return; }
+  const st = settings as (StoreInfo & { receipt_config?: unknown }) | undefined;
+  try { await sendToPrinter(receiptBytes(receipt, st, receiptConfig(st?.receipt_config)), hw); toast.success("Receipt printed"); }
+  catch (e) { toast.error(`Printer: ${e instanceof Error ? e.message : "failed"}`); }
+}
+
 export function SaleComplete({ receipt, onNext }: { receipt: ReceiptData; onNext: () => void }) {
   const print = useRef<HTMLButtonElement>(null);
   const [automatic, setAutomatic] = useState(false);
   const { data: settings } = useSettings();
 
   async function doPrint() {
-    const hw = loadHardware();
-    if (hw.printer === "none") { window.print(); return; }
-    const st = settings as (StoreInfo & { receipt_config?: unknown }) | undefined;
-    try { await sendToPrinter(receiptBytes(receipt, st, receiptConfig(st?.receipt_config)), hw); }
-    catch (e) { toast.error(`Printer: ${e instanceof Error ? e.message : "failed"}`); }
+    await printReceipt(receipt, settings);
   }
 
   useEffect(() => {
