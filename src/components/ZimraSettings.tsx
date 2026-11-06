@@ -46,13 +46,13 @@ export function ZimraSettings({ canEdit }: { canEdit: boolean }) {
     setBusy(true);
     const { error } = await supabase.rpc("save_zimra_config", { p: f });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("ZIMRA settings saved");
     qc.invalidateQueries({ queryKey: ["zimra"] });
   }
   async function closeDay() {
     const { error } = await supabase.rpc("zimra_close_fiscal_day");
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Fiscal day closed");
     qc.invalidateQueries({ queryKey: ["zimra"] });
   }
@@ -90,7 +90,7 @@ export function ZimraSettings({ canEdit }: { canEdit: boolean }) {
       <div className="rounded-lg bg-muted p-3 text-xs">
         <div>Device certificate: {c?.certificate_set ? "installed" : "not installed yet"}</div>
         <div>Fiscal day: {data?.day ? `Day ${data.day.day_no} open · ${data.day.receipt_counter} receipts` : "none open (opens with the first sale)"}</div>
-        <div>Receipts waiting for device: {data?.tally.awaiting_device ?? 0} · queued to send: {data?.tally.queued ?? 0} · sent: {data?.tally.submitted ?? 0} · failed: {data?.tally.failed ?? 0}</div>
+        <div>Receipts waiting for device: {data?.tally["awaiting_device"] ?? 0} · queued to send: {data?.tally["queued"] ?? 0} · sent: {data?.tally["submitted"] ?? 0} · failed: {data?.tally["failed"] ?? 0}</div>
       </div>
       {canEdit && (
         <div className="flex flex-wrap gap-2">
