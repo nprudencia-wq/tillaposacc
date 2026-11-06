@@ -39,6 +39,9 @@ const navGroups = [
     { to: "/sales", label: "Sales", icon: Receipt },
     { to: "/documents", label: "Sales documents", icon: BookOpen },
     { to: "/customers", label: "Customers", icon: Contact },
+  ] },
+  { title: "Staff & shifts", items: [
+    { to: "/staff", label: "Staff", icon: Users },
     { to: "/shifts", label: "Shifts", icon: Clock },
   ] },
   { title: "Finance", items: [
@@ -49,7 +52,6 @@ const navGroups = [
   { title: "Settings", items: [
     { to: "/payment-types", label: "Payment types", icon: CreditCard },
     { to: "/currencies", label: "Currency settings", icon: Wallet },
-    { to: "/staff", label: "Staff", icon: Users },
     { to: "/store", label: "Store profile", icon: Store },
     { to: "/billing", label: "Billing", icon: CreditCard },
   ] },
