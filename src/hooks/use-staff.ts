@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cached, setOfflineScope } from "@/lib/offline";
 import { deviceSession } from "@/lib/offline-session";
-import { effectivePermission, type Permission } from "@/lib/username";
+import { PERMISSIONS, effectivePermission, type Permission } from "@/lib/username";
 
 export function useStaff() {
   return useQuery({
@@ -44,7 +44,8 @@ export function useStaff() {
         canManagePaymentTypes: list.some((r) => ["admin", "owner", "manager"].includes(r)),
         isOwner: list.some((r) => ["admin", "owner"].includes(r)),
         // Cashier-only accounts are till users: no back office.
-        backOffice: list.some((r) => r !== "cashier"),
+        perms: Object.fromEntries((Object.keys(PERMISSIONS) as Permission[]).map((p) => [p, can(p)])) as Record<Permission, boolean>,
+        backOffice: list.some((r) => r !== "cashier") || (Object.keys(overrides) as Permission[]).some((p) => (p.startsWith("module_") || p === "view_reports") && overrides[p]),
       };
     }),
   });
