@@ -134,6 +134,13 @@
       "when": 1793862822724,
       "tag": "0018_product_images_staff_read",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793936563317,
+      "tag": "0019_phase_two_inventory_suppliers",
+      "breakpoints": true
     }
   ]
 }

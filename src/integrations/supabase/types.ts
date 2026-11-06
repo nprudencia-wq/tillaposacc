@@ -390,6 +390,7 @@ export type Database = {
           id: string
           line_total: number
           name: string
+          original_unit_cost: number
           product_id: string
           quantity: number
           unit_cost: number
@@ -399,6 +400,7 @@ export type Database = {
           id?: string
           line_total: number
           name: string
+          original_unit_cost?: number
           product_id: string
           quantity: number
           unit_cost: number
@@ -408,6 +410,7 @@ export type Database = {
           id?: string
           line_total?: number
           name?: string
+          original_unit_cost?: number
           product_id?: string
           quantity?: number
           unit_cost?: number
@@ -432,30 +435,39 @@ export type Database = {
       grns: {
         Row: {
           created_at: string
+          currency: string
+          exchange_rate: number
           grn_number: string
           id: string
           invoice_number: string | null
           note: string | null
+          original_total: number
           received_by: string
           supplier_id: string
           total: number
         }
         Insert: {
           created_at?: string
+          currency?: string
+          exchange_rate?: number
           grn_number?: string
           id?: string
           invoice_number?: string | null
           note?: string | null
+          original_total?: number
           received_by: string
           supplier_id: string
           total: number
         }
         Update: {
           created_at?: string
+          currency?: string
+          exchange_rate?: number
           grn_number?: string
           id?: string
           invoice_number?: string | null
           note?: string | null
+          original_total?: number
           received_by?: string
           supplier_id?: string
           total?: number
@@ -1532,6 +1544,7 @@ export type Database = {
         Args: { p_approve: boolean; p_note: string; p_payment: string }
         Returns: undefined
       }
+      delete_supplier: { Args: { p_id: string }; Returns: undefined }
       finish_stocktake: {
         Args: { p_apply: boolean; p_stocktake: string }
         Returns: undefined
@@ -1618,6 +1631,19 @@ export type Database = {
         }
         Returns: Json
       }
+      receive_goods_currency: {
+        Args: {
+          p_currency: string
+          p_invoice: string
+          p_items: Json
+          p_method: string
+          p_note: string
+          p_paid: number
+          p_rate: number
+          p_supplier: string
+        }
+        Returns: Json
+      }
       record_cash_movement: {
         Args: {
           p_amount: number
@@ -1660,6 +1686,16 @@ export type Database = {
           p_type: string
         }
         Returns: undefined
+      }
+      save_inventory_product: {
+        Args: {
+          p_expected_stock: number
+          p_fields: Json
+          p_id: string
+          p_reason: string
+          p_stock: number
+        }
+        Returns: string
       }
       set_staff_pin: {
         Args: { p_pin: string; p_user: string }
