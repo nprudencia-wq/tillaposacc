@@ -21,7 +21,7 @@ export type LocalShift = {
   id: string; shift_number: string; opened_at: string; status: "open" | "closed";
   opening_float_usd: number; opening_float_zig: number; opening_float_zar: number;
   closed_at?: string; count?: { usd: number; zig: number; zar: number; notes: string };
-  opened_synced: boolean; closed_synced: boolean; error?: string;
+  opened_synced: boolean; closed_synced: boolean; error?: string | undefined;
 };
 
 export function setOfflineScope(scope: StoreScope | null) {
