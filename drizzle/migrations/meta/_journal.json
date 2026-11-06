@@ -239,6 +239,13 @@
       "when": 1793947167269,
       "tag": "0033_invoice_payment_allocations",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793947212797,
+      "tag": "0034_tenant_read_helpers_and_inventory_access",
+      "breakpoints": true
     }
   ]
 }
