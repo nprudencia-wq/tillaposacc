@@ -7,6 +7,10 @@ const lines = [
 ];
 
 describe("POS maths", () => {
+  it("uses the user's confirmed R1 = USD 0.050 rate", () => {
+    expect(toUSD(1,"ZAR",26.8,20)).toBe(0.05);
+    expect(fromUSD(10,"ZAR",26.8,20)).toBe(200);
+  });
   it("converts Rand using Rand units per USD", () => {
     expect(fromUSD(10, "ZAR", 26.8, 18)).toBe(180);
     expect(toUSD(180, "ZAR", 26.8, 18)).toBe(10);
