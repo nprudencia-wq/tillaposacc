@@ -10,7 +10,7 @@
 <!-- LOVABLE:END -->
 
 - Sales and stock changes go through the `complete_sale` / `adjust_stock` database functions only; tables have no direct write grants for sales or stock movements, so prices and the stock audit trail can't be bypassed by cashiers.
-- Roles live in `user_roles`; first signup becomes owner, later signups become cashier (trigger `handle_new_user`).
+- Roles live in `user_roles`; `handle_new_user` only accepts trusted administrative staff creation. Public staff signup is rejected to prevent outsiders entering the existing shop.
 - Money is stored in USD; ZiG amounts are converted with `settings.zig_rate` at sale time and the rate is saved on each sale.
 - Offline sales queue in localStorage (src/lib/offline.ts) and upload via `complete_offline_sale`, which dedupes on `client_ref`; non-cash offline payments start unverified. Why: retries must never double-sell.
 - The service worker registers only from src/lib/pwa.ts and never in dev/preview. Why: stale caches break the editor preview.
@@ -24,3 +24,5 @@
 - Inventory form saves use `save_inventory_product` atomically; absolute quantity corrections check the previously read balance and delegate movement writes to `adjust_stock`. Why: stale forms cannot overwrite intervening sales or lose opening-stock audit entries.
 - Supplier invoice currencies are separate from till currencies; `receive_goods_currency` captures invoice units per USD and original costs while passing USD costs into `receive_goods`. Why: supplier balances and derived accounting continue to use USD without changing checkout.
 - Supplier deletion uses `delete_supplier`, which rejects suppliers with transaction history. Why: correcting unused entries must never erase purchases, payments or returns.
+- Phase 1 uses `stores` and protected `store_memberships` as its additive ownership foundation; do not provision other stores until all business tables, security-definer functions, storage and browser queues are isolated and negative cross-store tests pass. Why: the legacy POS still has singleton assumptions.
+- Privileged staff password resets must verify the caller and target share a store before loading the admin client. Why: global management roles must not authorize cross-store account changes.

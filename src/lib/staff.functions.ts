@@ -8,6 +8,10 @@ const SENIOR = ["admin", "owner", "manager"];
 async function assertCanManage(supabase: any, userId: string, targetRole?: string, targetUser?: string) {
   const { data: ok } = await supabase.rpc("can_manage_staff", { _user_id: userId });
   if (!ok) throw new Error("Only an owner, administrator or manager can do this");
+  if (targetUser) {
+    const { data: membership, error } = await supabase.rpc("can_manage_store_member", { p_target: targetUser });
+    if (error || !membership) throw new Error("That staff account does not belong to your store");
+  }
   const { data: owner } = await supabase.rpc("is_owner_admin", { _user_id: userId });
   if (owner) return;
   if (targetRole && SENIOR.includes(targetRole)) throw new Error("Managers can only create staff below manager");

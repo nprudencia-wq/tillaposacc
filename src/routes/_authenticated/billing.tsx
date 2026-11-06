@@ -8,6 +8,7 @@ import { useSettings, useStaff } from "@/hooks/use-staff";
 import { useSubscription } from "@/components/SubscriptionBanner";
 import { vendorDecide, vendorUpdatePlan } from "@/lib/billing.functions";
 import { money } from "@/lib/pos";
+import { tillSubscriptionCharge } from "@/lib/subscription";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,7 +79,7 @@ Status: ${p.status.toUpperCase()}</pre>`);
   if (!s || !sub) return <div className="p-6 text-muted-foreground">Loading…</div>;
   const label = { active: "Active", grace: "Overdue (grace period)", locked: "Locked" }[sub.state];
   const tills = Number(s.till_count) || 1;
-  const total = Number(s.plan_price_usd) * tills * Number(f.months || 0);
+  const total = tillSubscriptionCharge(Number(s.plan_price_usd), tills, Number(f.months || 0), s.billing_exempt);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-8">
@@ -90,7 +91,7 @@ Status: ${p.status.toUpperCase()}</pre>`);
       <div className="grid gap-4 sm:grid-cols-3">
         <Box label="Status" value={s.billing_exempt ? "Free (no subscription)" : label} tone={s.billing_exempt ? "" : sub.state} />
         <Box label="Paid until" value={s.billing_exempt ? "—" : new Date(sub.paidUntil + "T00:00:00").toLocaleDateString()} />
-        <Box label={`${tills} till${tills > 1 ? "s" : ""} × ${money(Number(s.plan_price_usd))}`} value={`${money(Number(s.plan_price_usd) * tills)} / month`} />
+        <Box label={s.billing_exempt ? "All your tills are free" : `${tills} till${tills > 1 ? "s" : ""} × ${money(Number(s.plan_price_usd))}`} value={`${money(tillSubscriptionCharge(Number(s.plan_price_usd), tills, 1, s.billing_exempt))} / month`} />
       </div>
 
       {canPay && (
