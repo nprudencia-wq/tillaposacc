@@ -21,6 +21,8 @@ export const Route = createFileRoute("/_authenticated/suppliers")({
   component: SuppliersPage,
 });
 
+type GrnDraft = Database["public"]["Tables"]["grn_drafts"]["Row"];
+
 type Supplier = Database["public"]["Tables"]["suppliers"]["Row"];
 
 function useSupplierData() {
@@ -55,6 +57,11 @@ function SuppliersPage() {
   const [editSupplier, setEditSupplier] = useState<Supplier | null>(null);
   const [deleteSupplier, setDeleteSupplier] = useState<Supplier | null>(null);
   const [grnOpen, setGrnOpen] = useState(false);
+  const [editingDraft, setEditingDraft] = useState<GrnDraft | null>(null);
+  const { data: drafts = [], error: draftsError } = useQuery({
+    queryKey: ["grn-drafts"], enabled: can,
+    queryFn: async () => { const { data, error } = await supabase.from("grn_drafts").select("*").is("posted_grn_id", null).order("updated_at", { ascending: false }); if (error) throw error; return data; },
+  });
   const [payFor, setPayFor] = useState<string | null>(null);
   const [stmtFor, setStmtFor] = useState<string | null>(null);
   const name = (id: string) => data?.suppliers.find((s) => s.id === id)?.name ?? "";
@@ -99,6 +106,14 @@ function SuppliersPage() {
         </Table>
       </div>
 
+      {can && <section className="mt-8">
+        <h2 className="text-xl font-bold">Saved GRN drafts</h2>
+        {draftsError && <p className="mt-2 text-destructive">Could not load drafts.</p>}
+        <div className="mt-3 overflow-x-auto border rounded-md"><Table><TableHeader><TableRow><TableHead>Invoice</TableHead><TableHead>Supplier</TableHead><TableHead>Last saved</TableHead><TableHead /></TableRow></TableHeader><TableBody>
+          {drafts.map((draft) => { const payload = draft.payload as unknown as GrnForm; return <TableRow key={draft.id}><TableCell>{payload.invoice || "Unfinished GRN"}</TableCell><TableCell>{name(payload.supplier)}</TableCell><TableCell>{new Date(draft.updated_at).toLocaleString()}</TableCell><TableCell><Button variant="outline" size="sm" onClick={() => { setEditingDraft(draft); setGrnOpen(true); }}><Pencil className="h-4 w-4" />Edit draft</Button></TableCell></TableRow>; })}
+          {!drafts.length && <TableRow><TableCell colSpan={4} className="text-muted-foreground">No unfinished GRNs.</TableCell></TableRow>}
+        </TableBody></Table></div>
+      </section>}
       <h2 className="mt-10 text-xl font-bold">Goods received</h2>
       <div className="mt-3 overflow-x-auto rounded-xl border bg-card shadow-soft">
         <Table>
@@ -121,7 +136,7 @@ function SuppliersPage() {
       {newOpen && <SupplierForm onClose={() => setNewOpen(false)} />}
       {editSupplier && <SupplierForm supplier={editSupplier} onClose={() => setEditSupplier(null)} />}
       {deleteSupplier && <DeleteSupplier supplier={deleteSupplier} onClose={() => setDeleteSupplier(null)} />}
-      {grnOpen && <ReceiveGoods suppliers={data?.suppliers ?? []} onClose={() => setGrnOpen(false)} />}
+      {grnOpen && <ReceiveGoods draft={editingDraft} suppliers={data?.suppliers ?? []} onClose={() => { setGrnOpen(false); setEditingDraft(null); }} />}
       {payFor && <PaySupplier id={payFor} name={name(payFor)} onClose={() => setPayFor(null)} />}
       {stmtFor && data && (
         <Dialog open onOpenChange={(o) => !o && setStmtFor(null)}>
@@ -207,24 +222,28 @@ function DeleteSupplier({ supplier, onClose }: { supplier: Supplier; onClose: ()
   return <Dialog open onOpenChange={(open) => !open && onClose()}><DialogContent><DialogHeader><DialogTitle>Delete {supplier.name}?</DialogTitle></DialogHeader><p className="text-sm text-muted-foreground">Suppliers with deliveries, payments or returns cannot be deleted.</p><div className="flex justify-end gap-2"><Button variant="outline" onClick={onClose}>Cancel</Button><Button variant="destructive" disabled={busy} onClick={remove}>{busy ? "Deleting…" : "Delete supplier"}</Button></div></DialogContent></Dialog>;
 }
 
-function ReceiveGoods({ suppliers, onClose }: { suppliers: { id: string; name: string }[]; onClose: () => void }) {
+type GrnForm = { supplier: string; invoice: string; currency: InvoiceCurrency; rate: string; paid: string; note: string; method: string; lines: ReceivingLine[] };
+function ReceiveGoods({ suppliers, onClose, draft }: { suppliers: { id: string; name: string }[]; onClose: () => void; draft: GrnDraft | null }) {
+  const initial = draft?.payload as unknown as GrnForm | undefined;
+  const [savedDraft, setSavedDraft] = useState<GrnDraft | null>(draft);
+  const [review, setReview] = useState(false);
   const qc = useQueryClient();
   const { data: settings } = useSettings();
   const { data: products = [] } = useQuery({
     queryKey: ["products", "active"],
     queryFn: async () => (await supabase.from("products").select("*, categories(name)").eq("active", true).order("name")).data ?? [],
   });
-  const [supplier, setSupplier] = useState(suppliers[0]?.id ?? "");
-  const [invoice, setInvoice] = useState("");
-  const [currency, setCurrency] = useState<InvoiceCurrency>("USD");
-  const [rate, setRate] = useState("1");
-  const [paid, setPaid] = useState("");
-  const [note, setNote] = useState("");
-  const [method, setMethod] = useState("");
+  const [supplier, setSupplier] = useState(initial?.supplier ?? suppliers[0]?.id ?? "");
+  const [invoice, setInvoice] = useState(initial?.invoice ?? "");
+  const [currency, setCurrency] = useState<InvoiceCurrency>(initial?.currency ?? "USD");
+  const [rate, setRate] = useState(initial?.rate ?? "1");
+  const [paid, setPaid] = useState(initial?.paid ?? "");
+  const [note, setNote] = useState(initial?.note ?? "");
+  const [method, setMethod] = useState(initial?.method ?? "");
   const { data: types } = usePaymentTypes();
   const methods = activeTypes(types).filter((type) => !type.is_account);
   const currentMethod = methods.some((type) => type.code === method) ? method : methods[0]?.code ?? "";
-  const [lines, setLines] = useState<ReceivingLine[]>([blankReceivingLine()]);
+  const [lines, setLines] = useState<ReceivingLine[]>(initial?.lines ?? [blankReceivingLine()]);
   const [busy, setBusy] = useState(false);
   const total = receivingTotal(lines);
   const usdTotal = Number(rate) > 0 ? invoiceUSD(total, currency, Number(rate)) : null;
@@ -246,28 +265,57 @@ function ReceiveGoods({ suppliers, onClose }: { suppliers: { id: string; name: s
     setCurrency(value);
   }
 
-  async function save() {
+  const entered = lines.filter((line) => line.product_id || line.quantity || line.unit_cost);
+  function validate() {
+    if (!supplier || !entered.length || entered.some((line) => !completeReceivingLine(line))) return "Choose a supplier and complete every entered line";
+    if (!Number.isFinite(Number(rate)) || Number(rate) <= 0) return "Enter a positive exchange rate";
+    if (!Number.isFinite(Number(paid)) || Number(paid) < 0 || Number(paid) > total) return "Paid now must be between zero and the total";
+    if (Number(paid) > 0 && !currentMethod) return "Choose a payment type";
+    return null;
+  }
+  async function persist() {
+    const payload: GrnForm = { supplier, invoice, currency, rate, paid, note, method: currentMethod, lines };
+    const { data, error } = await supabase.rpc("save_grn_draft", { p_id: savedDraft?.id ?? null, p_version: savedDraft?.version ?? 0, p_payload: payload as unknown as Database["public"]["Tables"]["grn_drafts"]["Row"]["payload"] });
+    if (error) throw error;
+    if (!data) throw new Error("Draft could not be saved");
+    setSavedDraft(data);
+    await qc.invalidateQueries({ queryKey: ["grn-drafts"] });
+    return data;
+  }
+  async function saveTemporary() {
     if (busy) return;
-    const entered = lines.filter((line) => line.product_id || line.quantity || line.unit_cost);
-    if (!supplier || !entered.length || entered.some((line) => !completeReceivingLine(line))) { toast.error("Choose a supplier and complete every entered line"); return; }
-    if (!Number.isFinite(Number(rate)) || Number(rate) <= 0) { toast.error("Enter a positive exchange rate"); return; }
-    if (!Number.isFinite(Number(paid)) || Number(paid) < 0 || Number(paid) > total) { toast.error("Paid now must be between zero and the total"); return; }
-    if (Number(paid) > 0 && !currentMethod) { toast.error("Choose a payment type"); return; }
+    setBusy(true);
+    try { await persist(); toast.success("GRN draft saved — inventory unchanged"); onClose(); }
+    catch (error) { toast.error((error as { message?: string }).message ?? "Could not save draft"); }
+    finally { setBusy(false); }
+  }
+  async function save() {
+    if (busy || !review) return;
+    const invalid = validate(); if (invalid) { toast.error(invalid); return; }
     setBusy(true);
     try {
-      const { data, error } = await supabase.rpc("receive_goods_currency", { p_supplier: supplier, p_invoice: invoice, p_items: entered.map((line) => ({ product_id: line.product_id, quantity: Number(line.quantity), unit_cost: Number(line.unit_cost) })), p_paid: Number(paid), p_note: note, p_currency: currency, p_rate: Number(rate), p_method: currentMethod });
+      const d = await persist();
+      const { data, error } = await supabase.rpc("post_grn_draft", { p_id: d.id, p_version: d.version });
       if (error) throw error;
-      await Promise.all(["suppliers", "products", "movements", "gl-lines", "branch_stock", "activity"].map((key) => qc.invalidateQueries({ queryKey: [key] })));
+      await Promise.all(["grn-drafts", "suppliers", "products", "movements", "gl-lines", "branch_stock", "activity"].map((key) => qc.invalidateQueries({ queryKey: [key] })));
       toast.success(`${(data as { grn_number: string }).grn_number} received — stock updated`);
       onClose();
-    } catch (error) { toast.error(String((error as { message?: string }).message ?? "Receive goods failed")); }
+    } catch (error) { toast.error((error as { message?: string }).message ?? "Receive goods failed"); }
     finally { setBusy(false); }
   }
 
   return (
     <Dialog open onOpenChange={(open) => !open && !busy && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
-        <DialogHeader><DialogTitle>Receive goods (GRN)</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{review ? "Review goods received" : savedDraft ? "Edit GRN draft" : "Receive goods (GRN)"}</DialogTitle></DialogHeader>
+        {review ? <>
+          <div className="grid gap-2 text-sm sm:grid-cols-2"><div>Supplier: <b>{suppliers.find((s) => s.id === supplier)?.name}</b></div><div>Invoice: <b>{invoice || "—"}</b></div><div>Currency: <b>{currency}</b> · Rate: {rate} per USD</div><div>Paid now: <b>{invoiceMoney(Number(paid), currency)}</b></div></div>
+          <div className="overflow-x-auto border rounded-md"><Table><TableHeader><TableRow><TableHead>Product</TableHead><TableHead>Received quantity</TableHead><TableHead>Unit cost</TableHead><TableHead>Total cost</TableHead></TableRow></TableHeader><TableBody>{entered.map((line, i) => <TableRow key={i}><TableCell>{products.find((p) => p.id === line.product_id)?.name}</TableCell><TableCell>{line.quantity}</TableCell><TableCell>{invoiceMoney(Number(line.unit_cost), currency)}</TableCell><TableCell>{invoiceMoney(Number(line.quantity) * Number(line.unit_cost), currency)}</TableCell></TableRow>)}</TableBody></Table></div>
+          <div className="grid gap-3 border-y py-4 sm:grid-cols-3"><div><p className="text-sm text-muted-foreground">Total quantity</p><b>{entered.reduce((sum, l) => sum + Number(l.quantity), 0).toLocaleString()}</b></div><div><p className="text-sm text-muted-foreground">Total cost</p><b>{invoiceMoney(total, currency)}</b></div><div><p className="text-sm text-muted-foreground">USD cost</p><b>{money(usdTotal ?? 0)}</b></div></div>
+          <p className="text-sm text-muted-foreground">Inventory has not been updated yet.</p>
+          <div className="flex flex-wrap justify-end gap-2"><Button variant="outline" disabled={busy} onClick={() => setReview(false)}>Back to edit</Button><Button variant="outline" disabled={busy} onClick={saveTemporary}>Save draft</Button><Button disabled={busy} onClick={save}>{busy ? "Receiving…" : "Confirm & update inventory"}</Button></div>
+        </> : <>
+
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5"><Label>Supplier</Label><Select value={supplier} onValueChange={setSupplier}><SelectTrigger aria-label="Supplier"><SelectValue /></SelectTrigger><SelectContent>{suppliers.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-1.5"><Label htmlFor="grn-invoice">Supplier invoice number</Label><Input id="grn-invoice" value={invoice} onChange={(event) => setInvoice(event.target.value)} /></div>
@@ -288,7 +336,8 @@ function ReceiveGoods({ suppliers, onClose }: { suppliers: { id: string; name: s
           <div className="space-y-1.5"><Label>Payment type</Label><Select value={currentMethod} onValueChange={setMethod}><SelectTrigger aria-label="Payment type"><SelectValue placeholder="Choose payment type" /></SelectTrigger><SelectContent>{methods.map((type) => <SelectItem key={type.code} value={type.code}>{type.name}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-1.5 sm:col-span-2"><Label htmlFor="grn-note">Note</Label><Input id="grn-note" value={note} onChange={(event) => setNote(event.target.value)} /></div>
         </div>
-        <div className="flex flex-wrap justify-between gap-3 border-t pt-4"><div><div className="text-sm text-muted-foreground">Invoice total</div><div className="tabular text-2xl font-bold">{invoiceMoney(total, currency)}</div>{currency !== "USD" && <div className="text-sm text-muted-foreground">USD equivalent: {usdTotal === null ? "—" : money(usdTotal)}</div>}</div><div className="flex items-center gap-2"><Button variant="outline" disabled={busy} onClick={onClose}>Cancel</Button><Button onClick={save} disabled={busy}>{busy ? "Receiving…" : "Receive and add to stock"}</Button></div></div>
+        <div className="flex flex-wrap justify-between gap-3 border-t pt-4"><div><div className="text-sm text-muted-foreground">Invoice total</div><div className="tabular text-2xl font-bold">{invoiceMoney(total, currency)}</div>{currency !== "USD" && <div className="text-sm text-muted-foreground">USD equivalent: {usdTotal === null ? "—" : money(usdTotal)}</div>}</div><div className="flex items-center gap-2"><Button variant="outline" disabled={busy} onClick={onClose}>Cancel</Button><Button variant="outline" disabled={busy} onClick={saveTemporary}>{busy ? "Saving…" : "Save draft"}</Button><Button onClick={() => { const invalid = validate(); if (invalid) toast.error(invalid); else setReview(true); }} disabled={busy}>Review GRN</Button></div></div>
+        </>}
       </DialogContent>
     </Dialog>
   );
