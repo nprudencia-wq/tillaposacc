@@ -295,6 +295,13 @@
       "when": 1793948407468,
       "tag": "0041_grn_draft_client_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1793949581454,
+      "tag": "0042_debtor_interest_and_provision",
+      "breakpoints": true
     }
   ]
 }

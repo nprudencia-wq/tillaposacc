@@ -32,3 +32,19 @@ export function ageDebt(charges: Charge[], credits: number, asOf: Date = new Dat
 export function overLimit(balance: number, extra: number, limit: number) {
   return limit > 0 && balance + extra > limit + 0.005;
 }
+
+/** Debt still owed that is more than `days` old (payments clear oldest debt first). */
+export function overdueBeyond(charges: Charge[], credits: number, days: number, asOf: Date = new Date()) {
+  let left = credits;
+  let out = 0;
+  for (const c of [...charges].sort((a, b) => a.date.localeCompare(b.date))) {
+    const used = Math.min(left, c.amount);
+    left -= used;
+    const age = Math.floor((asOf.getTime() - new Date(c.date).getTime()) / 86400000);
+    if (age >= days) out += c.amount - used;
+  }
+  return r2(out);
+}
+
+/** Percentage of an amount, rounded to cents (used for interest and bad-debt provision). */
+export const pct = (amount: number, rate: number) => r2((amount * rate) / 100);
