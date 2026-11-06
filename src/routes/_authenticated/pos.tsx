@@ -172,6 +172,7 @@ function Till({ shiftId }: { shiftId: string }) {
       client_ref: ref, sold_at: new Date().toISOString(), shift_id: shiftId, currency, discount,
       items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price })), payments: paid, total, rate, rand_rate: randRate,
     });
+    window.__lovableEvents?.track?.("project.till_sale_completed", { mode: "offline", currency });
     // Reduce the cached stock so the till shows sensible numbers while offline.
     qc.setQueryData(["products", "active"], (old: typeof products | undefined) =>
       old?.map((p) => { const l = lines.find((x) => x.product_id === p.id); return l ? { ...p, stock: Number(p.stock) - l.quantity } : p; }));
@@ -206,6 +207,7 @@ function Till({ shiftId }: { shiftId: string }) {
     });
     if (error && isNetworkError(error) && !onAccount && !overridden) { saveOffline(paid); return; }
     if (error) { toast.error(error.message); qc.invalidateQueries({ queryKey: ["open-shift"] }); return; }
+    window.__lovableEvents?.track?.("project.till_sale_completed", { mode: "online", currency });
     const res = data as { sale_number: string; total: number; change: number; rate: number };
     finish({ sale_number: res.sale_number, created_at: new Date().toISOString(), rate: Number(res.rate), total: Number(res.total), change: Number(res.change) }, paid);
     qc.invalidateQueries({ queryKey: ["products"] });
