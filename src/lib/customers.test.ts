@@ -24,3 +24,23 @@ describe("customer debt", () => {
     expect(overLimit(70, 30, 100)).toBe(false);
   });
 });
+
+import { overdueBeyond, pct } from "./customers";
+describe("debtor interest and provision", () => {
+  const asOf = new Date("2026-11-06T12:00:00Z");
+  const charges = [
+    { date: "2026-06-01T00:00:00Z", amount: 100 }, // 158 days old
+    { date: "2026-09-20T00:00:00Z", amount: 50 }, // 47 days old
+    { date: "2026-11-01T00:00:00Z", amount: 20 }, // 5 days old
+  ];
+  it("charges 5% monthly interest only on debt over 30 days", () => {
+    expect(pct(overdueBeyond(charges, 0, 30, asOf), 5)).toBe(7.5);
+  });
+  it("payments clear the oldest debt first", () => {
+    expect(overdueBeyond(charges, 60, 30, asOf)).toBe(90);
+  });
+  it("provides 1% on debt 120+ days overdue", () => {
+    expect(pct(overdueBeyond(charges, 0, 120, asOf), 1)).toBe(1);
+    expect(overdueBeyond(charges, 100, 120, asOf)).toBe(0);
+  });
+});
