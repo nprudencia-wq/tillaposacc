@@ -24,9 +24,11 @@
 - [x] Phase 3: editable inventory quantity, Save and audited override verified with a signed-in stock correction
 - [ ] Phase 3: supplier edit and safe deletion implemented; transaction verification pending
 - [ ] Phase 3: USD/ZiG/Rand goods received, invoice rate and automatic lines implemented; transaction verification pending
-- [x] Current regression suite: 58 tests passed
+- [x] Current regression suite: 67 tests passed
 - [ ] Phase 3: signed-in supplier and Rand receiving verification
-- Phase 1 blocker: privileged business functions, singleton store settings/account codes and global staff/PIN identities remain to be isolated; public trials disabled.
+- Phase 1 blocker: further privileged-function audits and negative cross-store tests remain; public trials disabled. Store-local settings/account identifiers and selected protected operations have been updated, not isolation-certified.
+- [x] Rand online checkout, quotation conversion, cash/account invoices, repayment and credit-note flows exercised with signed-in test transactions; retained audit records remain.
+- [ ] Rand offline historical-rate transmission and mixed-tender cash-up need further verification.
 - Phase 5 external blocker: user is not yet ZIMRA registered; official device access and approval required for live fiscalisation.
 - Phase 6 input needed: monthly simple-interest rate, start threshold and payment-due basis; existing aging measures sale age, not days overdue.
 - Stock verification item was zeroed and deactivated; its audit history is retained.
