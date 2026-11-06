@@ -63,7 +63,9 @@ function BillingPage() {
   function printInvoice(p: Pay) {
     const w = window.open("", "_blank", "width=420,height=600");
     if (!w || !s) return;
-    w.document.write(`<pre style="font-family:monospace;font-size:13px">INVOICE ${p.invoice_number}
+    const pre = w.document.createElement("pre");
+    pre.style.cssText = "font-family:monospace;font-size:13px";
+    pre.textContent = `INVOICE ${p.invoice_number}
 ${s.vendor_name || "Software provider"}
 Billed to: ${s.business_name}
 Date: ${new Date(p.submitted_at).toLocaleDateString()}
@@ -72,8 +74,9 @@ POS subscription: ${(p as Pay & { tills?: number }).tills ?? 1} till(s) x ${p.mo
 Amount: ${money(Number(p.amount))}
 Paid by: ${p.method}  Ref: ${p.reference}
 Period: ${p.period_from ?? "-"} to ${p.period_to ?? "-"}
-Status: ${p.status.toUpperCase()}</pre>`);
-    w.document.close(); w.print();
+Status: ${p.status.toUpperCase()}`;
+    w.document.body.replaceChildren(pre);
+    w.print();
   }
 
   if (!s || !sub) return <div className="p-6 text-muted-foreground">Loading…</div>;

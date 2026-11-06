@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, List, LayoutGrid, ReceiptText, Printer, Archive, Settings2 } from "lucide-react";
 import { openDrawer } from "@/lib/hardware";
 import { RecentReceipts } from "@/components/RecentReceipts";
+import { ProductImage } from "@/components/ProductImage";
 import { HardwareSettings } from "@/components/HardwareSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings, useStaff } from "@/hooks/use-staff";
@@ -253,7 +254,7 @@ function Till({ shiftId }: { shiftId: string }) {
             const low = Number(p.stock) <= Number(p.min_stock);
             const out = Number(p.stock) <= 0;
             if (view === "list") return <Button key={p.id} variant="ghost" disabled={out} onClick={() => add(p)} aria-label={`Add ${p.name}`} className="h-20 w-full justify-start gap-3 rounded-none px-2 text-left">
-              <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-md bg-secondary text-primary">{p.image_url ? <img src={p.image_url} alt="" className="h-full w-full object-cover" /> : p.name.slice(0, 2).toUpperCase()}</div>
+              <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-md bg-secondary text-primary">{p.image_url ? <ProductImage src={p.image_url} className="h-full w-full object-cover" /> : p.name.slice(0, 2).toUpperCase()}</div>
               <div className="min-w-0 flex-1"><div className="truncate font-semibold">{p.name}</div><div className="truncate text-xs font-normal text-muted-foreground">{p.sku} {p.categories?.name ? `· ${p.categories.name}` : ""}</div><div className={out || low ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{out ? "Out of stock" : `${Number(p.stock)} in stock`}</div></div>
               <span className="shrink-0 font-mono font-semibold text-primary">{show(Number(p.selling_price))}</span><Plus className="h-4 w-4 shrink-0" />
             </Button>;
@@ -261,7 +262,7 @@ function Till({ shiftId }: { shiftId: string }) {
               <Button key={p.id} variant="outline" disabled={out} onClick={() => add(p)} aria-label={`Add ${p.name}`}
                 className="group flex h-auto flex-col items-stretch whitespace-normal rounded-md bg-card p-3 text-left shadow-soft transition active:scale-[0.98] hover:border-primary">
                 <div className="mb-3 grid h-16 place-items-center rounded-lg bg-secondary font-display text-2xl font-bold text-primary">
-                  {p.image_url ? <img src={p.image_url} alt="" className="h-full w-full rounded-lg object-cover" /> : p.name.slice(0, 2).toUpperCase()}
+                  {p.image_url ? <ProductImage src={p.image_url} className="h-full w-full rounded-lg object-cover" /> : p.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="line-clamp-2 text-sm font-semibold leading-tight">{p.name}</div>
                 <div className="mt-auto flex items-end justify-between pt-2">
