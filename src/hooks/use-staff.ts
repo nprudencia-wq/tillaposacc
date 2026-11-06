@@ -44,7 +44,8 @@ export function useStaff() {
         canManagePaymentTypes: list.some((r) => ["admin", "owner", "manager"].includes(r)),
         isOwner: list.some((r) => ["admin", "owner"].includes(r)),
         // Cashier-only accounts are till users: no back office.
-        backOffice: list.some((r) => r !== "cashier"),
+        can,
+        backOffice: list.some((r) => r !== "cashier") || (Object.keys(overrides) as Permission[]).some((p) => (p.startsWith("module_") || p === "view_reports") && overrides[p]),
       };
     }),
   });

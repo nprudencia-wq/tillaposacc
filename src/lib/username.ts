@@ -22,10 +22,36 @@ export const PERMISSIONS = {
   post_expense: "Post expenses",
   view_reports: "View reports",
   override_price: "Change prices at the till",
+  module_dashboard: "Dashboard",
+  module_inventory: "Inventory",
+  module_stock: "Stock control",
+  module_suppliers: "Suppliers",
+  module_sales: "Sales",
+  module_documents: "Sales documents",
+  module_customers: "Customers",
+  module_staff: "Staff",
+  module_shifts: "Shifts",
+  module_expenses: "Expenses",
+  module_accounting: "Accounting",
+  module_settings: "Settings (payment types, currency, store, billing)",
 } as const;
 export type Permission = keyof typeof PERMISSIONS;
+export const isModulePermission = (p: Permission) => p.startsWith("module_") || p === "view_reports";
 
+const SENIOR = ["admin", "owner", "manager"];
 export const ROLE_DEFAULTS: Record<Permission, string[]> = {
+  module_dashboard: [...SENIOR, "supervisor", "accountant", "stock_controller"],
+  module_inventory: [...SENIOR, "stock_controller"],
+  module_stock: [...SENIOR, "stock_controller"],
+  module_suppliers: [...SENIOR, "stock_controller", "accountant"],
+  module_sales: [...SENIOR, "supervisor", "accountant"],
+  module_documents: [...SENIOR, "supervisor", "accountant"],
+  module_customers: [...SENIOR, "supervisor", "accountant"],
+  module_staff: SENIOR,
+  module_shifts: [...SENIOR, "supervisor"],
+  module_expenses: [...SENIOR, "accountant"],
+  module_accounting: [...SENIOR, "accountant"],
+  module_settings: SENIOR,
   give_discount: ["admin", "owner", "manager", "supervisor", "cashier"],
   refund: ["admin", "owner", "manager", "supervisor"],
   manage_stock: ["admin", "owner", "manager", "stock_controller"],
