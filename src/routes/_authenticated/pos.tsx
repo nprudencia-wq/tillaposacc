@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, List, LayoutGrid } from "lucide-react";
+import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, List, LayoutGrid, ReceiptText } from "lucide-react";
+import { RecentReceipts } from "@/components/RecentReceipts";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings, useStaff } from "@/hooks/use-staff";
 import { Button } from "@/components/ui/button";
@@ -88,6 +89,7 @@ function Till({ shiftId }: { shiftId: string }) {
   const [payOpen, setPayOpen] = useState(false);
   const [held, setHeld] = useState<Held[]>([]);
   const [heldOpen, setHeldOpen] = useState(false);
+  const [reprintOpen, setReprintOpen] = useState(false);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const { data: customers = [] } = useCustomers();
@@ -275,6 +277,7 @@ function Till({ shiftId }: { shiftId: string }) {
           <div className="flex gap-1">
             <Button size="sm" variant="ghost" onClick={hold} disabled={!lines.length}><PauseCircle className="h-4 w-4" />Hold</Button>
             <Button size="sm" variant="ghost" onClick={() => setHeldOpen(true)}><PlayCircle className="h-4 w-4" />Held ({held.length})</Button>
+            <Button size="sm" variant="ghost" onClick={() => setReprintOpen(true)}><ReceiptText className="h-4 w-4" />Receipts</Button>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -338,6 +341,7 @@ function Till({ shiftId }: { shiftId: string }) {
       {addCust && <CustomerDialog customer={null} onClose={() => setAddCust(false)} onSaved={(c) => { qc.invalidateQueries({ queryKey: ["customers"] }); setCustomerId(c.id); }} />}
       {payOpen && <PayDialog total={total} currency={currency} rate={rate} randRate={randRate} onClose={() => setPayOpen(false)} onPay={complete} />}
 
+      <RecentReceipts open={reprintOpen} onOpenChange={setReprintOpen} />
       <Dialog open={heldOpen} onOpenChange={setHeldOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Held sales</DialogTitle></DialogHeader>
