@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
 import { RefundDialog } from "@/components/RefundDialog";
 import { money, type Currency, type PayMethod } from "@/lib/pos";
-import { methodLabel, usePaymentTypes } from "@/lib/payment-types";
+import { methodLabel } from "@/lib/payment-types";
 import { useSettings, useStaff } from "@/hooks/use-staff";
 import { toast } from "sonner";
 
@@ -20,7 +20,6 @@ type Sale = { id: string; sale_number: string; created_at: string; cashier_id: s
 export function RecentReceipts({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { data: settings } = useSettings();
   const { data: me } = useStaff();
-  const { data: types } = usePaymentTypes();
   const [q, setQ] = useState("");
   const [day, setDay] = useState(localDay());
   const [mine, setMine] = useState(true);
@@ -97,7 +96,7 @@ export function RecentReceipts({ open, onOpenChange }: { open: boolean; onOpenCh
                 {sales.map((s) => {
                   const cur = s.currency as Currency;
                   const amt = cur !== "USD" ? Number(s.total) * Number(s.exchange_rate) : Number(s.total);
-                  const paidBy = [...new Set((s.sale_payments ?? []).map((p) => methodLabel(p.method, types)))].join(", ");
+                  const paidBy = [...new Set((s.sale_payments ?? []).map((p) => methodLabel(p.method)))].join(", ");
                   return (
                     <button key={s.id} className="flex w-full items-center justify-between gap-2 p-3 text-left text-sm hover:bg-muted" onClick={() => view(s)}>
                       <span><span className="font-medium">{s.sale_number}</span><br /><span className="text-xs text-muted-foreground">{new Date(s.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}{q.trim() ? ` · ${new Date(s.created_at).toLocaleDateString()}` : ""}{paidBy ? ` · ${paidBy}` : ""}</span></span>
