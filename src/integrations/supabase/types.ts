@@ -646,6 +646,58 @@ export type Database = {
           },
         ]
       }
+      invoice_payment_allocations: {
+        Row: {
+          amount: number
+          client_ref: string
+          created_at: string
+          document_id: string
+          id: string
+          payment_id: string
+          store_id: string
+        }
+        Insert: {
+          amount: number
+          client_ref: string
+          created_at?: string
+          document_id: string
+          id?: string
+          payment_id: string
+          store_id?: string
+        }
+        Update: {
+          amount?: number
+          client_ref?: string
+          created_at?: string
+          document_id?: string
+          id?: string
+          payment_id?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_payment_allocations_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "sales_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payment_allocations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: true
+            referencedRelation: "customer_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_payment_allocations_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_entries: {
         Row: {
           created_at: string
@@ -2222,6 +2274,7 @@ export type Database = {
         Returns: boolean
       }
       has_staff_pin: { Args: { p_user: string }; Returns: boolean }
+      invoice_outstanding: { Args: { p_document: string }; Returns: number }
       is_account_method: { Args: { p: string }; Returns: boolean }
       is_cash_method: { Args: { p: string }; Returns: boolean }
       is_owner_admin: { Args: { _user_id: string }; Returns: boolean }
@@ -2302,6 +2355,17 @@ export type Database = {
           p_supplier: string
         }
         Returns: Json
+      }
+      receive_invoice_payment: {
+        Args: {
+          p_amount: number
+          p_client_ref: string
+          p_currency: string
+          p_document: string
+          p_method: string
+          p_reference: string
+        }
+        Returns: string
       }
       record_cash_movement: {
         Args: {

@@ -232,6 +232,13 @@
       "when": 1793946947663,
       "tag": "0032_atomic_credit_notes_and_document_integrity",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793947167269,
+      "tag": "0033_invoice_payment_allocations",
+      "breakpoints": true
     }
   ]
 }
