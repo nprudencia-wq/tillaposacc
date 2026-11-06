@@ -1,4 +1,5 @@
 # Roadmap
+- [ ] Current request: complete Rand checkout, safe self-serve trial onboarding, quotations, invoices and credit notes in verified releases
 - [x] Phase 1 foundation: register original store and staff without changing trading data; permanently protect unlimited free tills
 - [x] Phase 1 foundation: reject public staff registration and protect password resets with same-store checks
 - [ ] Phase 1: isolate every store's records, protected operations, photos, offline queues and staff access
