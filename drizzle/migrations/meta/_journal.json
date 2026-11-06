@@ -183,6 +183,13 @@
       "when": 1793945769405,
       "tag": "0025_sale_stock_guardrails",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793945814752,
+      "tag": "0026_isolate_privileged_business_functions",
+      "breakpoints": true
     }
   ]
 }
