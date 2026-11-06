@@ -104,6 +104,7 @@ export function enqueueSale(s: QueuedSale) {
 }
 
 let syncing = false;
+let pendingCloseUploaded = false;
 /** True while queued sales are being uploaded, so the till can show "Syncing". */
 export function isSyncing() { return syncing; }
 function setSyncing(v: boolean) {
@@ -141,7 +142,10 @@ async function syncLocalShift(scope: StoreScope): Promise<boolean> {
   const { error } = await supabase.rpc("open_offline_shift", {
     p_id: s.id, p_opened_at: s.opened_at, p_float_usd: s.opening_float_usd, p_float_zig: s.opening_float_zig, p_float_zar: s.opening_float_zar,
   });
-  if (error) return false;
+  if (error) {
+    window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "shift_open", network: isNetworkError(error) });
+    return false;
+  }
   if (activeScope?.storeId === scope.storeId && activeScope?.userId === scope.userId) {
     try { await idbSet(scopedStorageKey(SHIFT_KEY, scope), null); } catch { /* retry later is harmless */ }
   }
@@ -169,6 +173,7 @@ export async function closeShiftOffline(shiftId: string, count: { usd: number; z
   const p: PendingClose = { shift_id: shiftId, closed_at: new Date().toISOString(), ...count, local_shift: local?.id === shiftId ? local : null };
   await idbSet(scopedStorageKey(CLOSE_KEY, activeScope), p);
   if (p.local_shift) await idbSet(scopedStorageKey(SHIFT_KEY, activeScope), null);
+  window.__lovableEvents?.track?.("project.offline_shift_closed", { opened_offline: !!p.local_shift });
   window.dispatchEvent(new Event("tilla-queue"));
   return p;
 }
@@ -189,11 +194,15 @@ async function syncPendingClose(scope: StoreScope): Promise<boolean> {
     const { error } = await supabase.rpc("open_offline_shift", {
       p_id: ls.id, p_opened_at: ls.opened_at, p_float_usd: ls.opening_float_usd, p_float_zig: ls.opening_float_zig, p_float_zar: ls.opening_float_zar,
     });
-    if (error) return false;
+    if (error) {
+      window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "shift_open", network: isNetworkError(error) });
+      return false;
+    }
   }
   for (const s of readQueue().filter((x) => x.shift_id === p.shift_id)) {
     if (!belongsToScope(s, scope)) continue;
     const { error } = await uploadSale(s);
+    if (error) window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "sale", network: isNetworkError(error) });
     if (error && isNetworkError(error)) return false;
     const rest = readQueue().filter((x) => x.client_ref !== s.client_ref);
     if (error) { writeQueue([...rest, { ...s, error: error.message }]); return false; }
@@ -202,7 +211,11 @@ async function syncPendingClose(scope: StoreScope): Promise<boolean> {
   const { error } = await supabase.rpc("close_offline_shift", {
     p_id: p.shift_id, p_closed_at: p.closed_at, p_actual_usd: p.usd, p_actual_zig: p.zig, p_actual_zar: p.zar, p_notes: p.notes,
   });
-  if (error) return false;
+  if (error) {
+    window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "shift_close", network: isNetworkError(error) });
+    return false;
+  }
+  pendingCloseUploaded = true;
   if (activeScope?.storeId === scope.storeId && activeScope?.userId === scope.userId) {
     try { await idbSet(scopedStorageKey(CLOSE_KEY, scope), null); } catch { /* retry is harmless */ }
   }
@@ -214,22 +227,31 @@ export async function syncQueue(): Promise<{ synced: number; failed: number }> {
   const scope = activeScope;
   if (syncing || !navigator.onLine || !scope) return { synced: 0, failed: 0 };
   setSyncing(true);
-  let synced = 0, failed = 0;
+  let synced = 0, failed = 0, complete = false;
+  pendingCloseUploaded = false;
   try {
     // A shift closed offline goes first (its sales, then its count), so the next shift can't merge into it.
     if (!(await syncPendingClose(scope))) return { synced, failed };
     // Sales need their shift on the server first.
     if (!(await syncLocalShift(scope))) return { synced, failed };
+    complete = true;
     for (const s of readQueue()) {
       if (activeScope?.storeId !== scope.storeId || activeScope?.userId !== scope.userId) break;
       if (!belongsToScope(s, scope)) { failed++; continue; }
       const { error } = await uploadSale(s);
       if (activeScope?.storeId !== scope.storeId || activeScope?.userId !== scope.userId) break;
-      if (error && isNetworkError(error)) break;
+      if (error) window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "sale", network: isNetworkError(error) });
+      if (error && isNetworkError(error)) { complete = false; break; }
       const rest = readQueue().filter((x) => x.client_ref !== s.client_ref);
       if (error) { failed++; writeQueue([...rest, { ...s, error: error.message }]); }
       else { synced++; writeQueue(rest); }
     }
-  } finally { setSyncing(false); }
+  } finally {
+    setSyncing(false);
+    // Only report a completed sync when something actually uploaded, so idle 15-second checks stay silent.
+    if (complete && (synced > 0 || pendingCloseUploaded)) {
+      window.__lovableEvents?.track?.("project.offline_sync_completed", { synced, failed, shift_close_uploaded: pendingCloseUploaded });
+    }
+  }
   return { synced, failed };
 }
