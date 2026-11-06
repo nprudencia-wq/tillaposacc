@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { blankReceivingLine, updateReceivingLine, receivingTotal, invoiceUSD, stockCorrection } from "./receiving";
+import { blankReceivingLine, updateReceivingLine, receivingTotal, invoiceUSD, stockCorrection, suggestedReceivingCost, repriceReceivingLines } from "./receiving";
 
 describe("Phase 2 receiving and corrections", () => {
+  it("defaults to the stored previous product cost in invoice currency", () => {
+    expect(suggestedReceivingCost("p", [], 2.5, 20)).toBe("50");
+  });
+  it("reuses the most recent entered cost including an edited zero cost", () => {
+    expect(suggestedReceivingCost("p", [{ product_id: "p", quantity: "1", unit_cost: "3.75" }], 2, 1)).toBe("3.75");
+    expect(suggestedReceivingCost("p", [{ product_id: "p", quantity: "1", unit_cost: "0" }], 2, 1)).toBe("0");
+  });
+  it("converts edited costs instead of carrying USD numbers into Rand invoices", () => {
+    expect(repriceReceivingLines([{ product_id: "p", quantity: "2", unit_cost: "3" }], 1, 20, () => 2)[0]?.unit_cost).toBe("60");
+  });
   it("adds a blank row only after the last entry is complete", () => {
     const partial = updateReceivingLine([blankReceivingLine()], 0, { product_id: "product", quantity: "2" });
     expect(partial).toHaveLength(1);

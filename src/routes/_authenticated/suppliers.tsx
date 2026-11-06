@@ -4,9 +4,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, PackagePlus, Wallet, Trash2, FileText, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { blankReceivingLine, completeReceivingLine, updateReceivingLine, receivingTotal, invoiceUSD, invoiceMoney, type InvoiceCurrency, type ReceivingLine } from "@/lib/receiving";
+import { blankReceivingLine, completeReceivingLine, updateReceivingLine, receivingTotal, invoiceUSD, invoiceMoney, suggestedReceivingCost, repriceReceivingLines, type InvoiceCurrency, type ReceivingLine } from "@/lib/receiving";
 import type { Database } from "@/integrations/supabase/types";
-import { useStaff } from "@/hooks/use-staff";
+import { useStaff, useSettings } from "@/hooks/use-staff";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -209,6 +209,7 @@ function DeleteSupplier({ supplier, onClose }: { supplier: Supplier; onClose: ()
 
 function ReceiveGoods({ suppliers, onClose }: { suppliers: { id: string; name: string }[]; onClose: () => void }) {
   const qc = useQueryClient();
+  const { data: settings } = useSettings();
   const { data: products = [] } = useQuery({
     queryKey: ["products", "active"],
     queryFn: async () => (await supabase.from("products").select("*, categories(name)").eq("active", true).order("name")).data ?? [],
@@ -228,6 +229,22 @@ function ReceiveGoods({ suppliers, onClose }: { suppliers: { id: string; name: s
   const total = receivingTotal(lines);
   const usdTotal = Number(rate) > 0 ? invoiceUSD(total, currency, Number(rate)) : null;
   const upd = (index: number, patch: Partial<ReceivingLine>) => setLines((previous) => updateReceivingLine(previous, index, patch));
+  const productCost = (id: string) => Number(products.find((product) => product.id === id)?.cost_price ?? 0);
+  function pickProduct(index: number, productId: string) {
+    setLines((previous) => updateReceivingLine(previous, index, {
+      product_id: productId,
+      unit_cost: suggestedReceivingCost(productId, previous.filter((_, i) => i !== index), productCost(productId), Number(rate)),
+    }));
+  }
+  function changeRate(value: string) {
+    setLines((previous) => repriceReceivingLines(previous, Number(rate), Number(value), productCost));
+    setRate(value);
+  }
+  function changeCurrency(value: InvoiceCurrency) {
+    const nextRate = value === "USD" ? 1 : value === "ZiG" ? settings?.zig_rate ?? 0 : settings?.rand_rate ?? 0;
+    changeRate(nextRate > 0 ? String(nextRate) : "");
+    setCurrency(value);
+  }
 
   async function save() {
     if (busy) return;
@@ -254,12 +271,12 @@ function ReceiveGoods({ suppliers, onClose }: { suppliers: { id: string; name: s
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5"><Label>Supplier</Label><Select value={supplier} onValueChange={setSupplier}><SelectTrigger aria-label="Supplier"><SelectValue /></SelectTrigger><SelectContent>{suppliers.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-1.5"><Label htmlFor="grn-invoice">Supplier invoice number</Label><Input id="grn-invoice" value={invoice} onChange={(event) => setInvoice(event.target.value)} /></div>
-          <div className="space-y-1.5"><Label>Invoice currency</Label><Select value={currency} onValueChange={(value) => { setCurrency(value as InvoiceCurrency); setRate(value === "USD" ? "1" : ""); }}><SelectTrigger aria-label="Invoice currency"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem><SelectItem value="ZAR">Rand (ZAR)</SelectItem></SelectContent></Select></div>
-          <div className="space-y-1.5"><Label htmlFor="grn-rate">{currency === "USD" ? "Exchange rate" : `${currency === "ZAR" ? "Rand" : "ZiG"} per US$1`}</Label><Input id="grn-rate" type="number" min="0.000001" step="0.000001" disabled={currency === "USD"} value={rate} onChange={(event) => setRate(event.target.value)} /></div>
+          <div className="space-y-1.5"><Label>Invoice currency</Label><Select value={currency} onValueChange={(value) => changeCurrency(value as InvoiceCurrency)}><SelectTrigger aria-label="Invoice currency"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem><SelectItem value="ZAR">Rand (ZAR)</SelectItem></SelectContent></Select></div>
+          <div className="space-y-1.5"><Label htmlFor="grn-rate">{currency === "USD" ? "Exchange rate" : `${currency === "ZAR" ? "Rand" : "ZiG"} per US$1`}</Label><Input id="grn-rate" type="number" min="0.000001" step="0.000001" disabled={currency === "USD"} value={rate} onChange={(event) => changeRate(event.target.value)} /></div>
         </div>
         <div className="overflow-x-auto border rounded-md"><Table><TableHeader><TableRow><TableHead>Product</TableHead><TableHead>Quantity</TableHead><TableHead>Unit cost ({currency === "ZAR" ? "Rand" : currency})</TableHead><TableHead className="text-right">Line total</TableHead><TableHead /></TableRow></TableHeader><TableBody>
           {lines.map((line, index) => <TableRow key={index}>
-            <TableCell className="min-w-48"><Select value={line.product_id} onValueChange={(value) => upd(index, { product_id: value })}><SelectTrigger aria-label={`Product line ${index + 1}`}><SelectValue placeholder="Product" /></SelectTrigger><SelectContent>{products.map((product) => <SelectItem key={product.id} value={product.id}>{product.name} · {product.sku}</SelectItem>)}</SelectContent></Select></TableCell>
+            <TableCell className="min-w-48"><Select value={line.product_id} onValueChange={(value) => pickProduct(index, value)}><SelectTrigger aria-label={`Product line ${index + 1}`}><SelectValue placeholder="Product" /></SelectTrigger><SelectContent>{products.map((product) => <SelectItem key={product.id} value={product.id}>{product.name} · {product.sku}</SelectItem>)}</SelectContent></Select></TableCell>
             <TableCell><Input aria-label={`Quantity line ${index + 1}`} type="number" min="0.001" step="0.001" className="w-24" value={line.quantity} onChange={(event) => upd(index, { quantity: event.target.value })} /></TableCell>
             <TableCell><Input aria-label={`Unit cost line ${index + 1}`} type="number" min="0" step="0.01" className="w-28" value={line.unit_cost} onChange={(event) => upd(index, { unit_cost: event.target.value })} /></TableCell>
             <TableCell className="tabular text-right whitespace-nowrap">{completeReceivingLine(line) ? invoiceMoney(Number(line.quantity) * Number(line.unit_cost), currency) : "—"}</TableCell>

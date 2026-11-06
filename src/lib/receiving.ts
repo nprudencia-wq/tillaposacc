@@ -1,6 +1,19 @@
 export type InvoiceCurrency = "USD" | "ZiG" | "ZAR";
 export type ReceivingLine = { product_id: string; quantity: string; unit_cost: string };
 export const blankReceivingLine = (): ReceivingLine => ({ product_id: "", quantity: "", unit_cost: "" });
+export function suggestedReceivingCost(productId: string, lines: ReceivingLine[], productCostUSD: number, rate: number) {
+  const previous = lines.findLast((line) => line.product_id === productId && line.unit_cost.trim() !== "" && Number.isFinite(Number(line.unit_cost)) && Number(line.unit_cost) >= 0);
+  if (previous) return previous.unit_cost;
+  return Number.isFinite(rate) && rate > 0 && Number.isFinite(productCostUSD) && productCostUSD >= 0
+    ? String(Math.round(productCostUSD * rate * 100) / 100) : "";
+}
+export function repriceReceivingLines(lines: ReceivingLine[], oldRate: number, newRate: number, costUSD: (id: string) => number) {
+  return lines.map((line) => {
+    if (!line.product_id) return line;
+    const usd = oldRate > 0 && line.unit_cost.trim() !== "" ? Number(line.unit_cost) / oldRate : costUSD(line.product_id);
+    return { ...line, unit_cost: newRate > 0 && Number.isFinite(newRate) && Number.isFinite(usd) ? String(Math.round(usd * newRate * 100) / 100) : "" };
+  });
+}
 export function completeReceivingLine(line: ReceivingLine) {
   return !!line.product_id && line.quantity.trim() !== "" && Number.isFinite(Number(line.quantity)) && Number(line.quantity) > 0 && line.unit_cost.trim() !== "" && Number.isFinite(Number(line.unit_cost)) && Number(line.unit_cost) >= 0;
 }
