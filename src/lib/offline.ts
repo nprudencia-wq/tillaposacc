@@ -17,7 +17,8 @@ export function setOfflineScope(scope: StoreScope | null) {
   const prev = activeScope;
   activeScope = scope;
   if (!scope) { queueMem = []; queueKeyLoaded = null; return; }
-  if (prev?.storeId === scope.storeId && prev?.userId === scope.userId && queueKeyLoaded) return;
+  if (prev?.storeId === scope.storeId && prev?.userId === scope.userId) return;
+  queueMem = []; queueKeyLoaded = null;
   void hydrateQueue(scope);
 }
 
@@ -29,7 +30,7 @@ async function hydrateQueue(scope: StoreScope) {
   let legacy: QueuedSale[] = [];
   try { legacy = JSON.parse(localStorage.getItem(key) || "[]"); } catch { /* none */ }
   if (activeScope?.storeId !== scope.storeId || activeScope?.userId !== scope.userId) return;
-  queueMem = mergeQueues(mergeQueues(stored, legacy), queueKeyLoaded === key ? queueMem : []);
+  queueMem = mergeQueues(mergeQueues(stored, legacy), queueMem);
   queueKeyLoaded = key;
   await persistQueue(key);
   if (legacy.length) try { localStorage.removeItem(key); } catch { /* ignore */ }

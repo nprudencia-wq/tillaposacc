@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CloudOff, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { readQueue, syncQueue, type QueuedSale } from "@/lib/offline";
+import { isSyncing, readQueue, syncQueue, type QueuedSale } from "@/lib/offline";
 
 export function OfflineBar() {
   const qc = useQueryClient();
@@ -12,6 +12,7 @@ export function OfflineBar() {
   const [busy, setBusy] = useState(false);
 
   async function sync(manual = false) {
+    if (isSyncing()) return;
     setBusy(true);
     const r = await syncQueue();
     setBusy(false);
@@ -25,18 +26,25 @@ export function OfflineBar() {
   }
 
   useEffect(() => {
-    const refresh = () => { setOnline(navigator.onLine); setQueue(readQueue()); };
-    const goOnline = () => { refresh(); void sync(); };
+    const refresh = () => {
+      setOnline(navigator.onLine); setQueue(readQueue());
+      if (navigator.onLine && readQueue().length) void sync();
+    };
+    // Back online: upload queued sales, then pull fresh prices, stock and rates.
+    const goOnline = () => { refresh(); void sync().then(() => qc.invalidateQueries()); };
+    const onVisible = () => { if (document.visibilityState === "visible" && navigator.onLine) refresh(); };
     refresh();
     if (navigator.onLine && readQueue().length) void sync();
     window.addEventListener("online", goOnline);
     window.addEventListener("offline", refresh);
     window.addEventListener("tilla-queue", refresh);
-    const t = setInterval(() => { if (navigator.onLine && readQueue().length) void sync(); }, 60_000);
+    document.addEventListener("visibilitychange", onVisible);
+    const t = setInterval(() => { if (navigator.onLine && readQueue().length) void sync(); }, 15_000);
     return () => {
       window.removeEventListener("online", goOnline);
       window.removeEventListener("offline", refresh);
       window.removeEventListener("tilla-queue", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
       clearInterval(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
