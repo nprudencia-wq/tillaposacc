@@ -10,6 +10,7 @@ import { useSettings, useStaff } from "@/hooks/use-staff";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
 import { money, type Currency, type PayMethod } from "@/lib/pos";
 import { activeTypes, usePaymentTypes, methodLabel } from "@/lib/payment-types";
