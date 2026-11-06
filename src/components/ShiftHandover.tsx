@@ -28,7 +28,7 @@ export function ShiftHandoverDialog({ shift, onClose }: { shift: Shift; onClose:
     setBusy("save");
     const { error } = await supabase.rpc("save_shift_handover", { p_shift: shift.id, p_notes: notes, p_summary: summary });
     setBusy(null);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Handover saved");
     qc.invalidateQueries({ queryKey: ["shifts"] });
     onClose();
