@@ -1,7 +1,7 @@
 # Roadmap
 - [x] Track sales completed at the till each day after online success or successful offline queue save; never emit again on queue upload. Published event arrival remains unverified.
 - [x] Current GRN request: editable temporary cloud drafts and quantity/cost review; signed-in save/reopen/edit verified without inventory changes. Final stock posting was not exercised on live inventory.
-- [ ] New rate request: user supplied $1 USD = ZAR 0.050, editable; confirm direction before applying to live trading
+- [x] Rand rate explicitly confirmed US$1 = R20 (R1 = US$0.050); saved through the owner's currency settings and reloaded enabled. Till payment preview verified $0.50 → R10; no sale posted.
 - [x] Currency settings shows both conversion directions and requires explicit confirmation matching the saved rate before Rand checkout.
 - [ ] Current request: complete Rand checkout, safe self-serve trial onboarding, quotations, invoices and credit notes in verified releases
 - [x] Phase 1 foundation: register original store and staff without changing trading data; permanently protect unlimited free tills
