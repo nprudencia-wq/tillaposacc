@@ -1,5 +1,14 @@
 export type SubState = "active" | "grace" | "locked";
 
+/** Exempt stores never accrue a till subscription charge. */
+export function tillSubscriptionCharge(price: number, tills: number, months: number, exempt: boolean) {
+  return exempt ? 0 : price * tills * months;
+}
+
+export function storeSubscriptionState(paidUntil: string, graceDays: number, today: string, exempt: boolean): SubState {
+  return exempt ? "active" : subState(paidUntil, graceDays, today);
+}
+
 /** Mirrors the database's subscription_state(): paid_until inclusive, then grace days, then locked. */
 export function subState(paidUntil: string, graceDays: number, today: string): SubState {
   if (today <= paidUntil) return "active";

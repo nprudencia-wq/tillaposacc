@@ -1,14 +1,14 @@
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle } from "lucide-react";
 import { useSettings } from "@/hooks/use-staff";
-import { daysBetween, subState, todayStr } from "@/lib/subscription";
+import { daysBetween, storeSubscriptionState, todayStr } from "@/lib/subscription";
 
 export function useSubscription() {
   const { data: st } = useSettings();
   if (!st) return null;
   const s = st as unknown as { paid_until: string; grace_days: number; billing_exempt: boolean };
   const today = todayStr();
-  const state = s.billing_exempt ? "active" as const : subState(s.paid_until, Number(s.grace_days), today);
+  const state = storeSubscriptionState(s.paid_until, Number(s.grace_days), today, s.billing_exempt);
   const left = daysBetween(today, s.paid_until);
   const graceLeft = left + Number(s.grace_days);
   return { exempt: !!s.billing_exempt, state, paidUntil: s.paid_until, daysLeft: left, graceLeft };

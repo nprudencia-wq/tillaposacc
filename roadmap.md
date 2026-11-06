@@ -1,4 +1,11 @@
 # Roadmap
+- [x] Phase 1 foundation: register original store and staff without changing trading data; permanently protect unlimited free tills
+- [x] Phase 1 foundation: reject public staff registration and protect password resets with same-store checks
+- [ ] Phase 1: isolate every store's records, protected operations, photos, offline queues and staff access
+- [ ] Phase 1: instant separate-store trial onboarding (14 days, no extra grace); blocked until complete isolation passes security tests
+- [ ] Phase 1: starter catalog and three-step trial checklist
+- [ ] Phase 1: vendor-only trial leads, expiry sorting, WhatsApp/call and audited extensions
+- [ ] Phase 1: cross-store security tests and real signed-in onboarding verification before public release
 - [ ] Phase 2: visible editable inventory quantity with audited override and Save
 - [ ] Phase 2: supplier edit and safe deletion
 - [ ] Phase 2: USD/ZiG/Rand goods received, invoice rate, automatic entry lines
