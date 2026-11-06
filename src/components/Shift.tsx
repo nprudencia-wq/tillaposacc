@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { cached, isNetworkError, openLocalShift, readLocalShift, readQueue, syncQueue } from "@/lib/offline";
+import { cached, closeShiftOffline, isNetworkError, openLocalShift, readLocalShift, readPendingClose, readQueue, syncQueue } from "@/lib/offline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -38,12 +38,14 @@ export function useOpenShift() {
     enabled: !!me,
     queryFn: async () => {
       // A shift opened on this device without internet stays in charge until it has uploaded.
+      if (navigator.onLine && ((await readLocalShift()) || (await readPendingClose()))) await syncQueue();
       const local = await readLocalShift();
-      if (local) {
-        if (navigator.onLine) { await syncQueue(); if (!(await readLocalShift())) return fetchOpen(); }
-        return local;
-      }
-      return fetchOpen();
+      if (local) return local;
+      const open = await fetchOpen();
+      // A shift ended on this device without internet counts as closed even before it uploads.
+      const pending = await readPendingClose();
+      if (open && pending?.shift_id === open.id) return null;
+      return open;
     },
   });
 }
@@ -182,11 +184,22 @@ function CloseDialog({ shiftId, onClose, onClosed }: { shiftId: string; onClose:
   const [busy, setBusy] = useState(false);
   async function submit() {
     if (usd === "" || zig === "" || zar === "") { toast.error("Enter the cash counted in all three currencies (0 if none)"); return; }
-    if (!navigator.onLine) { toast.error("You're offline. Reconnect to close the shift."); return; }
+    if (Number(usd) < 0 || Number(zig) < 0 || Number(zar) < 0) { toast.error("Counts cannot be negative"); return; }
     setBusy(true);
+    const closeOffline = async () => {
+      try { await closeShiftOffline(shiftId, { usd: Number(usd), zig: Number(zig), zar: Number(zar), notes }); }
+      catch (e) { setBusy(false); toast.error((e as Error).message); return; }
+      setBusy(false);
+      toast.success("Shift closed offline — the count and Z-report upload when the internet is back");
+      qc.invalidateQueries({ queryKey: ["open-shift"] });
+      onClose();
+    };
+    if (!navigator.onLine) { await closeOffline(); return; }
     await syncQueue();
-    if (readQueue().length || (await readLocalShift())) { setBusy(false); toast.error("Some offline sales haven't uploaded yet. Check the offline bar at the top, then try again."); return; }
+    if (!navigator.onLine) { await closeOffline(); return; }
+    if (readQueue().length || (await readLocalShift()) || (await readPendingClose())) { setBusy(false); toast.error("Some offline sales haven't uploaded yet. Check the offline bar at the top, then try again."); return; }
     const { error } = await supabase.rpc("close_shift_three", { p_actual_zar: Number(zar), p_actual_usd: Number(usd), p_actual_zig: Number(zig), p_notes: notes });
+    if (error && isNetworkError(error)) { await closeOffline(); return; }
     if (error) { setBusy(false); { toast.error(error.message); return; } }
     try { onClosed(await fetchShiftSummary(shiftId)); } catch (e) { toast.error((e as Error).message); onClose(); }
     // open-shift is refreshed when the Z-report is dismissed, so the report stays visible
