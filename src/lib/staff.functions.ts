@@ -32,12 +32,16 @@ export const createStaffAccount = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     await assertCanManage(context.supabase, context.userId, data.role);
+    const { data: storeId, error: scopeError } = await context.supabase.rpc("current_store_id");
+    if (scopeError || !storeId) throw new Error("Store membership unavailable");
+    const { data: store, error: storeError } = await context.supabase.from("stores").select("is_vendor_store").eq("id", storeId).single();
+    if (storeError || !store) throw new Error("Store unavailable");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const username = normalizeUsername(data.username);
+    const username = store.is_vendor_store ? normalizeUsername(data.username) : `${storeId.slice(0, 8)}.${normalizeUsername(data.username)}`;
     const { error } = await supabaseAdmin.auth.admin.createUser({
       email: loginEmail(username), password: data.password, email_confirm: true,
       user_metadata: { full_name: data.fullName.trim(), username },
-      app_metadata: { initial_role: data.role },
+      app_metadata: { initial_role: data.role, store_id: storeId },
     });
     if (error) throw new Error(/already|exists|duplicate/i.test(error.message) ? "That username is taken" : error.message);
     return { ok: true };
