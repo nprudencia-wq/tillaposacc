@@ -111,13 +111,52 @@ function setSyncing(v: boolean) {
   window.dispatchEvent(new Event("tilla-sync"));
 }
 
-/** Upload queued sales one by one. The server ignores duplicates, so retries are safe. */
+// ---- Shifts opened with no internet ----
+export type LocalShift = {
+  id: string; shift_number: string; status: "open"; opened_at: string; cashier_id: string;
+  opening_float_usd: number; opening_float_zig: number; opening_float_zar: number; offline: true;
+};
+const SHIFT_KEY = "tilla-offline-shift";
+
+export async function readLocalShift(): Promise<LocalShift | null> {
+  if (!activeScope) return null;
+  try { return (await idbGet<LocalShift>(scopedStorageKey(SHIFT_KEY, activeScope))) ?? null; } catch { return null; }
+}
+
+/** Open a shift on this device only. It uploads (with its original time) before any of its sales. */
+export async function openLocalShift(floats: { usd: number; zig: number; zar: number }): Promise<LocalShift> {
+  if (!activeScope) throw new Error("Wait for your store account to load");
+  const s: LocalShift = {
+    id: crypto.randomUUID(), shift_number: "Offline shift", status: "open", opened_at: new Date().toISOString(),
+    cashier_id: activeScope.userId, opening_float_usd: floats.usd, opening_float_zig: floats.zig, opening_float_zar: floats.zar, offline: true,
+  };
+  await idbSet(scopedStorageKey(SHIFT_KEY, activeScope), s);
+  window.dispatchEvent(new Event("tilla-queue"));
+  return s;
+}
+
+async function syncLocalShift(scope: StoreScope): Promise<boolean> {
+  const s = await readLocalShift();
+  if (!s) return true;
+  const { error } = await supabase.rpc("open_offline_shift", {
+    p_id: s.id, p_opened_at: s.opened_at, p_float_usd: s.opening_float_usd, p_float_zig: s.opening_float_zig, p_float_zar: s.opening_float_zar,
+  });
+  if (error) return false;
+  if (activeScope?.storeId === scope.storeId && activeScope?.userId === scope.userId) {
+    try { await idbSet(scopedStorageKey(SHIFT_KEY, scope), null); } catch { /* retry later is harmless */ }
+  }
+  return true;
+}
+
+/** Upload the offline shift (if any), then queued sales one by one. The server ignores duplicates, so retries are safe. */
 export async function syncQueue(): Promise<{ synced: number; failed: number }> {
   const scope = activeScope;
   if (syncing || !navigator.onLine || !scope) return { synced: 0, failed: 0 };
   setSyncing(true);
   let synced = 0, failed = 0;
   try {
+    // Sales need their shift on the server first.
+    if (!(await syncLocalShift(scope))) return { synced, failed };
     for (const s of readQueue()) {
       if (activeScope?.storeId !== scope.storeId || activeScope?.userId !== scope.userId) break;
       if (!belongsToScope(s, scope)) { failed++; continue; }
