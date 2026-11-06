@@ -32,7 +32,7 @@ const FIELDS = [
   ["logo_url", "Logo web link (optional)"],
 ] as const;
 
-type Form = Record<(typeof FIELDS)[number][0] | "receipt_footer", string>;
+type Form = Record<(typeof FIELDS)[number][0] | "receipt_footer" | "vat_rate", string> & { vat_enabled: boolean };
 
 function StorePage() {
   const { data: st } = useSettings();
@@ -45,6 +45,7 @@ function StorePage() {
     if (st && !f) setF({
       business_name: st.business_name ?? "", address: st.address ?? "", phone: st.phone ?? "", email: st.email ?? "",
       tax_number: st.tax_number ?? "", logo_url: st.logo_url ?? "", receipt_footer: st.receipt_footer ?? "",
+      vat_rate: String(st.vat_rate ?? 15), vat_enabled: !!st.vat_enabled,
     });
   }, [st, f]);
 
@@ -54,8 +55,10 @@ function StorePage() {
     e.preventDefault();
     if (!f) return;
     if (!f.business_name.trim()) { toast.error("Trading name is required"); return; }
+    const rate = Number(f.vat_rate);
+    if (!Number.isFinite(rate) || rate < 0 || rate > 100) { toast.error("VAT rate must be between 0 and 100%"); return; }
     setBusy(true);
-    const { error } = await supabase.from("settings").update({ ...f, updated_at: new Date().toISOString() }).eq("store_id", me?.storeId ?? "");
+    const { error } = await supabase.from("settings").update({ ...f, vat_rate: rate, prices_include_vat: true, updated_at: new Date().toISOString() }).eq("store_id", me?.storeId ?? "");
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Store profile saved");
@@ -77,6 +80,17 @@ function StorePage() {
         <div className="space-y-1.5">
           <Label htmlFor="footer">Receipt footer</Label>
           <Textarea id="footer" disabled={!canEdit} rows={3} value={f.receipt_footer} onChange={(e) => setF({ ...f, receipt_footer: e.target.value })} />
+        </div>
+        <div className="space-y-3 rounded-xl border p-4">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input type="checkbox" disabled={!canEdit} checked={f.vat_enabled} onChange={(e) => setF({ ...f, vat_enabled: e.target.checked })} />
+            Show VAT on receipts
+          </label>
+          <div className="space-y-1.5">
+            <Label htmlFor="vat_rate">VAT rate (%)</Label>
+            <Input id="vat_rate" type="number" step="0.01" min="0" max="100" disabled={!canEdit || !f.vat_enabled} value={f.vat_rate} onChange={(e) => setF({ ...f, vat_rate: e.target.value })} />
+          </div>
+          <p className="text-xs text-muted-foreground">Your shelf prices already include VAT. Receipts show the amount before VAT and the VAT portion; what customers pay does not change.</p>
         </div>
         <Link to="/currencies" className="text-sm font-medium text-primary underline">Currency settings →</Link>
         {canEdit ? <Button type="submit" disabled={busy}>Save</Button> : <p className="text-sm text-muted-foreground">Only managers and owners can change these.</p>}
