@@ -1,3 +1,4 @@
+import { ProductImage } from "@/components/ProductImage";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -145,9 +146,7 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
       const path = `${me.storeId}/${crypto.randomUUID()}.jpg`;
       const { error } = await supabase.storage.from("product-images").upload(path, image, { contentType: "image/jpeg" });
       if (error) throw new Error(error.message);
-      const { data, error: e2 } = await supabase.storage.from("product-images").createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-      if (e2 || !data) throw new Error(e2?.message ?? "Upload failed");
-      set("image_url", data.signedUrl);
+      set("image_url", path);
       toast.success("Photo added — press Save to keep it");
     } finally { setUploading(false); }
   }
@@ -197,7 +196,7 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
           </div>
           <div className="space-y-1.5"><Label>Product photo</Label>
             <div className="flex items-center gap-3">
-              {f.image_url && <img src={f.image_url} alt="" className="h-12 w-12 rounded-md border object-cover" />}
+              <ProductImage src={f.image_url} className="h-12 w-12 rounded-md border object-cover" />
               <Input aria-label="Choose product photo" type="file" accept="image/*" disabled={uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) void upload(file).catch((error) => toast.error(error instanceof Error ? error.message : "Upload failed")); }} />
             </div>
             <Button type="button" variant="outline" disabled={uploading} onClick={() => setCameraOpen(true)}><Camera className="h-4 w-4" />Take photo</Button>
