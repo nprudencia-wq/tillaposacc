@@ -1482,6 +1482,7 @@ export type Database = {
           phone: string
           plan_name: string
           plan_price_usd: number
+          prices_include_vat: boolean
           provision_after_days: number
           rand_rate: number
           receipt_footer: string
@@ -1489,6 +1490,7 @@ export type Database = {
           tax_number: string
           till_count: number
           updated_at: string
+          vat_enabled: boolean
           vat_rate: number
           vendor_name: string
           vendor_pay_details: string
@@ -1510,6 +1512,7 @@ export type Database = {
           phone?: string
           plan_name?: string
           plan_price_usd?: number
+          prices_include_vat?: boolean
           provision_after_days?: number
           rand_rate?: number
           receipt_footer?: string
@@ -1517,6 +1520,7 @@ export type Database = {
           tax_number?: string
           till_count?: number
           updated_at?: string
+          vat_enabled?: boolean
           vat_rate?: number
           vendor_name?: string
           vendor_pay_details?: string
@@ -1538,6 +1542,7 @@ export type Database = {
           phone?: string
           plan_name?: string
           plan_price_usd?: number
+          prices_include_vat?: boolean
           provision_after_days?: number
           rand_rate?: number
           receipt_footer?: string
@@ -1545,6 +1550,7 @@ export type Database = {
           tax_number?: string
           till_count?: number
           updated_at?: string
+          vat_enabled?: boolean
           vat_rate?: number
           vendor_name?: string
           vendor_pay_details?: string
