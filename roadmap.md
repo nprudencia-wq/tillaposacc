@@ -43,3 +43,4 @@
 - [x] Hybrid offline: IndexedDB catalog + sale queue, auto-sync on reconnect/15s/tab focus
 - [x] Offline shift open + offline till PIN unlock (built; real no-internet test only possible in the published app)
 - [ ] Offline shift close (still needs internet)
+- [ ] Till PINs exactly 4 digits
