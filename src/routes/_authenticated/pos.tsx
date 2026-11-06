@@ -2,8 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, List, LayoutGrid, ReceiptText } from "lucide-react";
+import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, List, LayoutGrid, ReceiptText, Printer } from "lucide-react";
 import { RecentReceipts } from "@/components/RecentReceipts";
+import { HardwareSettings } from "@/components/HardwareSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings, useStaff } from "@/hooks/use-staff";
 import { Button } from "@/components/ui/button";
@@ -278,6 +279,7 @@ function Till({ shiftId }: { shiftId: string }) {
             <Button size="sm" variant="ghost" onClick={hold} disabled={!lines.length}><PauseCircle className="h-4 w-4" />Hold</Button>
             <Button size="sm" variant="ghost" onClick={() => setHeldOpen(true)}><PlayCircle className="h-4 w-4" />Held ({held.length})</Button>
             <Button size="sm" variant="ghost" onClick={() => setReprintOpen(true)}><ReceiptText className="h-4 w-4" />Receipts</Button>
+            <Button size="sm" variant="ghost" onClick={() => setHwOpen(true)}><Printer className="h-4 w-4" />Hardware</Button>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -342,6 +344,7 @@ function Till({ shiftId }: { shiftId: string }) {
       {payOpen && <PayDialog total={total} currency={currency} rate={rate} randRate={randRate} onClose={() => setPayOpen(false)} onPay={complete} />}
 
       <RecentReceipts open={reprintOpen} onOpenChange={setReprintOpen} />
+      <HardwareSettings open={hwOpen} onOpenChange={setHwOpen} />
       <Dialog open={heldOpen} onOpenChange={setHeldOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Held sales</DialogTitle></DialogHeader>
