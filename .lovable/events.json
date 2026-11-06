@@ -90,6 +90,39 @@
           }
         }
       }
+    },
+    "project.till_sale_completed": {
+      "event_schema_version": 1,
+      "description": "A till sale completes after the protected online sale succeeds or the offline sale is successfully queued locally; queue uploads do not emit again. Group event times by Harare day; offline arrival is best-effort, not an accounting total.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "currency"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "online",
+              "offline"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "enum": [
+              "USD",
+              "ZiG",
+              "ZAR"
+            ]
+          }
+        }
+      }
     }
   }
 }
