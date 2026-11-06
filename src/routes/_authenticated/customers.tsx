@@ -334,7 +334,7 @@ function DebtorRules({ settings, canEdit }: { settings: ReturnType<typeof useSet
     const { error } = await supabase.rpc("save_debtor_rules", { p_interest: Number(v.i), p_interest_days: Number(v.id), p_provision: Number(v.p), p_provision_days: Number(v.pd) });
     if (error) return toast.error(error.message);
     toast.success("Debtor rules saved"); setF(null);
-    localStorage.removeItem("settings"); qc.invalidateQueries({ queryKey: ["settings"] });
+    qc.invalidateQueries({ queryKey: ["settings"] });
   };
   const field = (k: keyof typeof v, label: string) => (
     <div><Label htmlFor={`dr-${k}`}>{label}</Label><Input id={`dr-${k}`} type="number" min="0" className="w-28" value={v[k]} disabled={!canEdit} onChange={(e) => setF({ ...v, [k]: e.target.value })} /></div>
