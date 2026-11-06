@@ -18,6 +18,7 @@ export function SaleComplete({ receipt, onNext }: { receipt: ReceiptData; onNext
       const id = window.setTimeout(() => window.print(), 350);
       return () => window.clearTimeout(id);
     }
+    return undefined;
   }, [receipt.sale_number]);
   async function share() {
     const text = `${receipt.business}\n${receipt.sale_number}\nTotal: ${money(fromUSD(receipt.total, receipt.currency, receipt.rate), receipt.currency)}`;
