@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
 import { setupPWA } from "@/lib/pwa";
 import { setOfflineScope } from "@/lib/offline";
+import { refreshSavedSession } from "@/lib/offline-pin";
 
 function NotFoundComponent() {
   return (
@@ -128,7 +129,8 @@ function RootComponent() {
   useEffect(() => { void setupPWA(); }, []);
 
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((event) => {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if ((event === "TOKEN_REFRESHED" || event === "SIGNED_IN") && session) void refreshSavedSession(session.user.id, session).catch(() => {});
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       if (event === "SIGNED_OUT") { setOfflineScope(null); queryClient.clear(); }
       router.invalidate();

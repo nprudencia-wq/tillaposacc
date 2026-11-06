@@ -10,6 +10,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { pinLogin } from "@/lib/pin.functions";
 import { loginEmail } from "@/lib/username";
 import { checkOfflinePin, rememberPin } from "@/lib/offline-pin";
+import { authStorageKey } from "@/lib/offline-session";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -48,8 +49,7 @@ function AuthPage() {
         const r = await checkOfflinePin(email, pin);
         if (!r.ok) throw new Error(r.reason);
         // Put this cashier's saved sign-in back, then reload so the whole till picks it up.
-        const storageKey = (supabase.auth as unknown as { storageKey: string }).storageKey;
-        localStorage.setItem(storageKey, r.session);
+        localStorage.setItem(authStorageKey(), r.session);
         window.location.assign("/pos");
         return;
       } else if (mode === "pin") {

@@ -31,6 +31,15 @@ export async function rememberPin(username: string, pin: string, userId: string,
   await save([...list, entry]);
 }
 
+/** Keep the saved sign-in fresh as the till renews it, so it still works when offline later. */
+export async function refreshSavedSession(userId: string, session: unknown) {
+  const list = await all();
+  const e = list.find((x) => x.userId === userId);
+  if (!e) return;
+  e.session = JSON.stringify(session);
+  await save(list);
+}
+
 export async function forgetPinsFor(userId: string) {
   await save((await all()).filter((e) => e.userId !== userId));
 }

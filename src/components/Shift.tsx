@@ -12,6 +12,7 @@ import { money, type Currency, type PayMethod } from "@/lib/pos";
 import { methodLabel } from "@/lib/payment-types";
 import { summarizeItemsSold, type SoldSummary } from "@/lib/items-sold";
 import { useStaff } from "@/hooks/use-staff";
+import { deviceSession } from "@/lib/offline-session";
 
 export type ShiftSummary = {
   shift: {
@@ -49,8 +50,7 @@ export function useOpenShift() {
 
 function fetchOpen() {
   return cached("open-shift", async () => {
-      const { data: s } = await supabase.auth.getSession();
-      const uid = s.session?.user.id;
+      const uid = (await deviceSession())?.user.id;
       if (!uid) return null;
       const { data, error } = await supabase.from("cashier_shifts").select("*")
         .eq("cashier_id", uid).eq("status", "open").maybeSingle();

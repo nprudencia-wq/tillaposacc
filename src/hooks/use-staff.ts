@@ -1,14 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cached, setOfflineScope } from "@/lib/offline";
+import { deviceSession } from "@/lib/offline-session";
 import { effectivePermission, type Permission } from "@/lib/username";
 
 export function useStaff() {
   return useQuery({
     queryKey: ["me"],
     queryFn: () => cached("me", async () => {
-      const { data: s } = await supabase.auth.getSession();
-      const user = s.session?.user;
+      const user = (await deviceSession())?.user;
       if (!user) { setOfflineScope(null); return null; }
       const membershipKey = `tilla-membership:${user.id}`;
       const { data: membership, error: membershipError } = await supabase.from("store_memberships").select("store_id").eq("user_id", user.id).single();
