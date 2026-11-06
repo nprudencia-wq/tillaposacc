@@ -148,22 +148,49 @@ function StaffPage() {
 
 function AddStaffDialog({ roles, onClose, onDone }: { roles: [string, string][]; onClose: () => void; onDone: () => void }) {
   const create = useServerFn(createStaffAccount);
-  const [f, setF] = useState({ fullName: "", username: "", password: "", role: "cashier" });
+  const [f, setF] = useState({ fullName: "", username: "", password: "", role: "cashier", pin: "" });
+  const [userTouched, setUserTouched] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<{ username: string; pin: string; password: string; pinSet: boolean } | null>(null);
+  const suggest = (name: string) => name.trim().toLowerCase().split(/\s+/)[0]?.replace(/[^a-z0-9._-]/g, "").slice(0, 30) ?? "";
   async function submit(e: React.FormEvent) {
-    e.preventDefault(); setBusy(true);
-    try { await create({ data: f }); toast.success(`Login created for ${f.username}`); onDone(); onClose(); }
+    e.preventDefault();
+    if (!/^[0-9]{4,6}$/.test(f.pin)) { toast.error("PIN must be 4 to 6 digits"); return; }
+    setBusy(true);
+    const password = f.password || `Tilla-${Math.random().toString(36).slice(2, 10)}`;
+    try {
+      const r = await create({ data: { ...f, password } });
+      setDone({ username: r.username, pin: f.pin, password, pinSet: r.pinSet }); onDone();
+    }
     catch (err) { toast.error((err as Error).message); }
     finally { setBusy(false); }
   }
+  if (done) return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{f.fullName} is ready</DialogTitle></DialogHeader>
+        <div className="space-y-2 rounded-lg bg-muted p-4 text-sm">
+          <p>Username: <b>{done.username}</b></p>
+          <p>Till PIN: <b>{done.pinSet ? done.pin : "not saved — press PIN on their row"}</b></p>
+          <p>Password: <b>{done.password}</b></p>
+        </div>
+        <p className="text-sm text-muted-foreground">Sign them in once on each till while online, then their PIN also works offline.</p>
+        <Button className="w-full" onClick={onClose}>Done</Button>
+      </DialogContent>
+    </Dialog>
+  );
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader><DialogTitle>Add staff member</DialogTitle></DialogHeader>
         <form onSubmit={submit} className="space-y-3">
-          <div className="space-y-1.5"><Label htmlFor="n">Full name</Label><Input id="n" value={f.fullName} onChange={(e) => setF({ ...f, fullName: e.target.value })} required /></div>
-          <div className="space-y-1.5"><Label htmlFor="u">Username</Label><Input id="u" autoCapitalize="none" value={f.username} onChange={(e) => setF({ ...f, username: e.target.value })} placeholder="e.g. tendai" required /></div>
-          <div className="space-y-1.5"><Label htmlFor="p">Starting password</Label><Input id="p" type="text" minLength={6} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} required /></div>
+          <div className="space-y-1.5"><Label htmlFor="n">Full name</Label><Input id="n" autoFocus value={f.fullName} onChange={(e) => setF({ ...f, fullName: e.target.value, username: userTouched ? f.username : suggest(e.target.value) })} required /></div>
+          <div className="space-y-1.5"><Label htmlFor="u">Username</Label><Input id="u" autoCapitalize="none" value={f.username} onChange={(e) => { setUserTouched(true); setF({ ...f, username: e.target.value }); }} placeholder="e.g. tendai" required /></div>
+          <div className="space-y-1.5"><Label htmlFor="pin">Till PIN (4–6 digits)</Label><Input id="pin" inputMode="numeric" maxLength={6} className="text-center text-xl tracking-[0.4em]" value={f.pin} onChange={(e) => setF({ ...f, pin: e.target.value.replace(/\D/g, "") })} required /></div>
+          {showMore
+            ? <div className="space-y-1.5"><Label htmlFor="p">Password (optional — one is made for you)</Label><Input id="p" type="text" minLength={6} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></div>
+            : <button type="button" className="text-sm text-primary underline" onClick={() => setShowMore(true)}>Set my own password</button>}
           <div className="space-y-1.5"><Label>Role</Label>
             <Select value={f.role} onValueChange={(v) => setF({ ...f, role: v })}>
               <SelectTrigger><SelectValue /></SelectTrigger>

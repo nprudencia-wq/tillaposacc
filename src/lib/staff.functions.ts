@@ -23,11 +23,12 @@ async function assertCanManage(supabase: any, userId: string, targetRole?: strin
 
 export const createStaffAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { username: string; fullName: string; password: string; role: string }) => {
+  .inputValidator((d: { username: string; fullName: string; password: string; role: string; pin?: string }) => {
     if (!isValidUsername(d.username)) throw new Error("Username must be 3–30 letters, numbers, dots, dashes or underscores");
     if (!d.fullName?.trim()) throw new Error("Enter the person's name");
     if (!d.password || d.password.length < 6) throw new Error("Password must be at least 6 characters");
     if (!ROLES.includes(d.role as never)) throw new Error("Pick a role");
+    if (d.pin && !/^[0-9]{4,6}$/.test(d.pin)) throw new Error("PIN must be 4 to 6 digits");
     return d;
   })
   .handler(async ({ data, context }) => {
@@ -38,13 +39,18 @@ export const createStaffAccount = createServerFn({ method: "POST" })
     if (storeError || !store) throw new Error("Store unavailable");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const username = store.is_vendor_store ? normalizeUsername(data.username) : `${storeId.slice(0, 8)}.${normalizeUsername(data.username)}`;
-    const { error } = await supabaseAdmin.auth.admin.createUser({
+    const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
       email: loginEmail(username), password: data.password, email_confirm: true,
       user_metadata: { full_name: data.fullName.trim(), username },
       app_metadata: { initial_role: data.role, store_id: storeId },
     });
     if (error) throw new Error(/already|exists|duplicate/i.test(error.message) ? "That username is taken" : error.message);
-    return { ok: true };
+    let pinSet = false;
+    if (data.pin && created.user) {
+      const { error: pinError } = await context.supabase.rpc("set_staff_pin", { p_user: created.user.id, p_pin: data.pin });
+      pinSet = !pinError;
+    }
+    return { ok: true, username, pinSet };
   });
 
 export const resetStaffPassword = createServerFn({ method: "POST" })
