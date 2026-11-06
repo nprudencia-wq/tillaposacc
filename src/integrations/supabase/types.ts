@@ -496,7 +496,7 @@ export type Database = {
           code: string
           created_at: string
           name: string
-          store_id: string | null
+          store_id: string
           system: boolean
           type: string
         }
@@ -505,7 +505,7 @@ export type Database = {
           code: string
           created_at?: string
           name: string
-          store_id?: string | null
+          store_id?: string
           system?: boolean
           type: string
         }
@@ -514,7 +514,7 @@ export type Database = {
           code?: string
           created_at?: string
           name?: string
-          store_id?: string | null
+          store_id?: string
           system?: boolean
           type?: string
         }
@@ -763,18 +763,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "journal_lines_account_code_fkey"
-            columns: ["account_code"]
-            isOneToOne: false
-            referencedRelation: "gl_accounts"
-            referencedColumns: ["code"]
-          },
-          {
             foreignKeyName: "journal_lines_entry_id_fkey"
             columns: ["entry_id"]
             isOneToOne: false
             referencedRelation: "journal_entries"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "journal_lines_store_account_fkey"
+            columns: ["store_id", "account_code"]
+            isOneToOne: false
+            referencedRelation: "gl_accounts"
+            referencedColumns: ["store_id", "code"]
           },
           {
             foreignKeyName: "journal_lines_store_id_fkey"

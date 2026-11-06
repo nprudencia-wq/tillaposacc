@@ -246,6 +246,13 @@
       "when": 1793947212797,
       "tag": "0034_tenant_read_helpers_and_inventory_access",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1793947342709,
+      "tag": "0035_store_local_identifiers_and_settings",
+      "breakpoints": true
     }
   ]
 }
