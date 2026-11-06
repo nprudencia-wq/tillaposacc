@@ -1,0 +1,1 @@
+- ZIMRA receipts: triggers only; keys in ungranted `zimra_secrets`. Why: no skipped counters.
