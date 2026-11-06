@@ -386,6 +386,13 @@
       "when": 1793979362805,
       "tag": "0054_provision_staff_on_app_metadata",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1793980686108,
+      "tag": "0055_guard_customer_credit",
+      "breakpoints": true
     }
   ]
 }
