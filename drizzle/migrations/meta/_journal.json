@@ -372,6 +372,13 @@
       "when": 1793973783080,
       "tag": "0052_receipt_template",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1793978766435,
+      "tag": "0053_trusted_staff_provisioning",
+      "breakpoints": true
     }
   ]
 }

@@ -156,7 +156,7 @@ function AddStaffDialog({ roles, onClose, onDone }: { roles: [string, string][];
   const suggest = (name: string) => name.trim().toLowerCase().split(/\s+/)[0]?.replace(/[^a-z0-9._-]/g, "").slice(0, 30) ?? "";
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!/^[0-9]{4,6}$/.test(f.pin)) { toast.error("PIN must be 4 to 6 digits"); return; }
+    if (!/^[0-9]{4}$/.test(f.pin)) { toast.error("PIN must be exactly 4 digits"); return; }
     setBusy(true);
     const password = f.password || `Tilla-${Math.random().toString(36).slice(2, 10)}`;
     try {
@@ -187,7 +187,7 @@ function AddStaffDialog({ roles, onClose, onDone }: { roles: [string, string][];
         <form onSubmit={submit} className="space-y-3">
           <div className="space-y-1.5"><Label htmlFor="n">Full name</Label><Input id="n" autoFocus value={f.fullName} onChange={(e) => setF({ ...f, fullName: e.target.value, username: userTouched ? f.username : suggest(e.target.value) })} required /></div>
           <div className="space-y-1.5"><Label htmlFor="u">Username</Label><Input id="u" autoCapitalize="none" value={f.username} onChange={(e) => { setUserTouched(true); setF({ ...f, username: e.target.value }); }} placeholder="e.g. tendai" required /></div>
-          <div className="space-y-1.5"><Label htmlFor="pin">Till PIN (4–6 digits)</Label><Input id="pin" inputMode="numeric" maxLength={6} className="text-center text-xl tracking-[0.4em]" value={f.pin} onChange={(e) => setF({ ...f, pin: e.target.value.replace(/\D/g, "") })} required /></div>
+          <div className="space-y-1.5"><Label htmlFor="pin">Till PIN (4 digits)</Label><Input id="pin" inputMode="numeric" maxLength={4} className="text-center text-xl tracking-[0.4em]" value={f.pin} onChange={(e) => setF({ ...f, pin: e.target.value.replace(/\D/g, "") })} required /></div>
           {showMore
             ? <div className="space-y-1.5"><Label htmlFor="p">Password (optional — one is made for you)</Label><Input id="p" type="text" minLength={6} value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></div>
             : <button type="button" className="text-sm text-primary underline" onClick={() => setShowMore(true)}>Set my own password</button>}

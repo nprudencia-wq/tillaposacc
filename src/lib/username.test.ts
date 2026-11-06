@@ -36,9 +36,9 @@ describe("price override right", () => {
 });
 
 describe("till PINs", () => {
-  it("accepts 4 to 6 digits", () => {
+  it("accepts exactly 4 digits", () => {
     expect(isValidPin("1234")).toBe(true);
-    expect(isValidPin("123456")).toBe(true);
+    expect(isValidPin("12345")).toBe(false);
   });
   it("rejects too short, too long or letters", () => {
     expect(isValidPin("123")).toBe(false);

@@ -52,7 +52,7 @@ function AuthPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (mode === "pin" && pin.length < 4) { toast.error("Enter your 4–6 digit PIN"); return; }
+    if (mode === "pin" && pin.length < 4) { toast.error("Enter your 4-digit PIN"); return; }
     setBusy(true);
     try {
       if (mode === "pin") remember(email);
@@ -115,16 +115,16 @@ function AuthPage() {
                 </div>
               )}
               <div className="flex justify-center gap-3 py-2" aria-label={`${pin.length} digits entered`}>
-                {Array.from({ length: 6 }).map((_, i) => (
+                {Array.from({ length: 4 }).map((_, i) => (
                   <span key={i} className={`h-4 w-4 rounded-full border-2 border-primary ${i < pin.length ? "bg-primary" : ""}`} />
                 ))}
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {["1","2","3","4","5","6","7","8","9"].map((d) => (
-                  <Button key={d} type="button" variant="outline" className="h-14 text-2xl font-bold" onClick={() => setPin((p) => (p.length < 6 ? p + d : p))}>{d}</Button>
+                  <Button key={d} type="button" variant="outline" className="h-14 text-2xl font-bold" onClick={() => setPin((p) => (p.length < 4 ? p + d : p))}>{d}</Button>
                 ))}
                 <Button type="button" variant="ghost" className="h-14" onClick={() => setPin("")}>Clear</Button>
-                <Button type="button" variant="outline" className="h-14 text-2xl font-bold" onClick={() => setPin((p) => (p.length < 6 ? p + "0" : p))}>0</Button>
+                <Button type="button" variant="outline" className="h-14 text-2xl font-bold" onClick={() => setPin((p) => (p.length < 4 ? p + "0" : p))}>0</Button>
                 <Button type="button" variant="ghost" className="h-14" aria-label="Delete digit" onClick={() => setPin((p) => p.slice(0, -1))}>⌫</Button>
               </div>
             </div>
