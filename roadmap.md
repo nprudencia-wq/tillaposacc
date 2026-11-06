@@ -39,3 +39,6 @@
 - [x] Till: authorised manual price override (supervisor+ by default, per-person on Staff page)
 - [ ] Till: email receipt (share/print already exist; waiting on user go-ahead)
 - [x] Staff: till PIN login, clock-in/out, activity log, cashier sales performance
+
+- [x] Hybrid offline: IndexedDB catalog + sale queue, auto-sync on reconnect/15s/tab focus
+- [ ] Offline shift open/close without internet (not built yet)

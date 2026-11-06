@@ -1,6 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Payment, Currency } from "@/lib/pos";
 import { belongsToScope, scopedStorageKey, type StoreScope } from "@/lib/store-scope";
+import { idbGet, idbSet } from "@/lib/local-db";
+import { mergeQueues } from "@/lib/queue-merge";
 
 // Browser-only helpers: call from effects, handlers or query functions (never at module scope).
 
@@ -8,8 +10,36 @@ const CACHE_PREFIX = "tilla-cache:";
 const QUEUE_KEY = "tilla-offline-sales";
 let activeScope: StoreScope | null = null;
 
+let queueMem: QueuedSale[] = [];
+let queueKeyLoaded: string | null = null;
+
 export function setOfflineScope(scope: StoreScope | null) {
+  const prev = activeScope;
   activeScope = scope;
+  if (!scope) { queueMem = []; queueKeyLoaded = null; return; }
+  if (prev?.storeId === scope.storeId && prev?.userId === scope.userId) return;
+  queueMem = []; queueKeyLoaded = null;
+  void hydrateQueue(scope);
+}
+
+/** Load this cashier's queue from IndexedDB, moving any older browser-storage copy across. */
+async function hydrateQueue(scope: StoreScope) {
+  const key = scopedStorageKey(QUEUE_KEY, scope);
+  let stored: QueuedSale[] = [];
+  try { stored = (await idbGet<QueuedSale[]>(key)) ?? []; } catch { /* unavailable */ }
+  let legacy: QueuedSale[] = [];
+  try { legacy = JSON.parse(localStorage.getItem(key) || "[]"); } catch { /* none */ }
+  if (activeScope?.storeId !== scope.storeId || activeScope?.userId !== scope.userId) return;
+  queueMem = mergeQueues(mergeQueues(stored, legacy), queueMem);
+  queueKeyLoaded = key;
+  await persistQueue(key);
+  if (legacy.length) try { localStorage.removeItem(key); } catch { /* ignore */ }
+  window.dispatchEvent(new Event("tilla-queue"));
+}
+
+async function persistQueue(key: string) {
+  try { await idbSet(key, queueMem); }
+  catch { try { localStorage.setItem(key, JSON.stringify(queueMem)); } catch { /* quota */ } }
 }
 
 export function deviceStorageKey(key: string) {
@@ -29,11 +59,15 @@ export async function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const cacheKey = scope ? scopedStorageKey(CACHE_PREFIX + key, scope) : null;
   try {
     const v = await fn();
-    try { if (cacheKey) localStorage.setItem(cacheKey, JSON.stringify(v)); } catch { /* quota */ }
+    if (cacheKey) void idbSet(cacheKey, v).catch(() => { /* quota */ });
     return v;
   } catch (e) {
-    const raw = cacheKey ? localStorage.getItem(cacheKey) : null;
-    if (raw && isNetworkError(e)) return JSON.parse(raw) as T;
+    if (cacheKey && isNetworkError(e)) {
+      const local = await idbGet<T>(cacheKey).catch(() => undefined);
+      if (local !== undefined) return local;
+      const raw = localStorage.getItem(cacheKey);
+      if (raw) return JSON.parse(raw) as T;
+    }
     throw e;
   }
 }
@@ -56,10 +90,12 @@ export type QueuedSale = {
 
 export function readQueue(): QueuedSale[] {
   if (!activeScope) return [];
-  try { return JSON.parse(localStorage.getItem(deviceStorageKey(QUEUE_KEY)) || "[]"); } catch { return []; }
+  return queueMem;
 }
 function writeQueue(q: QueuedSale[]) {
-  localStorage.setItem(deviceStorageKey(QUEUE_KEY), JSON.stringify(q));
+  const key = deviceStorageKey(QUEUE_KEY);
+  queueMem = q;
+  if (queueKeyLoaded === key) void persistQueue(key);
   window.dispatchEvent(new Event("tilla-queue"));
 }
 export function enqueueSale(s: QueuedSale) {
