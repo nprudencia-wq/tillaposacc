@@ -36,3 +36,4 @@
 - GRN drafts are store-scoped, version-checked snapshots; locked posting delegates to receive_goods_currency and retains the linked receipt for deduplication. Why: temporary saves cannot change stock or double-receive.
 - Offline shifts are created on the device (src/lib/offline.ts LocalShift) with a client UUID and uploaded via idempotent `open_offline_shift` before any queued sale. Why: offline sales must always have a real shift to attach to.
 - Offline till PIN unlock keeps only a PBKDF2 hash plus that cashier's own saved sign-in on the device (src/lib/offline-pin.ts), only after an online PIN sign-in there, with a local 5-try lock. Why: the server PIN store stays unreadable; offline unlock can't admit someone who never signed in on that till.
+

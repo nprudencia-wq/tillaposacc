@@ -1,0 +1,1 @@
+- Till hardware config is device-local (src/lib/hardware.ts, ESC/POS in escpos.ts); network printers need an HTTP print address. Why: browsers lack raw TCP.
