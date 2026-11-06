@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
-import { cached, enqueueSale, isNetworkError } from "@/lib/offline";
+import { cached, deviceStorageKey, enqueueSale, isNetworkError } from "@/lib/offline";
 import { useSubscription } from "@/components/SubscriptionBanner";
 import { OpenShiftGate, ShiftBar, useOpenShift } from "@/components/Shift";
 import {
@@ -88,10 +88,10 @@ function Till({ shiftId }: { shiftId: string }) {
   const customer = customers.find((c) => c.id === customerId);
 
   useEffect(() => {
-    try { setHeld(JSON.parse(localStorage.getItem(HELD_KEY) || "[]")); } catch { /* ignore */ }
+    try { setHeld(JSON.parse(localStorage.getItem(deviceStorageKey(HELD_KEY)) || "[]")); } catch { /* identity not ready */ }
     searchRef.current?.focus();
-  }, []);
-  const saveHeld = (h: Held[]) => { setHeld(h); localStorage.setItem(HELD_KEY, JSON.stringify(h)); };
+  }, [me?.id, me?.storeId]);
+  const saveHeld = (h: Held[]) => { setHeld(h); localStorage.setItem(deviceStorageKey(HELD_KEY), JSON.stringify(h)); };
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
