@@ -18,6 +18,12 @@ export interface Payment {
 
 export const round2 = (n: number) => Math.round(n * 100) / 100;
 
+export function saleStockError(name: string, requested: number, available: number) {
+  if (!Number.isFinite(requested) || requested <= 0) return "Enter a positive quantity";
+  if (!Number.isFinite(available) || available <= 0) return `${name}: out of stock`;
+  return requested > available ? `${name}: only ${available} available` : null;
+}
+
 export function cartSubtotal(lines: CartLine[]) {
   return round2(lines.reduce((s, l) => s + round2(l.unit_price * l.quantity), 0));
 }

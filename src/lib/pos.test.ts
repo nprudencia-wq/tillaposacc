@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cartSubtotal, changeDueUSD, resolveDiscount, fromUSD } from "./pos";
+import { cartSubtotal, changeDueUSD, resolveDiscount, fromUSD, saleStockError } from "./pos";
 
 const lines = [
   { product_id: "a", name: "A", unit_price: 1.2, quantity: 3, stock: 10 },
@@ -7,6 +7,9 @@ const lines = [
 ];
 
 describe("POS maths", () => {
+  it("blocks zero-stock sales", () => expect(saleStockError("Bread", 1, 0)).toBe("Bread: out of stock"));
+  it("blocks quantities exceeding available stock", () => expect(saleStockError("Milk", 3, 2)).toBe("Milk: only 2 available"));
+  it("allows selling the exact available quantity", () => expect(saleStockError("Milk", 2, 2)).toBeNull());
   it("sums the cart", () => expect(cartSubtotal(lines)).toBe(12.1));
   it("percentage discount", () => expect(resolveDiscount(100, "percent", 10)).toBe(10));
   it("fixed discount capped at subtotal", () => expect(resolveDiscount(5, "fixed", 9)).toBe(5));
