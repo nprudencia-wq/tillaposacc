@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { money, type PayMethod } from "@/lib/pos";
 import { methodLabel } from "@/lib/payment-types";
+import { summarizeItemsSold } from "@/lib/items-sold";
 import { exportExcel, exportPDF, type Col, type Row } from "@/lib/export";
 
 export const Route = createFileRoute("/_authenticated/reports")({
@@ -26,7 +27,7 @@ const presets: { label: string; get: () => [Date, Date] }[] = [
   { label: "This year", get: () => { const d = new Date(); return [new Date(d.getFullYear(), 0, 1), d]; } },
   { label: "Last year", get: () => { const y = new Date().getFullYear() - 1; return [new Date(y, 0, 1), new Date(y, 11, 31)]; } },
 ];
-type Report = { id: string; label: string; cols: Col[]; rows: Row[]; totals?: Row };
+type Report = { id: string; label: string; cols: Col[]; rows: Row[]; totals?: Row; subtitle?: string };
 
 function group<T>(list: T[], key: (t: T) => string, val: (t: T) => { qty?: number; total: number; cost?: number }) {
   const m: Record<string, { name: string; qty: number; total: number; cost: number; count: number }> = {};
@@ -51,6 +52,7 @@ function Reports() {
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(1); return iso(d); });
   const [to, setTo] = useState(() => iso(new Date()));
   const [active, setActive] = useState("pl");
+  const [cashier, setCashier] = useState("all");
 
   const { data } = useQuery({
     queryKey: ["reports", from, to],
@@ -158,16 +160,28 @@ function Reports() {
           .sort((a, b) => b.sold - a.sold)
           .map((p, i, arr) => ({ ...p, status: p.sold === 0 ? "Dead stock" : i < Math.ceil(arr.length * 0.2) ? "Fast" : i >= Math.floor(arr.length * 0.7) ? "Slow" : "Normal" })),
       },
+      (() => {
+        const lines = data.items.filter((i) => cashier === "all" || i.sales?.cashier_id === cashier);
+        const rows = summarizeItemsSold(lines).map((x) => ({ name: x.name, sold: x.sold, refunded: x.refunded, net: x.net, total: x.total }));
+        const who = cashier === "all" ? "All cashiers" : staff[cashier] ?? "Cashier";
+        return {
+          id: "cashier-items", label: "Products sold by cashier", subtitle: who,
+          cols: [{ key: "name", label: "Product" }, { key: "sold", label: "Qty sold" }, { key: "refunded", label: "Refunded" }, { key: "net", label: "Net qty out" }, { key: "total", label: "Sales (USD)", money: true }],
+          rows,
+          totals: { name: "Total", sold: r2(rows.reduce((a, x) => a + x.sold, 0)), refunded: r2(rows.reduce((a, x) => a + x.refunded, 0)), net: r2(rows.reduce((a, x) => a + x.net, 0)), total: r2(rows.reduce((a, x) => a + x.total, 0)) },
+        } as Report;
+      })(),
       {
         id: "movement", label: "Stock movement",
         cols: [{ key: "date", label: "Date" }, { key: "name", label: "Product" }, { key: "type", label: "Type" }, { key: "qty", label: "Qty" }, { key: "bal", label: "Balance" }, { key: "ref", label: "Ref / note" }],
         rows: data.movements.map((m) => ({ date: new Date(m.created_at).toLocaleString(), name: m.products?.name ?? "", type: m.type, qty: Number(m.quantity), bal: Number(m.balance_after), ref: m.reference ?? m.note ?? "" })),
       },
     ];
-  }, [data]);
+  }, [data, cashier]);
 
   const rep = reports.find((r) => r.id === active);
-  const sub = `${settings?.business_name ?? ""} · ${from} to ${to}`;
+  const rows = rep ? (rep.totals ? [...rep.rows, rep.totals] : rep.rows) : [];
+  const sub = `${settings?.business_name ?? ""} · ${from} to ${to}${rep?.subtitle ? ` · ${rep.subtitle}` : ""}`;
   const file = `${rep?.label.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${from}-${to}`;
 
   return (
@@ -181,10 +195,18 @@ function Reports() {
             <Button key={p.label} size="sm" variant="ghost" onClick={() => { const [a, b] = p.get(); setFrom(iso(a)); setTo(iso(b)); }}>{p.label}</Button>
           ))}
         </div>
+        {active === "cashier-items" && (
+          <div className="space-y-1.5"><Label htmlFor="rep-cashier">Cashier</Label>
+            <select id="rep-cashier" value={cashier} onChange={(e) => setCashier(e.target.value)} className="h-10 rounded-md border bg-card px-3 text-sm">
+              <option value="all">All cashiers</option>
+              {(data?.profiles ?? []).map((p) => <option key={p.id} value={p.id}>{p.full_name || "Staff"}</option>)}
+            </select>
+          </div>
+        )}
         {rep && (
           <div className="ml-auto flex gap-2">
-            <Button variant="outline" onClick={() => exportPDF(file, rep.label, sub, rep.cols, rep.rows)}><FileDown className="h-4 w-4" />PDF</Button>
-            <Button variant="outline" onClick={() => exportExcel(file, rep.label, rep.cols, rep.rows)}><FileSpreadsheet className="h-4 w-4" />Excel</Button>
+            <Button variant="outline" onClick={() => exportPDF(file, rep.label, sub, rep.cols, rows)}><FileDown className="h-4 w-4" />PDF</Button>
+            <Button variant="outline" onClick={() => exportExcel(file, rep.label, rep.cols, rows)}><FileSpreadsheet className="h-4 w-4" />Excel</Button>
           </div>
         )}
       </div>
@@ -200,8 +222,8 @@ function Reports() {
             <Table>
               <TableHeader><TableRow>{rep.cols.map((c) => <TableHead key={c.key} className={c.key === "name" ? "" : "text-right"}>{c.label}</TableHead>)}</TableRow></TableHeader>
               <TableBody>
-                {rep.rows.map((r, i) => (
-                  <TableRow key={i}>
+                {(rep.id === "cashier-items" ? rows : rep.rows).map((r, i) => (
+                  <TableRow key={i} className={rep.totals && r === rep.totals ? "font-semibold" : ""}>
                     {rep.cols.map((c) => (
                       <TableCell key={c.key} className={c.key === "name" ? "font-medium" : "tabular text-right"}>
                         {c.money && typeof r[c.key] === "number" ? money(r[c.key] as number) : r[c.key]}

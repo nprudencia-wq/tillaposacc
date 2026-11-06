@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { money, type Currency, type PayMethod } from "@/lib/pos";
 import { methodLabel } from "@/lib/payment-types";
+import { summarizeItemsSold, type SoldSummary } from "@/lib/items-sold";
 
 export type ShiftSummary = {
   shift: {
@@ -243,12 +244,48 @@ export function ShiftReport({ s, title }: { s: ShiftSummary; title: string }) {
   );
 }
 
+function ItemsSold({ items }: { items: SoldSummary[] }) {
+  return (
+    <div className="space-y-1 border-t pt-2 text-sm">
+      <div className="font-semibold">Products sold</div>
+      <div className="flex justify-between text-xs text-muted-foreground"><span>Item</span><span>Sold · Ret · Net</span></div>
+      {items.map((i) => <Row key={i.name} k={i.name} v={`${i.sold} · ${i.refunded} · ${i.net}`} />)}
+      {!items.length && <div className="text-muted-foreground">No items sold in this shift.</div>}
+      <Row k="Total units out" v={String(items.reduce((a, i) => a + i.net, 0))} strong />
+    </div>
+  );
+}
+
 export function ShiftReportDialog({ s, title, onClose }: { s: ShiftSummary; title: string; onClose: () => void }) {
+  const [show, setShow] = useState(false);
+  const [printItems, setPrintItems] = useState(false);
+  const { data: items, isLoading } = useQuery({
+    queryKey: ["shift-items", s.shift.id],
+    enabled: show,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("sale_items").select("product_id, name, quantity, refunded_qty, line_total, sales!inner(shift_id)").eq("sales.shift_id", s.shift.id);
+      if (error) throw error;
+      return summarizeItemsSold(data ?? []);
+    },
+  });
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] max-w-sm overflow-y-auto">
         <DialogHeader className="sr-only"><DialogTitle>{title}</DialogTitle></DialogHeader>
-        <div id="receipt-print"><ShiftReport s={s} title={title} /></div>
+        <div id="receipt-print">
+          <ShiftReport s={s} title={title} />
+          {show && items && <div className={printItems ? "" : "print:hidden"}><ItemsSold items={items} /></div>}
+        </div>
+        <div className="space-y-2 border-t pt-2 print:hidden">
+          <Button variant="secondary" className="w-full" onClick={() => setShow((v) => !v)}>{show ? "Hide items sold" : "View items sold"}</Button>
+          {show && isLoading && <p className="text-sm text-muted-foreground">Loading items…</p>}
+          {show && (
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={printItems} onChange={(e) => setPrintItems(e.target.checked)} />
+              Include items sold when printing
+            </label>
+          )}
+        </div>
         <Button variant="outline" onClick={() => window.print()} className="print:hidden"><Printer className="h-4 w-4" />Print</Button>
       </DialogContent>
     </Dialog>
