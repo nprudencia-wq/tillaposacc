@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { cached, readQueue, syncQueue } from "@/lib/offline";
+import { cached, isNetworkError, openLocalShift, readLocalShift, readQueue, syncQueue } from "@/lib/offline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { money, type Currency, type PayMethod } from "@/lib/pos";
 import { methodLabel } from "@/lib/payment-types";
 import { summarizeItemsSold, type SoldSummary } from "@/lib/items-sold";
+import { useStaff } from "@/hooks/use-staff";
 
 export type ShiftSummary = {
   shift: {
@@ -30,9 +31,24 @@ export type ShiftSummary = {
 const moveLabels: Record<string, string> = { cash_drop: "Safe drop", paid_out: "Paid out", paid_in: "Paid in" };
 
 export function useOpenShift() {
+  const { data: me } = useStaff();
   return useQuery({
-    queryKey: ["open-shift"],
-    queryFn: () => cached("open-shift", async () => {
+    queryKey: ["open-shift", me?.id, me?.storeId],
+    enabled: !!me,
+    queryFn: async () => {
+      // A shift opened on this device without internet stays in charge until it has uploaded.
+      const local = await readLocalShift();
+      if (local) {
+        if (navigator.onLine) { await syncQueue(); if (!(await readLocalShift())) return fetchOpen(); }
+        return local;
+      }
+      return fetchOpen();
+    },
+  });
+}
+
+function fetchOpen() {
+  return cached("open-shift", async () => {
       const { data: s } = await supabase.auth.getSession();
       const uid = s.session?.user.id;
       if (!uid) return null;
@@ -40,8 +56,7 @@ export function useOpenShift() {
         .eq("cashier_id", uid).eq("status", "open").maybeSingle();
       if (error) throw error;
       return data;
-    }),
-  });
+    });
 }
 
 export async function fetchShiftSummary(id: string) {
@@ -58,7 +73,16 @@ export function OpenShiftGate() {
   const [busy, setBusy] = useState(false);
   async function open() {
     setBusy(true);
-    const { error } = await supabase.rpc("open_shift_three", { p_float_zar: Number(zar) || 0, p_float_usd: Number(usd) || 0, p_float_zig: Number(zig) || 0 });
+    const floats = { usd: Number(usd) || 0, zig: Number(zig) || 0, zar: Number(zar) || 0 };
+    const openOffline = async () => {
+      try { await openLocalShift(floats); } catch (e) { setBusy(false); toast.error((e as Error).message); return; }
+      setBusy(false);
+      toast.success("Shift opened offline — it will upload when the internet is back");
+      qc.invalidateQueries({ queryKey: ["open-shift"] });
+    };
+    if (!navigator.onLine) { await openOffline(); return; }
+    const { error } = await supabase.rpc("open_shift_three", { p_float_zar: floats.zar, p_float_usd: floats.usd, p_float_zig: floats.zig });
+    if (error && isNetworkError(error)) { await openOffline(); return; }
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Shift opened");
@@ -161,7 +185,7 @@ function CloseDialog({ shiftId, onClose, onClosed }: { shiftId: string; onClose:
     if (!navigator.onLine) { toast.error("You're offline. Reconnect to close the shift."); return; }
     setBusy(true);
     await syncQueue();
-    if (readQueue().length) { setBusy(false); toast.error("Some offline sales haven't uploaded yet. Check the offline bar at the top, then try again."); return; }
+    if (readQueue().length || (await readLocalShift())) { setBusy(false); toast.error("Some offline sales haven't uploaded yet. Check the offline bar at the top, then try again."); return; }
     const { error } = await supabase.rpc("close_shift_three", { p_actual_zar: Number(zar), p_actual_usd: Number(usd), p_actual_zig: Number(zig), p_notes: notes });
     if (error) { setBusy(false); { toast.error(error.message); return; } }
     try { onClosed(await fetchShiftSummary(shiftId)); } catch (e) { toast.error((e as Error).message); onClose(); }
