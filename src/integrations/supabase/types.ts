@@ -408,6 +408,32 @@ export type Database = {
           },
         ]
       }
+      document_counters: {
+        Row: {
+          kind: string
+          store_id: string
+          value: number
+        }
+        Insert: {
+          kind: string
+          store_id: string
+          value?: number
+        }
+        Update: {
+          kind?: string
+          store_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_counters_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
@@ -940,6 +966,7 @@ export type Database = {
           method: string
           reason: string
           refunded_by: string
+          returned_lines: Json
           sale_id: string
           shift_id: string | null
           store_id: string | null
@@ -951,6 +978,7 @@ export type Database = {
           method?: string
           reason: string
           refunded_by: string
+          returned_lines?: Json
           sale_id: string
           shift_id?: string | null
           store_id?: string | null
@@ -962,6 +990,7 @@ export type Database = {
           method?: string
           reason?: string
           refunded_by?: string
+          returned_lines?: Json
           sale_id?: string
           shift_id?: string | null
           store_id?: string | null
@@ -1186,6 +1215,114 @@ export type Database = {
           },
           {
             foreignKeyName: "sales_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_documents: {
+        Row: {
+          created_at: string
+          created_by: string
+          currency: string
+          customer_id: string | null
+          customer_name: string
+          discount: number
+          due_date: string | null
+          exchange_rate: number
+          id: string
+          kind: string
+          lines: Json
+          notes: string
+          number: string
+          refund_id: string | null
+          sale_id: string | null
+          source_id: string | null
+          status: string
+          store_id: string
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          currency?: string
+          customer_id?: string | null
+          customer_name?: string
+          discount?: number
+          due_date?: string | null
+          exchange_rate?: number
+          id?: string
+          kind: string
+          lines?: Json
+          notes?: string
+          number: string
+          refund_id?: string | null
+          sale_id?: string | null
+          source_id?: string | null
+          status?: string
+          store_id?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          currency?: string
+          customer_id?: string | null
+          customer_name?: string
+          discount?: number
+          due_date?: string | null
+          exchange_rate?: number
+          id?: string
+          kind?: string
+          lines?: Json
+          notes?: string
+          number?: string
+          refund_id?: string | null
+          sale_id?: string | null
+          source_id?: string | null
+          status?: string
+          store_id?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_documents_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_documents_refund_id_fkey"
+            columns: ["refund_id"]
+            isOneToOne: false
+            referencedRelation: "refunds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_documents_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_documents_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sales_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_documents_store_id_fkey"
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
@@ -1983,6 +2120,10 @@ export type Database = {
       can_post_expense: { Args: { _user_id: string }; Returns: boolean }
       can_refund: { Args: { _user_id: string }; Returns: boolean }
       can_view_accounts: { Args: { _user_id: string }; Returns: boolean }
+      cancel_sales_document: {
+        Args: { p_document: string }
+        Returns: undefined
+      }
       check_staff_pin: {
         Args: { p_pin: string; p_username: string }
         Returns: string
@@ -2023,6 +2164,10 @@ export type Database = {
           p_payments: Json
         }
         Returns: Json
+      }
+      convert_quote_to_invoice: {
+        Args: { p_document: string }
+        Returns: string
       }
       currency_rate: {
         Args: { p_currency: string; p_rand: number; p_zig: number }
@@ -2068,10 +2213,13 @@ export type Database = {
       is_cash_method: { Args: { p: string }; Returns: boolean }
       is_owner_admin: { Args: { _user_id: string }; Returns: boolean }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
+      issue_credit_note: { Args: { p_refund: string }; Returns: string }
+      issue_sale_invoice: { Args: { p_sale: string }; Returns: string }
       log_event: {
         Args: { p_action: string; p_details?: string }
         Returns: undefined
       }
+      next_document_number: { Args: { p_kind: string }; Returns: string }
       open_shift: {
         Args: { p_float_usd: number; p_float_zig: number }
         Returns: Json
@@ -2104,6 +2252,10 @@ export type Database = {
       post_journal: {
         Args: { p_date: string; p_lines: Json; p_memo: string }
         Returns: string
+      }
+      post_sales_invoice: {
+        Args: { p_document: string; p_payments: Json }
+        Returns: Json
       }
       receive_customer_payment: {
         Args: {
@@ -2188,6 +2340,19 @@ export type Database = {
           p_id: string
           p_reason: string
           p_stock: number
+        }
+        Returns: string
+      }
+      save_sales_document: {
+        Args: {
+          p_currency: string
+          p_customer: string
+          p_discount: number
+          p_due: string
+          p_id: string
+          p_kind: string
+          p_lines: Json
+          p_notes: string
         }
         Returns: string
       }

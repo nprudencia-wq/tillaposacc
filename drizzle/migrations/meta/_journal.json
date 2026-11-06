@@ -218,6 +218,13 @@
       "when": 1793946660023,
       "tag": "0030_rand_payments_and_cashup",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1793946743001,
+      "tag": "0031_sales_documents_and_refund_snapshots",
+      "breakpoints": true
     }
   ]
 }
