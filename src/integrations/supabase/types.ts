@@ -1476,6 +1476,7 @@ export type Database = {
           grace_days: number
           id: number
           interest_after_days: number
+          interest_auto: boolean
           logo_url: string
           paid_until: string
           phone: string
@@ -1503,6 +1504,7 @@ export type Database = {
           grace_days?: number
           id?: number
           interest_after_days?: number
+          interest_auto?: boolean
           logo_url?: string
           paid_until?: string
           phone?: string
@@ -1530,6 +1532,7 @@ export type Database = {
           grace_days?: number
           id?: number
           interest_after_days?: number
+          interest_auto?: boolean
           logo_url?: string
           paid_until?: string
           phone?: string
@@ -2562,6 +2565,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      save_interest_mode: { Args: { p_auto: boolean }; Returns: undefined }
       save_inventory_product: {
         Args: {
           p_expected_stock: number
