@@ -162,7 +162,7 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
     try {
       const { error } = await supabase.rpc("save_inventory_product", { p_id: p.id ?? null as unknown as string, p_fields: payload, p_stock: target, p_expected_stock: Number(p.stock ?? 0), p_reason: reason });
       if (error) throw error;
-      await Promise.all(["products", "movements", "stock-movements", "branch_stock", "ledger", "activity"].map((key) => qc.invalidateQueries({ queryKey: [key] })));
+      await Promise.all(["products", "movements", "stock-movements", "branch_stock", "gl-lines", "activity"].map((key) => qc.invalidateQueries({ queryKey: [key] })));
       toast.success("Product and stock saved");
       onClose();
     } catch (error) { toast.error(error instanceof Error ? error.message : String((error as { message?: string }).message ?? "Save failed")); }
@@ -170,8 +170,8 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
   }
 
   const field = (k: keyof Product, label: string, type = "text") => (
-    <div className="space-y-1.5"><Label>{label}</Label>
-      <Input type={type} step="0.01" value={(f[k] as string | number | null) ?? ""} onChange={(e) => set(k, e.target.value)} /></div>
+    <div className="space-y-1.5"><Label htmlFor={`product-${k}`}>{label}</Label>
+      <Input id={`product-${k}`} type={type} step="0.01" value={(f[k] as string | number | null) ?? ""} onChange={(e) => set(k, e.target.value)} /></div>
   );
 
   return (
