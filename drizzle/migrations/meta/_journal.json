@@ -337,6 +337,13 @@
       "when": 1793971405022,
       "tag": "0047_vat_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1793971766174,
+      "tag": "0048_fix_delete_supplier_log",
+      "breakpoints": true
     }
   ]
 }
