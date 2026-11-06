@@ -253,6 +253,13 @@
       "when": 1793947342709,
       "tag": "0035_store_local_identifiers_and_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793947372267,
+      "tag": "0036_explicit_store_rpc_boundaries",
+      "breakpoints": true
     }
   ]
 }

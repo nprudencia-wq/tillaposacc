@@ -1,0 +1,18 @@
+DO $$ DECLARE r record; d text; BEGIN
+FOR r IN SELECT p.oid,p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname IN ('save_inventory_product','save_branch','finish_stocktake','record_count','start_stocktake','transfer_stock','delete_supplier','receive_goods','return_to_supplier','post_journal','guard_payment_type_delete','guard_payment_type_deactivate') LOOP
+SELECT pg_get_functiondef(r.oid) INTO d;
+IF r.proname='save_inventory_product' THEN d:=replace(d,'WHERE id=p_id FOR UPDATE','WHERE id=p_id AND store_id=public.current_store_id() FOR UPDATE'); END IF;
+IF r.proname='save_branch' THEN d:=replace(d,'where id=p_id returning','where id=p_id AND store_id=public.current_store_id() returning'); END IF;
+IF r.proname IN ('finish_stocktake','record_count') THEN d:=replace(d,'where id=p_stocktake and','where id=p_stocktake AND store_id=public.current_store_id() and'); END IF;
+IF r.proname='start_stocktake' THEN d:=replace(d,'where status=''counting''','where store_id=public.current_store_id() AND status=''counting'''); d:=replace(d,'from products where active','from products where store_id=public.current_store_id() AND active'); END IF;
+IF r.proname='transfer_stock' THEN d:=replace(d,'from branches where id=p_from','from branches where store_id=public.current_store_id() AND id=p_from'); d:=replace(d,'from branches where id=p_to','from branches where store_id=public.current_store_id() AND id=p_to'); d:=replace(d,'from products where id=v_pid','from products where store_id=public.current_store_id() AND id=v_pid'); END IF;
+IF r.proname='delete_supplier' THEN d:=replace(d,'WHERE id=p_id FOR UPDATE','WHERE id=p_id AND store_id=public.current_store_id() FOR UPDATE'); END IF;
+IF r.proname IN ('receive_goods','return_to_supplier') THEN d:=regexp_replace(d,'(begin|BEGIN)',E'BEGIN\n IF NOT EXISTS(SELECT 1 FROM public.suppliers WHERE id=p_supplier AND store_id=public.current_store_id()) THEN RAISE EXCEPTION ''Supplier not found''; END IF;','i'); d:=replace(d,'from products where id =','from products where store_id=public.current_store_id() AND id ='); END IF;
+IF r.proname='post_journal' THEN d:=replace(d,'WHERE code=l->>''account'' AND active','WHERE code=l->>''account'' AND store_id=public.current_store_id() AND active'); END IF;
+IF r.proname='guard_payment_type_delete' THEN d:=replace(d,'where method = old.code','where store_id=OLD.store_id AND method = old.code'); END IF;
+IF r.proname='guard_payment_type_deactivate' THEN d:=replace(d,'where active and id <> old.id','where store_id=OLD.store_id AND active and id <> old.id'); END IF;
+EXECUTE d; END LOOP;
+END $$;
+CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid,_role public.app_role) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$ SELECT EXISTS(SELECT 1 FROM public.user_roles r JOIN public.profiles p ON p.id=r.user_id WHERE r.user_id=_user_id AND r.role=_role AND p.active AND r.store_id=public.current_store_id()) $$;
+CREATE OR REPLACE FUNCTION public.has_permission(_user_id uuid,_perm text) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$ SELECT public.is_staff(_user_id) AND coalesce((SELECT allowed FROM public.user_permissions WHERE user_id=_user_id AND permission=_perm AND store_id=public.current_store_id()),public.role_allows(_user_id,_perm)) $$;
+CREATE OR REPLACE FUNCTION public.has_staff_pin(p_user uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$ SELECT (p_user=auth.uid() OR public.can_manage_store_member(p_user)) AND EXISTS(SELECT 1 FROM public.staff_pins WHERE user_id=p_user AND store_id=public.current_store_id()) $$;
