@@ -25,24 +25,34 @@ export const Route = createFileRoute("/_authenticated")({
   component: AppLayout,
 });
 
-const nav = [
-  { to: "/pos", label: "Till", icon: ShoppingCart },
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/inventory", label: "Inventory", icon: Boxes },
-  { to: "/stock", label: "Stock control", icon: ClipboardList },
-  { to: "/sales", label: "Sales", icon: Receipt },
-  { to: "/documents", label: "Sales documents", icon: BookOpen },
-  { to: "/customers", label: "Customers", icon: Contact },
-  { to: "/suppliers", label: "Suppliers", icon: Truck },
-  { to: "/shifts", label: "Shifts", icon: Clock },
-  { to: "/expenses", label: "Expenses", icon: Wallet },
-  { to: "/accounting", label: "Accounting", icon: BookOpen },
-  { to: "/payment-types", label: "Payment types", icon: CreditCard },
-  { to: "/currencies", label: "Currency settings", icon: Wallet },
-  { to: "/reports", label: "Reports", icon: BarChart3 },
-  { to: "/staff", label: "Staff", icon: Users },
-  { to: "/store", label: "Store profile", icon: Store },
-  { to: "/billing", label: "Billing", icon: CreditCard },
+const navGroups = [
+  { title: "", items: [
+    { to: "/pos", label: "Till", icon: ShoppingCart },
+    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  ] },
+  { title: "Inventory & stock", items: [
+    { to: "/inventory", label: "Inventory", icon: Boxes },
+    { to: "/stock", label: "Stock control", icon: ClipboardList },
+    { to: "/suppliers", label: "Suppliers", icon: Truck },
+  ] },
+  { title: "Sales", items: [
+    { to: "/sales", label: "Sales", icon: Receipt },
+    { to: "/documents", label: "Sales documents", icon: BookOpen },
+    { to: "/customers", label: "Customers", icon: Contact },
+    { to: "/shifts", label: "Shifts", icon: Clock },
+  ] },
+  { title: "Finance", items: [
+    { to: "/expenses", label: "Expenses", icon: Wallet },
+    { to: "/accounting", label: "Accounting", icon: BookOpen },
+    { to: "/reports", label: "Reports", icon: BarChart3 },
+  ] },
+  { title: "Settings", items: [
+    { to: "/payment-types", label: "Payment types", icon: CreditCard },
+    { to: "/currencies", label: "Currency settings", icon: Wallet },
+    { to: "/staff", label: "Staff", icon: Users },
+    { to: "/store", label: "Store profile", icon: Store },
+    { to: "/billing", label: "Billing", icon: CreditCard },
+  ] },
 ] as const;
 
 function AppLayout() {
@@ -86,7 +96,10 @@ function AppLayout() {
       <aside className="flex shrink-0 items-center gap-1 bg-sidebar px-3 py-2 text-sidebar-foreground md:w-56 md:flex-col md:items-stretch md:px-3 md:py-5 print:hidden">
         <div className="hidden px-3 pb-6 font-display text-xl font-bold md:block">Tilla<span className="text-sidebar-primary">POS</span></div>
         <nav className="flex flex-1 gap-1 overflow-x-auto md:flex-col">
-          {nav.map((n) => (
+          {navGroups.map((g) => (
+            <div key={g.title || "main"} className="flex gap-1 md:flex-col md:pb-3">
+              {g.title && <div className="hidden px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider opacity-50 md:block">{g.title}</div>}
+              {g.items.map((n) => (
             <Link
               key={n.to}
               to={n.to}
@@ -96,6 +109,8 @@ function AppLayout() {
               <n.icon className="h-5 w-5" />
               <span className="hidden sm:inline">{n.label}</span>
             </Link>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="md:border-t md:border-sidebar-border md:pt-4">
