@@ -148,6 +148,13 @@
       "when": 1793945107844,
       "tag": "0020_phase_one_vendor_store_safety_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793945164208,
+      "tag": "0021_phase_one_staff_target_store_guard",
+      "breakpoints": true
     }
   ]
 }

@@ -1578,6 +1578,7 @@ export type Database = {
       can_manage_payment_types: { Args: { _user_id: string }; Returns: boolean }
       can_manage_staff: { Args: { _user_id: string }; Returns: boolean }
       can_manage_stock: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_store_member: { Args: { p_target: string }; Returns: boolean }
       can_post_expense: { Args: { _user_id: string }; Returns: boolean }
       can_refund: { Args: { _user_id: string }; Returns: boolean }
       can_view_accounts: { Args: { _user_id: string }; Returns: boolean }
