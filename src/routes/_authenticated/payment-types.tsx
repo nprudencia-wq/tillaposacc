@@ -17,6 +17,10 @@ export const Route = createFileRoute("/_authenticated/payment-types")({
     meta: [
       { title: "Payment types — Tilla POS" },
       { name: "description", content: "Choose how customers can pay: cash, mobile money, cards, or your own types." },
+      { property: "og:title", content: "Payment types — Tilla POS" },
+      { property: "og:description", content: "Choose how customers can pay: cash, mobile money, cards, or your own types." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: PaymentTypesPage,

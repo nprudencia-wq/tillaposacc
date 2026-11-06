@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { cached } from "@/lib/offline";
+import { cached, setOfflineScope } from "@/lib/offline";
 import { effectivePermission, type Permission } from "@/lib/username";
 
 export function useStaff() {
@@ -9,7 +9,14 @@ export function useStaff() {
     queryFn: () => cached("me", async () => {
       const { data: s } = await supabase.auth.getSession();
       const user = s.session?.user;
-      if (!user) return null;
+      if (!user) { setOfflineScope(null); return null; }
+      const membershipKey = `tilla-membership:${user.id}`;
+      const { data: membership, error: membershipError } = await supabase.from("store_memberships").select("store_id").eq("user_id", user.id).single();
+      let storeId = membership?.store_id;
+      if (storeId) localStorage.setItem(membershipKey, storeId);
+      else if (!navigator.onLine) storeId = localStorage.getItem(membershipKey) ?? undefined;
+      if (!storeId) throw membershipError ?? new Error("No store membership found");
+      setOfflineScope({ storeId, userId: user.id });
       const [{ data: roles, error }, { data: profile }, { data: perms }] = await Promise.all([
         supabase.from("user_roles").select("role").eq("user_id", user.id),
         supabase.from("profiles").select("full_name, username, active").eq("id", user.id).maybeSingle(),
@@ -21,6 +28,7 @@ export function useStaff() {
       const can = (p: Permission) => profile?.active !== false && effectivePermission(list, p, overrides);
       return {
         id: user.id,
+        storeId,
         email: user.email ?? "",
         name: profile?.full_name || profile?.username || user.email || "",
         roles: list,

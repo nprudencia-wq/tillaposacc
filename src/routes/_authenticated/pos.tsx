@@ -2,26 +2,27 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X } from "lucide-react";
+import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, List, LayoutGrid } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings, useStaff } from "@/hooks/use-staff";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
-import { cached, enqueueSale, isNetworkError } from "@/lib/offline";
+import { type ReceiptData } from "@/components/Receipt";
+import { SaleComplete } from "@/components/SaleComplete";
+import { cached, deviceStorageKey, enqueueSale, isNetworkError } from "@/lib/offline";
 import { useSubscription } from "@/components/SubscriptionBanner";
 import { OpenShiftGate, ShiftBar, useOpenShift } from "@/components/Shift";
 import {
-  cartSubtotal, changeDueUSD, fromUSD, money, paidUSD, resolveDiscount,
+  cartSubtotal, changeDueUSD, fromUSD, money, paidUSD, resolveDiscount, saleStockError,
   type CartLine, type Currency, type Payment, type PayMethod,
 } from "@/lib/pos";
 import { activeTypes, isAccountMethod, isCashMethod, methodLabel, usePaymentTypes } from "@/lib/payment-types";
 import { CustomerDialog, useCustomers } from "@/components/Customers";
 
 export const Route = createFileRoute("/_authenticated/pos")({
-  head: () => ({ meta: [{ title: "Till — Tilla POS" }, { name: "description", content: "Point of sale till." }] }),
+  head: () => ({ meta: [{ title: "Till — Tilla POS" }, { name: "description", content: "Tilla POS checkout, product list and receipt printing." }, { property: "og:title", content: "Till — Tilla POS" }, { property: "og:description", content: "Checkout, product list and receipt printing." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: PosPage,
 });
 
@@ -72,6 +73,7 @@ function Till({ shiftId }: { shiftId: string }) {
   });
 
   const [q, setQ] = useState("");
+  const [view, setView] = useState<"list" | "tile">("list");
   const [cat, setCat] = useState<string | null>(null);
   const [lines, setLines] = useState<CartLine[]>([]);
   const [discKind, setDiscKind] = useState<"percent" | "fixed">("percent");
@@ -88,10 +90,11 @@ function Till({ shiftId }: { shiftId: string }) {
   const customer = customers.find((c) => c.id === customerId);
 
   useEffect(() => {
-    try { setHeld(JSON.parse(localStorage.getItem(HELD_KEY) || "[]")); } catch { /* ignore */ }
+    try { setHeld(JSON.parse(localStorage.getItem(deviceStorageKey(HELD_KEY)) || "[]")); } catch { /* identity not ready */ }
+    try { setView(localStorage.getItem(deviceStorageKey("tilla-product-view")) === "tile" ? "tile" : "list"); } catch { /* list default */ }
     searchRef.current?.focus();
-  }, []);
-  const saveHeld = (h: Held[]) => { setHeld(h); localStorage.setItem(HELD_KEY, JSON.stringify(h)); };
+  }, [me?.id, me?.storeId]);
+  const saveHeld = (h: Held[]) => { setHeld(h); localStorage.setItem(deviceStorageKey(HELD_KEY), JSON.stringify(h)); };
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -109,6 +112,9 @@ function Till({ shiftId }: { shiftId: string }) {
     setLines((ls) => ls.map((l) => (l.product_id === id ? { ...l, unit_price: n } : l)));
   }
   function add(p: (typeof products)[number]) {
+    const requested = (lines.find((l) => l.product_id === p.id)?.quantity ?? 0) + 1;
+    const error = saleStockError(p.name, requested, Number(p.stock));
+    if (error) { toast.error(error); return; }
     setLines((ls) => {
       const ex = ls.find((l) => l.product_id === p.id);
       if (ex) return ls.map((l) => (l.product_id === p.id ? { ...l, quantity: l.quantity + 1 } : l));
@@ -116,6 +122,11 @@ function Till({ shiftId }: { shiftId: string }) {
     });
   }
   function setQty(id: string, qty: number) {
+    const item = products.find((p) => p.id === id);
+    if (qty > 0 && item) {
+      const error = saleStockError(item.name, qty, Number(item.stock));
+      if (error) { toast.error(error); return; }
+    }
     setLines((ls) => (qty <= 0 ? ls.filter((l) => l.product_id !== id) : ls.map((l) => (l.product_id === id ? { ...l, quantity: qty } : l))));
   }
 
@@ -165,6 +176,11 @@ function Till({ shiftId }: { shiftId: string }) {
   }
 
   async function complete(payments: Payment[]) {
+    for (const line of lines) {
+      const stock = Number(products.find((p) => p.id === line.product_id)?.stock ?? 0);
+      const error = saleStockError(line.name, line.quantity, stock);
+      if (error) { toast.error(error); return; }
+    }
     const paid = payments.filter((p) => p.amount > 0);
     const onAccount = paid.some((p) => isAccountMethod(p.method));
     if (onAccount && !customer) { toast.error("Choose the customer first to put this sale on account"); return; }
@@ -202,27 +218,39 @@ function Till({ shiftId }: { shiftId: string }) {
             placeholder="Search name, SKU or scan barcode…" className="h-12 bg-card pl-10 text-base"
           />
         </div>
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+        <div className="mt-3 flex items-center gap-2">
+          <div className="flex shrink-0 gap-1 border-r pr-2">
+            <Button size="icon" variant={view === "list" ? "default" : "outline"} title="List view" aria-label="List view" aria-pressed={view === "list"} onClick={() => { setView("list"); localStorage.setItem(deviceStorageKey("tilla-product-view"), "list"); }}><List className="h-4 w-4" /></Button>
+            <Button size="icon" variant={view === "tile" ? "default" : "outline"} title="Tile view" aria-label="Tile view" aria-pressed={view === "tile"} onClick={() => { setView("tile"); localStorage.setItem(deviceStorageKey("tilla-product-view"), "tile"); }}><LayoutGrid className="h-4 w-4" /></Button>
+          </div>
+          <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
           <Button size="sm" variant={cat === null ? "default" : "outline"} onClick={() => setCat(null)}>All</Button>
           {categories.map((c) => (
             <Button key={c.id} size="sm" variant={cat === c.id ? "default" : "outline"} onClick={() => setCat(c.id)} className="shrink-0">{c.name}</Button>
           ))}
+          </div>
         </div>
-        <div className="mt-4 grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4">
+        <div className={view === "tile" ? "mt-4 grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4" : "mt-4 min-h-0 flex-1 overflow-y-auto divide-y border-y"}>
           {filtered.map((p) => {
             const low = Number(p.stock) <= Number(p.min_stock);
+            const out = Number(p.stock) <= 0;
+            if (view === "list") return <Button key={p.id} variant="ghost" disabled={out} onClick={() => add(p)} aria-label={`Add ${p.name}`} className="h-20 w-full justify-start gap-3 rounded-none px-2 text-left">
+              <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-md bg-secondary text-primary">{p.image_url ? <img src={p.image_url} alt="" className="h-full w-full object-cover" /> : p.name.slice(0, 2).toUpperCase()}</div>
+              <div className="min-w-0 flex-1"><div className="truncate font-semibold">{p.name}</div><div className="truncate text-xs font-normal text-muted-foreground">{p.sku} {p.categories?.name ? `· ${p.categories.name}` : ""}</div><div className={out || low ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{out ? "Out of stock" : `${Number(p.stock)} in stock`}</div></div>
+              <span className="shrink-0 font-mono font-semibold text-primary">{show(Number(p.selling_price))}</span><Plus className="h-4 w-4 shrink-0" />
+            </Button>;
             return (
-              <button key={p.id} onClick={() => add(p)}
-                className="group flex flex-col rounded-xl border bg-card p-3 text-left shadow-soft transition active:scale-[0.98] hover:border-primary">
+              <Button key={p.id} variant="outline" disabled={out} onClick={() => add(p)} aria-label={`Add ${p.name}`}
+                className="group flex h-auto flex-col items-stretch whitespace-normal rounded-md bg-card p-3 text-left shadow-soft transition active:scale-[0.98] hover:border-primary">
                 <div className="mb-3 grid h-16 place-items-center rounded-lg bg-secondary font-display text-2xl font-bold text-primary">
                   {p.image_url ? <img src={p.image_url} alt="" className="h-full w-full rounded-lg object-cover" /> : p.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="line-clamp-2 text-sm font-semibold leading-tight">{p.name}</div>
                 <div className="mt-auto flex items-end justify-between pt-2">
                   <span className="tabular text-base font-semibold text-primary">{show(Number(p.selling_price))}</span>
-                  <span className={`text-xs ${low ? "font-semibold text-destructive" : "text-muted-foreground"}`}>{Number(p.stock)} left</span>
+                  <span className={`text-xs ${low ? "font-semibold text-destructive" : "text-muted-foreground"}`}>{out ? "Out of stock" : `${Number(p.stock)} left`}</span>
                 </div>
-              </button>
+              </Button>
             );
           })}
           {!filtered.length && <p className="col-span-full py-12 text-center text-muted-foreground">No products found.</p>}
@@ -321,7 +349,7 @@ function Till({ shiftId }: { shiftId: string }) {
       <Dialog open={!!receipt} onOpenChange={(o) => !o && setReceipt(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Sale complete</DialogTitle></DialogHeader>
-          {receipt && <ReceiptActions r={receipt} />}
+          {receipt && <SaleComplete receipt={receipt} onNext={() => { setReceipt(null); searchRef.current?.focus(); }} />}
         </DialogContent>
       </Dialog>
     </div>

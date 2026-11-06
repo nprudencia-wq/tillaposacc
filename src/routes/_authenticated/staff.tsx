@@ -25,7 +25,7 @@ type Role = Database["public"]["Enums"]["app_role"];
 const SENIOR = ["admin", "owner", "manager"];
 
 export const Route = createFileRoute("/_authenticated/staff")({
-  head: () => ({ meta: [{ title: "Staff & access — Tilla POS" }, { name: "description", content: "Staff logins, roles, access rights and cashier performance." }] }),
+  head: () => ({ meta: [{ title: "Staff & access — Tilla POS" }, { name: "description", content: "Staff logins, roles, access rights and cashier performance." }, { property: "og:title", content: "Staff & access — Tilla POS" }, { property: "og:description", content: "Staff logins, roles, access rights and cashier performance." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: StaffPage,
 });
 

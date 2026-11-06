@@ -19,7 +19,7 @@ import { CustomerDialog, useCustomers, type Customer } from "@/components/Custom
 import { exportExcel, exportPDF, type Col } from "@/lib/export";
 
 export const Route = createFileRoute("/_authenticated/customers")({
-  head: () => ({ meta: [{ title: "Customers & debtors — Tilla POS" }, { name: "description", content: "Customer accounts, credit sales, debt payments and aging reports." }] }),
+  head: () => ({ meta: [{ title: "Customers & debtors — Tilla POS" }, { name: "description", content: "Customer accounts, credit sales, debt payments and aging reports." }, { property: "og:title", content: "Customers & debtors — Tilla POS" }, { property: "og:description", content: "Customer accounts, credit sales, debt payments and aging reports." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: CustomersPage,
 });
 

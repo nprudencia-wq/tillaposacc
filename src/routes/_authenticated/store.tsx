@@ -16,6 +16,8 @@ export const Route = createFileRoute("/_authenticated/store")({
       { name: "description", content: "Set your shop name, contact details, tax number, logo and receipt footer." },
       { property: "og:title", content: "Store profile — Tilla POS" },
       { property: "og:description", content: "Set your shop name, contact details, tax number, logo and receipt footer." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: StorePage,

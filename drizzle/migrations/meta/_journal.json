@@ -155,6 +155,55 @@
       "when": 1793945164208,
       "tag": "0021_phase_one_staff_target_store_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793945581975,
+      "tag": "0022_store_ownership_backfill_and_read_boundaries",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793945650371,
+      "tag": "0023_tenant_related_record_integrity",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793945696744,
+      "tag": "0024_tenant_product_photo_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793945769405,
+      "tag": "0025_sale_stock_guardrails",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793945814752,
+      "tag": "0026_isolate_privileged_business_functions",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1793945896398,
+      "tag": "0027_store_operations_identity_helpers",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1793945932187,
+      "tag": "0028_restore_business_function_execution",
+      "breakpoints": true
     }
   ]
 }

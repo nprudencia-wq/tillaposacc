@@ -15,7 +15,7 @@ import { money, type Currency, type PayMethod } from "@/lib/pos";
 import { methodLabel } from "@/lib/payment-types";
 
 export const Route = createFileRoute("/_authenticated/sales")({
-  head: () => ({ meta: [{ title: "Sales — Tilla POS" }, { name: "description", content: "Sales history and receipt reprints." }] }),
+  head: () => ({ meta: [{ title: "Sales — Tilla POS" }, { name: "description", content: "Sales history and receipt reprints." }, { property: "og:title", content: "Sales — Tilla POS" }, { property: "og:description", content: "Sales history and receipt reprints." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: SalesPage,
 });
 
