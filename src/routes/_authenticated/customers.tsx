@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { FileDown, FileSpreadsheet, Plus } from "lucide-react";
@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { money } from "@/lib/pos";
-import { ageDebt, type Aging } from "@/lib/customers";
+import { ageDebt, overdueBeyond, pct, type Aging } from "@/lib/customers";
 import { activeTypes, methodLabel, usePaymentTypes } from "@/lib/payment-types";
 import { CustomerDialog, useCustomers, type Customer } from "@/components/Customers";
 import { exportExcel, exportPDF, type Col } from "@/lib/export";
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/customers")({
   component: CustomersPage,
 });
 
-type Entry = { date: string; kind: "sale" | "payment" | "refund" | "adjustment"; ref: string; debit: number; credit: number; note: string };
+type Entry = { date: string; kind: "sale" | "payment" | "refund" | "adjustment" | "interest"; ref: string; debit: number; credit: number; note: string };
 
 function useLedger() {
   return useQuery({
@@ -52,11 +52,11 @@ function useLedger() {
       for (const a of adjs.data ?? []) {
         push(a.customer_id, {
           date: a.created_at,
-          kind: "adjustment",
-          ref: "ADJ",
-          debit: a.kind === "charge" ? Number(a.amount) : 0,
+          kind: a.kind === "interest" ? "interest" : "adjustment",
+          ref: a.kind === "interest" ? "INT" : "ADJ",
+          debit: a.kind !== "credit" ? Number(a.amount) : 0,
           credit: a.kind === "credit" ? Number(a.amount) : 0,
-          note: `${a.kind === "charge" ? "Balance added" : "Balance reduced"}${a.note ? `: ${a.note}` : ""}`,
+          note: a.kind === "interest" ? a.note : `${a.kind === "charge" ? "Balance added" : "Balance reduced"}${a.note ? `: ${a.note}` : ""}`,
         });
       }
       for (const k in entries) entries[k]?.sort((a, b) => a.date.localeCompare(b.date));
@@ -82,7 +82,27 @@ function CustomersPage() {
   const [payFor, setPayFor] = useState<Customer | null>(null);
   const [adjustFor, setAdjustFor] = useState<Customer | null>(null);
 
-  const rows = useMemo(() => customers.map((c) => ({ c, a: agingFor(ledger?.entries[c.id]) })), [customers, ledger]);
+  const qc = useQueryClient();
+  const provRate = Number(settings?.bad_debt_provision_rate ?? 1);
+  const provDays = Number(settings?.provision_after_days ?? 120);
+  const rows = useMemo(() => customers.map((c) => {
+    const list = ledger?.entries[c.id] ?? [];
+    const principal = list.filter((e) => e.debit > 0 && e.kind !== "interest").map((e) => ({ date: e.date, amount: e.debit }));
+    const credits = list.reduce((s, e) => s + e.credit, 0);
+    return { c, a: agingFor(list), provision: pct(overdueBeyond(principal, credits, provDays), provRate) };
+  }), [customers, ledger, provRate, provDays]);
+  const totalProvision = rows.reduce((s, r) => s + r.provision, 0);
+
+  // Monthly interest is raised automatically (once per customer per month) when a manager opens this page.
+  const raised = useRef(false);
+  useEffect(() => {
+    if (raised.current || !me?.canManagePaymentTypes || !ledger) return;
+    raised.current = true;
+    supabase.rpc("raise_debtor_interest").then(({ data, error }) => {
+      if (error) return;
+      if (data && data > 0) { toast.success(`Monthly interest added to ${data} customer${data > 1 ? "s" : ""}`); qc.invalidateQueries({ queryKey: ["customer-ledger"] }); }
+    });
+  }, [me, ledger, qc]);
   const shown = rows.filter(({ c }) => !q || c.name.toLowerCase().includes(q.toLowerCase()) || c.phone?.includes(q));
   const totalDebt = rows.reduce((s, r) => s + r.a.total, 0);
   const debtors = rows.filter((r) => r.a.total > 0.004);
@@ -94,8 +114,9 @@ function CustomersPage() {
     { key: "current", label: "Current", money: true }, { key: "d30", label: "1–30 days", money: true },
     { key: "d60", label: "31–60 days", money: true }, { key: "d90", label: "61–90 days", money: true },
     { key: "over90", label: "90+ days", money: true }, { key: "total", label: "Total owed", money: true },
+    { key: "provision", label: `Provision ${provRate}% (${provDays}+ days)`, money: true },
   ];
-  const agingRows = debtors.map(({ c, a }) => ({ name: c.name, phone: c.phone ?? "", ...a }));
+  const agingRows = debtors.map(({ c, a, provision }) => ({ name: c.name, phone: c.phone ?? "", ...a, provision }));
   const sum = (k: keyof Aging) => debtors.reduce((s, r) => s + r.a[k], 0);
 
   const [from, setFrom] = useState(new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10));
@@ -145,6 +166,7 @@ function CustomersPage() {
         </TabsContent>
 
         <TabsContent value="aging" className="space-y-3">
+          <DebtorRules settings={settings} canEdit={!!me?.isOwner} />
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => exportPDF("debt-aging", `${biz} — Debt aging`, `As at ${new Date().toLocaleDateString()}`, agingCols, agingRows)}><FileDown className="h-4 w-4" />PDF</Button>
             <Button variant="outline" size="sm" onClick={() => exportExcel("debt-aging", "Debt aging", agingCols, agingRows)}><FileSpreadsheet className="h-4 w-4" />Excel</Button>
@@ -155,12 +177,13 @@ function CustomersPage() {
               <TableBody>
                 {agingRows.map((r) => (
                   <TableRow key={r.name + r.phone}>
-                    {agingCols.map((c) => <TableCell key={c.key} className={c.money ? "tabular text-right" : ""}>{c.money ? money(r[c.key as keyof Aging] as number) : r[c.key as "name"]}</TableCell>)}
+                    {agingCols.map((c) => <TableCell key={c.key} className={c.money ? "tabular text-right" : ""}>{c.money ? money(r[c.key as keyof typeof r] as number) : r[c.key as "name"]}</TableCell>)}
                   </TableRow>
                 ))}
                 <TableRow className="font-bold">
                   <TableCell colSpan={2}>Total</TableCell>
                   {(["current", "d30", "d60", "d90", "over90", "total"] as const).map((k) => <TableCell key={k} className="tabular text-right">{money(sum(k))}</TableCell>)}
+                  <TableCell className="tabular text-right">{money(totalProvision)}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -300,5 +323,27 @@ function StatementDialog({ customer, entries, biz, onClose }: { customer: Custom
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function DebtorRules({ settings, canEdit }: { settings: ReturnType<typeof useSettings>["data"]; canEdit: boolean }) {
+  const qc = useQueryClient();
+  const [f, setF] = useState<{ i: string; id: string; p: string; pd: string } | null>(null);
+  const v = f ?? { i: String(settings?.debtor_interest_rate ?? 5), id: String(settings?.interest_after_days ?? 30), p: String(settings?.bad_debt_provision_rate ?? 1), pd: String(settings?.provision_after_days ?? 120) };
+  const save = async () => {
+    const { error } = await supabase.rpc("save_debtor_rules", { p_interest: Number(v.i), p_interest_days: Number(v.id), p_provision: Number(v.p), p_provision_days: Number(v.pd) });
+    if (error) return toast.error(error.message);
+    toast.success("Debtor rules saved"); setF(null);
+    localStorage.removeItem("settings"); qc.invalidateQueries({ queryKey: ["settings"] });
+  };
+  const field = (k: keyof typeof v, label: string) => (
+    <div><Label htmlFor={`dr-${k}`}>{label}</Label><Input id={`dr-${k}`} type="number" min="0" className="w-28" value={v[k]} disabled={!canEdit} onChange={(e) => setF({ ...v, [k]: e.target.value })} /></div>
+  );
+  return (
+    <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3 text-sm">
+      {field("i", "Interest % / month")}{field("id", "After days overdue")}{field("p", "Bad debt provision %")}{field("pd", "On debt older than (days)")}
+      {canEdit && f && <Button size="sm" onClick={save}>Save rules</Button>}
+      <p className="basis-full text-muted-foreground">Simple interest is added once a month to debt older than the set days. The provision is a reserve in your accounts only — it does not change what customers owe.</p>
+    </div>
   );
 }
