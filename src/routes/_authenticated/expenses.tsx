@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { money } from "@/lib/pos";
+import { money, type Currency } from "@/lib/pos";
 import { activeTypes, methodLabel, usePaymentTypes } from "@/lib/payment-types";
 
 export const Route = createFileRoute("/_authenticated/expenses")({
@@ -90,7 +90,7 @@ function ExpensesPage() {
             <Input id="ex-amt" type="number" min="0.01" step="0.01" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} required />
             <Select value={f.currency} onValueChange={(v) => setF({ ...f, currency: v })}>
               <SelectTrigger className="w-24" aria-label="Currency"><SelectValue /></SelectTrigger>
-              <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem></SelectContent>
+              <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem><SelectItem value="ZAR">Rand</SelectItem></SelectContent>
             </Select>
           </div>
           {zigPreview !== null && <p className="mt-1 text-xs text-muted-foreground">≈ {money(zigPreview)} at {settings?.zig_rate} ZiG/USD</p>}
@@ -116,7 +116,7 @@ function ExpensesPage() {
                 <TableCell>{x.category}</TableCell>
                 <TableCell>{x.description}{x.reference && <span className="ml-2 text-xs text-muted-foreground">#{x.reference}</span>}</TableCell>
                 <TableCell>{methodLabel(x.method)}</TableCell>
-                <TableCell className="tabular text-right">{x.currency === "ZiG" ? `ZiG ${Number(x.original_amount).toFixed(2)}` : money(Number(x.original_amount))}</TableCell>
+                <TableCell className="tabular text-right">{money(Number(x.original_amount), x.currency as Currency)}</TableCell>
                 <TableCell className="tabular text-right font-medium">{money(Number(x.amount))}</TableCell>
                 <TableCell className="text-right">
                   {me?.isOwner && <Button variant="ghost" size="icon" aria-label={`Delete expense ${x.category} ${x.expense_date}`} onClick={() => remove(x.id)}><Trash2 className="h-4 w-4" /></Button>}

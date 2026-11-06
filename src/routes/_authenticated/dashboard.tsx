@@ -60,7 +60,7 @@ function Dashboard() {
       const { start, end } = range(period, custom);
       const [{ data: sales }, { data: pays }, { data: refunds }, { data: profiles }] = await Promise.all([
         supabase.from("sales").select("*").gte("created_at", start).lte("created_at", end).order("created_at", { ascending: false }),
-        supabase.from("sale_payments").select("sale_id, method, currency, amount, sales!inner(created_at, exchange_rate)").gte("sales.created_at", start).lte("sales.created_at", end),
+        supabase.from("sale_payments").select("sale_id, method, currency, amount, exchange_rate, sales!inner(created_at, exchange_rate)").gte("sales.created_at", start).lte("sales.created_at", end),
         supabase.from("refunds").select("amount, created_at").gte("created_at", start).lte("created_at", end),
         supabase.from("profiles").select("id, full_name"),
       ]);
@@ -77,7 +77,7 @@ function Dashboard() {
 
   const byMethod = Object.values((summary?.pays ?? []).reduce<Record<string, { key: string; label: string; usd: number; count: Set<string> }>>((acc, p) => {
     const key = `${p.method}-${p.currency}`;
-    const rateUsed = Number((p.sales as { exchange_rate: number } | null)?.exchange_rate) || Number(settings?.zig_rate) || 1;
+    const rateUsed = Number(p.exchange_rate) || 1;
     const usd = p.currency === "ZIG" ? Number(p.amount) / rateUsed : Number(p.amount);
     const e = (acc[key] ??= { key, label: `${methodLabel(p.method)} (${p.currency})`, usd: 0, count: new Set() });
     e.usd += usd; e.count.add(p.sale_id);
@@ -121,7 +121,7 @@ function Dashboard() {
   async function saveRate() {
     const v = Number(rate);
     if (!v || v <= 0) { toast.error("Enter a valid rate"); return; }
-    const { error } = await supabase.from("settings").update({ zig_rate: v, updated_at: new Date().toISOString() }).eq("id", 1);
+    const { error } = await supabase.from("settings").update({ zig_rate: v, updated_at: new Date().toISOString() }).eq("store_id", me?.storeId ?? "");
     if (error) { toast.error(error.message); return; }
     qc.invalidateQueries({ queryKey: ["settings"] }); setRate("");
     toast.success("Exchange rate updated");

@@ -39,6 +39,7 @@ function StorePage() {
   const { data: me } = useStaff();
   const qc = useQueryClient();
   const [f, setF] = useState<Form | null>(null);
+  const [rand, setRand] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -53,9 +54,11 @@ function StorePage() {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!f) return;
+    const randValue = Number(rand ?? st?.rand_rate ?? 0);
+    if (!Number.isFinite(randValue) || randValue < 0) { toast.error("Enter a valid Rand rate"); return; }
     if (!f.business_name.trim()) { toast.error("Trading name is required"); return; }
     setBusy(true);
-    const { error } = await supabase.from("settings").update({ ...f, updated_at: new Date().toISOString() }).eq("id", 1);
+    const { error } = await supabase.from("settings").update({ ...f, rand_rate: randValue, updated_at: new Date().toISOString() }).eq("store_id", me?.storeId ?? "");
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Store profile saved");
@@ -78,6 +81,7 @@ function StorePage() {
           <Label htmlFor="footer">Receipt footer</Label>
           <Textarea id="footer" disabled={!canEdit} rows={3} value={f.receipt_footer} onChange={(e) => setF({ ...f, receipt_footer: e.target.value })} />
         </div>
+        <div className="space-y-1.5"><Label htmlFor="rand-rate">Rand per USD</Label><Input id="rand-rate" type="number" min={0} step="0.0001" disabled={!canEdit} value={rand ?? String(st?.rand_rate ?? 0)} onChange={(e) => setRand(e.target.value)} /></div>
         {canEdit ? <Button type="submit" disabled={busy}>Save</Button> : <p className="text-sm text-muted-foreground">Only managers and owners can change these.</p>}
       </form>
     </div>

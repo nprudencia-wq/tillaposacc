@@ -32,15 +32,15 @@ function useLedger() {
       const { data: types } = await supabase.from("payment_types").select("code").eq("is_account", true);
       const codes = (types ?? []).map((t) => t.code);
       const [sp, pays, refs, adjs] = await Promise.all([
-        codes.length ? supabase.from("sale_payments").select("amount, currency, method, sales!inner(customer_id, created_at, exchange_rate, sale_number)").in("method", codes).not("sales.customer_id", "is", null) : Promise.resolve({ data: [] as never[] }),
+        codes.length ? supabase.from("sale_payments").select("amount, currency, method, exchange_rate, sales!inner(customer_id, created_at, exchange_rate, sale_number)").in("method", codes).not("sales.customer_id", "is", null) : Promise.resolve({ data: [] as never[] }),
         supabase.from("customer_payments").select("*").order("created_at"),
         codes.length ? supabase.from("refunds").select("amount, created_at, method, reason, sales!inner(customer_id, sale_number)").in("method", codes) : Promise.resolve({ data: [] as never[] }),
         supabase.from("customer_adjustments").select("*").order("created_at"),
       ]);
       const entries: Record<string, Entry[]> = {};
       const push = (id: string, e: Entry) => (entries[id] ??= []).push(e);
-      for (const p of (sp.data ?? []) as { amount: number; currency: string; sales: { customer_id: string; created_at: string; exchange_rate: number; sale_number: string } }[]) {
-        const usd = p.currency === "ZiG" ? Number(p.amount) / Number(p.sales.exchange_rate) : Number(p.amount);
+      for (const p of (sp.data ?? []) as { amount: number; currency: string; exchange_rate: number; sales: { customer_id: string; created_at: string; exchange_rate: number; sale_number: string } }[]) {
+        const usd = Number(p.amount) / Number(p.exchange_rate);
         push(p.sales.customer_id, { date: p.sales.created_at, kind: "sale", ref: p.sales.sale_number, debit: Math.round(usd * 100) / 100, credit: 0, note: "Sale on account" });
       }
       for (const p of pays.data ?? []) {
@@ -224,7 +224,7 @@ function PayDialog({ customer, owed, onClose }: { customer: Customer; owed: numb
         <p className="text-sm text-muted-foreground">Owes {money(owed)}. Cash goes into your open shift's drawer.</p>
         <div className="flex gap-2">
           <Input type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} aria-label="Amount" className="tabular flex-1" />
-          <Select value={currency} onValueChange={setCurrency}><SelectTrigger className="w-24"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem></SelectContent></Select>
+          <Select value={currency} onValueChange={setCurrency}><SelectTrigger className="w-24"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem><SelectItem value="ZAR">Rand</SelectItem></SelectContent></Select>
         </div>
         <Select value={m} onValueChange={setMethod}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{methods.map((t) => <SelectItem key={t.code} value={t.code}>{t.name}</SelectItem>)}</SelectContent></Select>
         <Input placeholder="Reference (optional)" value={ref} onChange={(e) => setRef(e.target.value)} />

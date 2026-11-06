@@ -21,7 +21,7 @@ export interface ReceiptData {
 }
 
 export function Receipt({ r }: { r: ReceiptData }) {
-  const cv = (usd: number) => (r.currency === "ZiG" ? usd * r.rate : usd);
+  const cv = (usd: number) => (r.currency !== "USD" ? usd * r.rate : usd);
   const { data: st } = useSettings();
   return (
     <div id="receipt-print" className="mx-auto w-full max-w-[320px] bg-card p-4 font-mono text-xs text-card-foreground">
@@ -46,7 +46,7 @@ export function Receipt({ r }: { r: ReceiptData }) {
       <div className="flex justify-between"><span>Subtotal</span><span>{money(cv(r.subtotal), r.currency)}</span></div>
       {r.discount > 0 && <div className="flex justify-between"><span>Discount</span><span>-{money(cv(r.discount), r.currency)}</span></div>}
       <div className="flex justify-between text-sm font-bold"><span>TOTAL</span><span>{money(cv(r.total), r.currency)}</span></div>
-      {r.currency === "ZiG" && <div className="text-right opacity-70">= {money(r.total)} @ {r.rate}</div>}
+      {r.currency !== "USD" && <div className="text-right opacity-70">= {money(r.total)} @ {r.rate}</div>}
       <div className="my-2 border-t border-dashed border-foreground/40" />
       {r.payments.map((p, k) => (
         <div key={k} className="flex justify-between"><span>{methodLabel(p.method)} ({p.currency})</span><span>{money(p.amount, p.currency)}</span></div>
@@ -59,7 +59,7 @@ export function Receipt({ r }: { r: ReceiptData }) {
 
 export function ReceiptActions({ r }: { r: ReceiptData }) {
   async function share() {
-    const text = `${r.business}\n${r.sale_number}\nTotal: ${money(r.currency === "ZiG" ? r.total * r.rate : r.total, r.currency)}\nThank you!`;
+    const text = `${r.business}\n${r.sale_number}\nTotal: ${money(r.currency !== "USD" ? r.total * r.rate : r.total, r.currency)}\nThank you!`;
     if (navigator.share) await navigator.share({ title: r.sale_number, text }).catch(() => {});
     else { await navigator.clipboard.writeText(text); toast.success("Receipt copied"); }
   }
