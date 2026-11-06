@@ -37,4 +37,3 @@
 - Offline shifts are created on the device (src/lib/offline.ts LocalShift) with a client UUID and uploaded via idempotent `open_offline_shift` before any queued sale. Why: offline sales must always have a real shift to attach to.
 - Offline till PIN unlock keeps only a PBKDF2 hash plus that cashier's own saved sign-in on the device (src/lib/offline-pin.ts), only after an online PIN sign-in there, with a local 5-try lock. Why: the server PIN store stays unreadable; offline unlock can't admit someone who never signed in on that till.
 
-- Till hardware config is device-local (src/lib/hardware.ts, ESC/POS in escpos.ts); network printers need an HTTP print address. Why: browsers lack raw TCP.
