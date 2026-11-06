@@ -1497,6 +1497,7 @@ export type Database = {
           prices_include_vat: boolean
           provision_after_days: number
           rand_rate: number
+          receipt_config: Json
           receipt_footer: string
           store_id: string | null
           tax_number: string
@@ -1527,6 +1528,7 @@ export type Database = {
           prices_include_vat?: boolean
           provision_after_days?: number
           rand_rate?: number
+          receipt_config?: Json
           receipt_footer?: string
           store_id?: string | null
           tax_number?: string
@@ -1557,6 +1559,7 @@ export type Database = {
           prices_include_vat?: boolean
           provision_after_days?: number
           rand_rate?: number
+          receipt_config?: Json
           receipt_footer?: string
           store_id?: string | null
           tax_number?: string
