@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Pencil, History, ArrowUpDown, AlertTriangle } from "lucide-react";
+import { Plus, Pencil, History, ArrowUpDown, AlertTriangle, Camera } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaff } from "@/hooks/use-staff";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,13 @@ import { money } from "@/lib/pos";
 import { catOptions } from "@/lib/categories";
 import { stockCorrection } from "@/lib/receiving";
 import type { Database } from "@/integrations/supabase/types";
+import { ProductCamera } from "@/components/ProductCamera";
+import { compressProductPhoto } from "@/lib/product-photo";
 
 type Product = Database["public"]["Tables"]["products"]["Row"];
 
 export const Route = createFileRoute("/_authenticated/inventory")({
-  head: () => ({ meta: [{ title: "Inventory — Tilla POS" }, { name: "description", content: "Products and stock levels." }] }),
+  head: () => ({ meta: [{ title: "Inventory — Tilla POS" }, { name: "description", content: "Manage Tilla POS products, stock corrections and product photos." }, { property: "og:title", content: "Inventory — Tilla POS" }, { property: "og:description", content: "Manage products, stock corrections and product photos." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: InventoryPage,
 });
 
@@ -125,6 +127,7 @@ function Stat({ label, value, warn }: { label: string; value: string; warn?: boo
 
 function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => void }) {
   const qc = useQueryClient();
+  const { data: me } = useStaff();
   const [f, setF] = useState<Partial<Product>>(p);
   const isNew = !p.id;
   const { data: cats = [] } = useQuery({ queryKey: ["categories"], queryFn: async () => (await supabase.from("categories").select("*").order("name")).data ?? [] });
@@ -132,18 +135,21 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [reason, setReason] = useState("");
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   async function upload(file: File) {
-    if (file.size > 5 * 1024 * 1024) { toast.error("Photo must be under 5 MB"); return; }
+    if (!me?.storeId) throw new Error("Wait for your store to load");
     setUploading(true);
-    const path = `${crypto.randomUUID()}.${file.name.split(".").pop() || "jpg"}`;
-    const { error } = await supabase.storage.from("product-images").upload(path, file, { contentType: file.type });
-    if (error) { setUploading(false); toast.error(error.message); return; }
-    const { data, error: e2 } = await supabase.storage.from("product-images").createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-    setUploading(false);
-    if (e2 || !data) { toast.error(e2?.message ?? "Upload failed"); return; }
-    set("image_url", data.signedUrl);
-    toast.success("Photo added — press Save to keep it");
+    try {
+      const image = await compressProductPhoto(file);
+      const path = `${me.storeId}/${crypto.randomUUID()}.jpg`;
+      const { error } = await supabase.storage.from("product-images").upload(path, image, { contentType: "image/jpeg" });
+      if (error) throw new Error(error.message);
+      const { data, error: e2 } = await supabase.storage.from("product-images").createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+      if (e2 || !data) throw new Error(e2?.message ?? "Upload failed");
+      set("image_url", data.signedUrl);
+      toast.success("Photo added — press Save to keep it");
+    } finally { setUploading(false); }
   }
 
   async function save() {
@@ -192,8 +198,9 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
           <div className="space-y-1.5"><Label>Product photo</Label>
             <div className="flex items-center gap-3">
               {f.image_url && <img src={f.image_url} alt="" className="h-12 w-12 rounded-md border object-cover" />}
-              <Input type="file" accept="image/*" disabled={uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) void upload(file); }} />
+              <Input aria-label="Choose product photo" type="file" accept="image/*" disabled={uploading} onChange={(e) => { const file = e.target.files?.[0]; if (file) void upload(file).catch((error) => toast.error(error instanceof Error ? error.message : "Upload failed")); }} />
             </div>
+            <Button type="button" variant="outline" disabled={uploading} onClick={() => setCameraOpen(true)}><Camera className="h-4 w-4" />Take photo</Button>
             {uploading && <p className="text-xs text-muted-foreground">Uploading…</p>}
             {f.image_url && !uploading && <button type="button" className="text-xs text-destructive underline" onClick={() => set("image_url", null)}>Remove photo</button>}
           </div>
@@ -214,6 +221,7 @@ function ProductDialog({ p, onClose }: { p: Partial<Product>; onClose: () => voi
           <Button onClick={save} disabled={uploading || saving} className="flex-1">{saving ? "Saving…" : "Save changes"}</Button>
         </div>
       </DialogContent>
+      {cameraOpen && <ProductCamera onPhoto={upload} onClose={() => setCameraOpen(false)} />}
     </Dialog>
   );
 }
