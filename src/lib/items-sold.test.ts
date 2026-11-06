@@ -9,6 +9,6 @@ describe("summarizeItemsSold", () => {
       { product_id: "b", name: "Milk", quantity: 1, refunded_qty: 0, line_total: 1.5 },
     ]);
     expect(r[0]).toEqual({ name: "Bread", sold: 5, refunded: 1, net: 4, total: 5 });
-    expect(r[1].net).toBe(1);
+    expect(r[1]?.net).toBe(1);
   });
 });
