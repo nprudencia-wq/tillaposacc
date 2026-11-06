@@ -11,6 +11,8 @@ import { pinLogin } from "@/lib/pin.functions";
 import { loginEmail } from "@/lib/username";
 import { checkOfflinePin, rememberPin } from "@/lib/offline-pin";
 import { authStorageKey } from "@/lib/offline-session";
+import { isNetworkError } from "@/lib/offline";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -34,6 +36,7 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
   const [pin, setPin] = useState("");
   const pinFn = useServerFn(pinLogin);
+  const qc = useQueryClient();
   const [recent, setRecent] = useState<string[]>([]);
   useEffect(() => {
     try { const r = JSON.parse(localStorage.getItem("tilla-recent-users") || "[]"); setRecent(r); if (r[0]) setEmail(r[0]); } catch { /* none */ }
@@ -56,15 +59,29 @@ function AuthPage() {
     setBusy(true);
     try {
       if (mode === "pin") remember(email);
-      if (mode === "pin" && !navigator.onLine) {
+      const offlineUnlock = async () => {
         const r = await checkOfflinePin(email, pin);
         if (!r.ok) throw new Error(r.reason);
-        // Put this cashier's saved sign-in back, then reload so the whole till picks it up.
+        // Put this cashier's saved sign-in back and open the till without reloading the page.
         localStorage.setItem(authStorageKey(), r.session);
-        window.location.assign("/pos");
+        await qc.resetQueries();
+        navigate({ to: "/pos", replace: true });
+      };
+      if (mode === "pin" && !navigator.onLine) {
+        await offlineUnlock();
         return;
       } else if (mode === "pin") {
-        const { tokenHash } = await pinFn({ data: { username: email, pin } });
+        let tokenHash: string;
+        try {
+          ({ tokenHash } = await Promise.race([
+            pinFn({ data: { username: email, pin } }),
+            new Promise<never>((_, rej) => setTimeout(() => rej(new Error("Failed to fetch")), 8000)),
+          ]));
+        } catch (err) {
+          // Wi-Fi with no internet still reports "online": fall back to this till's saved PIN.
+          if (isNetworkError(err)) { await offlineUnlock(); return; }
+          throw err;
+        }
         const { data: v, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
         if (error || !v.session) throw new Error("Couldn't sign in, try your password");
         void rememberPin(email, pin, v.session.user.id, v.session).catch(() => { /* offline unlock just won't be available */ });

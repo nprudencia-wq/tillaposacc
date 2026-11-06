@@ -7,8 +7,13 @@ import { PERMISSIONS, effectivePermission, type Permission } from "@/lib/usernam
 export function useStaff() {
   return useQuery({
     queryKey: ["me"],
-    queryFn: () => cached("me", async () => {
-      const user = (await deviceSession())?.user;
+    queryFn: async () => {
+      // Restore this cashier's store scope first so the saved profile can be read offline.
+      const u = (await deviceSession())?.user;
+      const savedStore = u ? localStorage.getItem(`tilla-membership:${u.id}`) : null;
+      if (u && savedStore) setOfflineScope({ storeId: savedStore, userId: u.id });
+      return cached("me", async () => {
+      const user = u;
       if (!user) { setOfflineScope(null); return null; }
       const membershipKey = `tilla-membership:${user.id}`;
       const { data: membership, error: membershipError } = await supabase.from("store_memberships").select("store_id").eq("user_id", user.id).single();
@@ -47,7 +52,8 @@ export function useStaff() {
         perms: Object.fromEntries((Object.keys(PERMISSIONS) as Permission[]).map((p) => [p, can(p)])) as Record<Permission, boolean>,
         backOffice: list.some((r) => r !== "cashier") || (Object.keys(overrides) as Permission[]).some((p) => (p.startsWith("module_") || p === "view_reports") && overrides[p]),
       };
-    }),
+    });
+    },
   });
 }
 
