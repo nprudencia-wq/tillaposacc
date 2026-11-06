@@ -96,13 +96,13 @@ function CustomersPage() {
   // Monthly interest is raised automatically (once per customer per month) when a manager opens this page.
   const raised = useRef(false);
   useEffect(() => {
-    if (raised.current || !me?.canManagePaymentTypes || !ledger) return;
+    if (raised.current || !me?.canManagePaymentTypes || !ledger || !settings || settings.interest_auto === false) return;
     raised.current = true;
     supabase.rpc("raise_debtor_interest").then(({ data, error }) => {
       if (error) return;
       if (data && data > 0) { toast.success(`Monthly interest added to ${data} customer${data > 1 ? "s" : ""}`); qc.invalidateQueries({ queryKey: ["customer-ledger"] }); }
     });
-  }, [me, ledger, qc]);
+  }, [me, ledger, qc, settings]);
   const shown = rows.filter(({ c }) => !q || c.name.toLowerCase().includes(q.toLowerCase()) || c.phone?.includes(q));
   const totalDebt = rows.reduce((s, r) => s + r.a.total, 0);
   const debtors = rows.filter((r) => r.a.total > 0.004);
@@ -336,6 +336,22 @@ function DebtorRules({ settings, canEdit }: { settings: ReturnType<typeof useSet
     toast.success("Debtor rules saved"); setF(null);
     qc.invalidateQueries({ queryKey: ["settings"] });
   };
+  const auto_ = settings?.interest_auto !== false;
+  const [busy, setBusy] = useState(false);
+  const setMode = async (auto: boolean) => {
+    const { error } = await supabase.rpc("save_interest_mode", { p_auto: auto });
+    if (error) { toast.error(error.message); return; }
+    toast.success(auto ? "Interest will be raised automatically" : "Interest will be raised manually");
+    qc.invalidateQueries({ queryKey: ["settings"] });
+  };
+  const raiseNow = async () => {
+    setBusy(true);
+    const { data, error } = await supabase.rpc("raise_debtor_interest");
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(data && data > 0 ? `Monthly interest added to ${data} customer${data > 1 ? "s" : ""}` : "No interest due — already raised this month or no overdue debt");
+    qc.invalidateQueries({ queryKey: ["customer-ledger"] });
+  };
   const field = (k: keyof typeof v, label: string) => (
     <div><Label htmlFor={`dr-${k}`}>{label}</Label><Input id={`dr-${k}`} type="number" min="0" className="w-28" value={v[k]} disabled={!canEdit} onChange={(e) => setF({ ...v, [k]: e.target.value })} /></div>
   );
@@ -343,7 +359,18 @@ function DebtorRules({ settings, canEdit }: { settings: ReturnType<typeof useSet
     <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card p-3 text-sm">
       {field("i", "Interest % / month")}{field("id", "After days overdue")}{field("p", "Bad debt provision %")}{field("pd", "On debt older than (days)")}
       {canEdit && f && <Button size="sm" onClick={save}>Save rules</Button>}
-      <p className="basis-full text-muted-foreground">Simple interest is added once a month to debt older than the set days. The provision is a reserve in your accounts only — it does not change what customers owe.</p>
+      <div className="basis-full flex flex-wrap items-center gap-2">
+        <span className="font-medium">Raise interest:</span>
+        <div className="inline-flex rounded-md border p-0.5">
+          {([true, false] as const).map((auto) => (
+            <Button key={String(auto)} size="sm" variant={auto === auto_ ? "default" : "ghost"} disabled={!canEdit} onClick={() => setMode(auto)}>
+              {auto ? "Automatically" : "Manually"}
+            </Button>
+          ))}
+        </div>
+        <Button size="sm" variant="outline" disabled={busy} onClick={raiseNow}>Raise interest now</Button>
+      </div>
+      <p className="basis-full text-muted-foreground">{auto_ ? "Interest is added automatically when an owner or manager opens this page." : "Interest is only added when you press “Raise interest now”."} Each customer is charged at most once per month. Simple interest is added to debt older than the set days. The provision is a reserve in your accounts only — it does not change what customers owe.</p>
     </div>
   );
 }
