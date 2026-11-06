@@ -115,7 +115,7 @@ function AuthPage() {
                 </div>
               )}
               <div className="flex justify-center gap-3 py-2" aria-label={`${pin.length} digits entered`}>
-                {Array.from({ length: 6 }).map((_, i) => (
+                {Array.from({ length: 4 }).map((_, i) => (
                   <span key={i} className={`h-4 w-4 rounded-full border-2 border-primary ${i < pin.length ? "bg-primary" : ""}`} />
                 ))}
               </div>
