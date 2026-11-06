@@ -3,7 +3,7 @@ import ts from "typescript";
 import { describe, expect, it, vi } from "vitest";
 
 // Exercise the existing handlers, with shop writes mocked so tests cannot sell live stock.
-const source = readFileSync(new URL("../routes/_authenticated/pos.tsx", import.meta.url), "utf8");
+const source = readFileSync("src/routes/_authenticated/pos.tsx", "utf8");
 const ast = ts.createSourceFile("pos.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 function handler(name: string, dependencies: Record<string, unknown>) {
   let text = "";
@@ -56,7 +56,10 @@ describe("Till completion tracking", () => {
     handler("saveOffline", dependencies)(payment);
     expect(enqueueSale).toHaveBeenCalledOnce();
     expect(track).toHaveBeenCalledExactlyOnceWith("project.till_sale_completed", { mode: "offline", currency: "USD" });
-    expect(enqueueSale.mock.invocationCallOrder[0]).toBeLessThan(track.mock.invocationCallOrder[0]);
+    const savedAt = enqueueSale.mock.invocationCallOrder[0];
+    const trackedAt = track.mock.invocationCallOrder[0];
+    if (savedAt === undefined || trackedAt === undefined) throw new Error("Missing save or tracking call");
+    expect(savedAt).toBeLessThan(trackedAt);
   });
   it("does not count an offline sale when storing it fails", () => {
     const { dependencies, track, enqueueSale } = setup();
