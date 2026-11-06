@@ -281,6 +281,7 @@ export type Database = {
           id: string
           kind: string
           note: string
+          period: string | null
           store_id: string | null
         }
         Insert: {
@@ -291,6 +292,7 @@ export type Database = {
           id?: string
           kind: string
           note?: string
+          period?: string | null
           store_id?: string | null
         }
         Update: {
@@ -301,6 +303,7 @@ export type Database = {
           id?: string
           kind?: string
           note?: string
+          period?: string | null
           store_id?: string | null
         }
         Relationships: [
@@ -1465,16 +1468,20 @@ export type Database = {
       settings: {
         Row: {
           address: string
+          bad_debt_provision_rate: number
           billing_exempt: boolean
           business_name: string
+          debtor_interest_rate: number
           email: string
           grace_days: number
           id: number
+          interest_after_days: number
           logo_url: string
           paid_until: string
           phone: string
           plan_name: string
           plan_price_usd: number
+          provision_after_days: number
           rand_rate: number
           receipt_footer: string
           store_id: string | null
@@ -1488,16 +1495,20 @@ export type Database = {
         }
         Insert: {
           address?: string
+          bad_debt_provision_rate?: number
           billing_exempt?: boolean
           business_name?: string
+          debtor_interest_rate?: number
           email?: string
           grace_days?: number
           id?: number
+          interest_after_days?: number
           logo_url?: string
           paid_until?: string
           phone?: string
           plan_name?: string
           plan_price_usd?: number
+          provision_after_days?: number
           rand_rate?: number
           receipt_footer?: string
           store_id?: string | null
@@ -1511,16 +1522,20 @@ export type Database = {
         }
         Update: {
           address?: string
+          bad_debt_provision_rate?: number
           billing_exempt?: boolean
           business_name?: string
+          debtor_interest_rate?: number
           email?: string
           grace_days?: number
           id?: number
+          interest_after_days?: number
           logo_url?: string
           paid_until?: string
           phone?: string
           plan_name?: string
           plan_price_usd?: number
+          provision_after_days?: number
           rand_rate?: number
           receipt_footer?: string
           store_id?: string | null
@@ -2317,6 +2332,13 @@ export type Database = {
       }
       current_store_id: { Args: never; Returns: string }
       customer_balance: { Args: { p_customer: string }; Returns: number }
+      debtor_overdue: {
+        Args: { p_asof: string; p_days: number }
+        Returns: {
+          amount: number
+          customer_id: string
+        }[]
+      }
       decide_subscription_payment: {
         Args: { p_approve: boolean; p_note: string; p_payment: string }
         Returns: undefined
@@ -2327,6 +2349,18 @@ export type Database = {
         Returns: undefined
       }
       gl_lines: {
+        Args: { p_to: string }
+        Returns: {
+          account_code: string
+          credit: number
+          debit: number
+          entry_date: string
+          memo: string
+          reference: string
+          source: string
+        }[]
+      }
+      gl_lines_base: {
         Args: { p_to: string }
         Returns: {
           account_code: string
@@ -2404,6 +2438,7 @@ export type Database = {
         Args: { p_document: string; p_payments: Json }
         Returns: Json
       }
+      raise_debtor_interest: { Args: never; Returns: number }
       receive_customer_payment: {
         Args: {
           p_amount: number
@@ -2487,6 +2522,15 @@ export type Database = {
           p_confirm_rand: boolean
           p_rand_rate: number
           p_zig_rate: number
+        }
+        Returns: undefined
+      }
+      save_debtor_rules: {
+        Args: {
+          p_interest: number
+          p_interest_days: number
+          p_provision: number
+          p_provision_days: number
         }
         Returns: undefined
       }
