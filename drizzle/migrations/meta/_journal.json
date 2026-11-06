@@ -267,6 +267,13 @@
       "when": 1793947388730,
       "tag": "0037_store_scoped_ledger_and_trial_billing",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1793947426411,
+      "tag": "0038_trusted_store_staff_identity",
+      "breakpoints": true
     }
   ]
 }
