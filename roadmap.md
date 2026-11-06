@@ -41,4 +41,4 @@
 - [x] Staff: till PIN login, clock-in/out, activity log, cashier sales performance
 
 - [x] Hybrid offline: IndexedDB catalog + sale queue, auto-sync on reconnect/15s/tab focus
-- [ ] Offline shift open/close without internet (not built yet)
+- [x] Offline shift open/close on device, uploaded in order (open → sales → close); not yet tried end to end
