@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FileDown, FileSpreadsheet } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { canSeeReport } from "@/lib/username";
 import { useStaff, useSettings } from "@/hooks/use-staff";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

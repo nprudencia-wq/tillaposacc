@@ -51,3 +51,19 @@ describe("till PINs", () => {
     expect(isValidPin("12a4")).toBe(false);
   });
 });
+
+import { canOpenReports as _open, canSeeReport as _see } from "./username";
+describe("single report access", () => {
+  it("cashier with only one report allowed can open Reports and sees just that report", () => {
+    const perms = { view_reports: false, report_cashier_items: true } as const;
+    expect(_open(perms)).toBe(true);
+    expect(_see(perms, "cashier-items")).toBe(true);
+    expect(_see(perms, "pl")).toBe(false);
+  });
+  it("blocked report stays hidden even with full report access", () => {
+    expect(_see({ view_reports: true }, "pl", { report_pl: false })).toBe(false);
+  });
+  it("no report rights means no Reports page", () => {
+    expect(_open({ view_reports: false })).toBe(false);
+  });
+});
