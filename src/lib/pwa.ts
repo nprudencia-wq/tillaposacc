@@ -31,8 +31,14 @@ async function unregisterAppSW() {
 export async function setupPWA() {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
   if (refused()) { await unregisterAppSW(); return; }
-  const { registerSW } = await import("virtual:pwa-register");
-  registerSW({ immediate: true });
+  // Register directly so the till's offline copy installs on first open (worker uses skipWaiting + clientsClaim for updates).
+  try {
+    const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+    void reg.update().catch(() => undefined);
+  } catch (e) {
+    console.warn("Offline mode could not be set up", e);
+    return;
+  }
   // Warm the two visited app entry pages through the generated NetworkFirst worker.
   await navigator.serviceWorker.ready;
   if (!navigator.serviceWorker.controller) {

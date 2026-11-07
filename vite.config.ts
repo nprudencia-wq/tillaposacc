@@ -28,6 +28,8 @@ export default defineConfig({
           globPatterns: ["**/*.{js,css,ico,png,svg,woff2,webmanifest}"],
           navigateFallback: null,
           cleanupOutdatedCaches: true,
+          // The build writes browser files under client/, but the site serves them from the root.
+          modifyURLPrefix: { "client/": "" },
           runtimeCaching: [
             {
               urlPattern: ({ request, url, sameOrigin }) => sameOrigin && request.method === "GET" && !url.pathname.startsWith("/~oauth") && (request.mode === "navigate" || url.pathname === "/auth" || url.pathname === "/pos"),
