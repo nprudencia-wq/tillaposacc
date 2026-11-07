@@ -56,7 +56,7 @@ export function Receipt({ r, store, config }: { r: ReceiptData; store?: StoreLik
         {c.show_tax_number && st?.tax_number && <div>VAT/TIN: {st.tax_number}</div>}
       </div>
       <Line />
-      <Row l="Receipt" r={r.sale_number} />
+      <div className="flex gap-2"><span className="shrink-0">Receipt</span><span className="min-w-0 flex-1 break-all text-right">{r.sale_number}</span></div>
       <Row l="Date" r={new Date(r.created_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })} />
       {c.show_cashier && <Row l="Cashier" r={r.cashier} />}
       {c.show_customer && r.customer && <Row l="Customer" r={r.customer} />}

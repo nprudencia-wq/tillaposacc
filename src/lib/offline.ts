@@ -259,15 +259,15 @@ async function syncPendingClose(scope: StoreScope): Promise<boolean> {
   }
   for (const s of readQueue().filter((x) => x.shift_id === p.shift_id)) {
     if (!sameScope(scope) || !belongsToScope(s, scope)) return false;
-    const { error } = await uploadSale(s);
+    const { error } = await networkRead(() => uploadSale(s));
     if (error) window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "sale", network: isNetworkError(error) });
     if (error && isNetworkError(error)) return false;
     await updateUploadedSale(scope, s, error?.message);
     if (error) return false;
   }
-  const { error } = await supabase.rpc("close_offline_shift", {
+  const { error } = await networkRead(() => supabase.rpc("close_offline_shift", {
     p_id: p.shift_id, p_closed_at: p.closed_at, p_actual_usd: p.usd, p_actual_zig: p.zig, p_actual_zar: p.zar, p_notes: p.notes,
-  });
+  }));
   if (error) {
     window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "shift_close", network: isNetworkError(error) });
     return false;
