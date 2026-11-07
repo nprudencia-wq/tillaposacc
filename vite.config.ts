@@ -32,7 +32,24 @@ export default defineConfig({
             {
               urlPattern: ({ request, url, sameOrigin }) => sameOrigin && request.method === "GET" && !url.pathname.startsWith("/~oauth") && (request.mode === "navigate" || url.pathname === "/auth" || url.pathname === "/pos"),
               handler: "NetworkFirst",
-              options: { cacheName: "pages", networkTimeoutSeconds: 4, expiration: { maxEntries: 30 } },
+              options: {
+                cacheName: "pages",
+                networkTimeoutSeconds: 3,
+                expiration: { maxEntries: 30 },
+                plugins: [
+                  {
+                    // Cold launch with no internet: serve any saved app page (till first) instead of the browser offline screen.
+                    handlerDidError: async () => {
+                      const c = await caches.open("pages");
+                      for (const path of ["/pos", "/auth", "/"]) {
+                        const hit = await c.match(new URL(path, self.location.origin).href, { ignoreSearch: true });
+                        if (hit) return hit;
+                      }
+                      return undefined;
+                    },
+                  },
+                ],
+              },
             },
             {
               urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/assets\/[^/]+-[\w-]+\.(?:js|css|woff2|png|svg)$/.test(url.pathname),
