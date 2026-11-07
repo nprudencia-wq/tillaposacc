@@ -69,8 +69,10 @@ function AuthPage() {
     }
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (busy) return;
+    if (!email.trim()) { toast.error("Choose or type your username"); setPin(""); return; }
     if (mode === "pin" && pin.length < 4) { toast.error("Enter your 4-digit PIN"); return; }
     setBusy(true);
     try {
@@ -120,10 +122,27 @@ function AuthPage() {
       }
     } catch (err) {
       toast.error((err as Error).message);
+      if (mode === "pin") setPin("");
     } finally {
       setBusy(false);
     }
   }
+
+  const [online, setOnline] = useState(true);
+  const [picking, setPicking] = useState(false);
+  useEffect(() => {
+    const u = () => setOnline(navigator.onLine && internetAvailable());
+    u();
+    window.addEventListener("online", u); window.addEventListener("offline", u);
+    const t = setInterval(u, 3000);
+    return () => { window.removeEventListener("online", u); window.removeEventListener("offline", u); clearInterval(t); };
+  }, []);
+  useEffect(() => {
+    if (mode === "pin" && pin.length === 4 && !busy) void submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin]);
+  const initials = (u: string) => u.replace(/@.*/, "").split(/[\s._-]+/).filter(Boolean).slice(0, 2).map((x) => x[0]).join("").toUpperCase() || "?";
+  const press = (d: string) => setPin((p) => (p.length < 4 ? p + d : p));
 
   async function google() {
     const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/auth" });
@@ -139,54 +158,81 @@ function AuthPage() {
     }
   }
 
+  const showPicker = picking || !email;
   return (
-    <div className="grid min-h-screen place-items-center bg-sidebar px-4">
-      <div className="w-full max-w-sm rounded-2xl bg-card p-8 shadow-soft">
-        <Link to="/" className="font-display text-xl font-bold">Tilla<span className="text-primary">POS</span></Link>
-        <h1 className="mt-6 text-2xl font-bold">{activation ? "Enable offline PIN" : "Staff sign in"}</h1>
-        {(
-          <div className="mt-4 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1 text-sm font-semibold">
-            <Button type="button" variant={mode === "pin" ? "secondary" : "ghost"} onClick={() => setMode("pin")}>Till PIN</Button>
-            <Button type="button" variant={mode === "in" ? "secondary" : "ghost"} onClick={() => setMode("in")}>Password</Button>
-          </div>
-        )}
-        <p className="mt-1 text-sm text-muted-foreground">
-          {activation ? "Verify your existing 4-digit till PIN to enable offline access on this device." : mode === "pin" ? "Enter your username and till PIN. Your manager sets your PIN on the Staff page." : "Sign in with your username and password. Forgot it? Ask your manager to reset it."}
-        </p>
-        <form onSubmit={submit} className="mt-6 space-y-4">
-          <div className="space-y-1.5"><Label htmlFor="username">Username</Label><Input id="username" autoComplete="username" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+    <div className="flex min-h-screen flex-col bg-sidebar text-sidebar-foreground">
+      <header className="flex items-center justify-between px-5 py-4">
+        <Link to="/" className="font-display text-xl font-bold">Tilla<span className="text-primary">POS</span> <span className="text-sm font-normal opacity-70">· Main Till</span></Link>
+        <span className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${online ? "bg-primary/15 text-primary" : "bg-destructive/15 text-destructive"}`}>
+          <span className={`h-2 w-2 rounded-full ${online ? "bg-primary" : "bg-destructive"}`} />{online ? "Online" : "Offline — till still works"}
+        </span>
+      </header>
+      <main className="grid flex-1 place-items-center px-4 pb-8">
+        <div className="w-full max-w-sm rounded-2xl bg-card p-6 text-card-foreground shadow-soft">
           {mode === "pin" ? (
-            <div className="space-y-3">
-              {recent.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {recent.map((u) => (
-                    <Button key={u} type="button" size="sm" variant={email === u ? "default" : "outline"} onClick={() => { setEmail(u); setPin(""); }}>{u}</Button>
-                  ))}
+            <form onSubmit={submit} className="space-y-4">
+              {activation && <p className="text-center text-sm font-semibold">Enable offline PIN on this device</p>}
+              {showPicker ? (
+                <div className="space-y-3">
+                  <p className="text-center text-sm font-semibold">Who is signing in?</p>
+                  {recent.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {recent.map((u) => (
+                        <button key={u} type="button" onClick={() => { setEmail(u); setPin(""); setPicking(false); }} className="flex flex-col items-center gap-1 rounded-xl p-2 hover:bg-muted">
+                          <span className="grid h-12 w-12 place-items-center rounded-full bg-primary text-base font-bold text-primary-foreground">{initials(u)}</span>
+                          <span className="w-full truncate text-xs">{u}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="space-y-1.5"><Label htmlFor="username">Or type username</Label>
+                    <div className="flex gap-2"><Input id="username" autoComplete="username" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} />
+                      <Button type="button" onClick={() => email.trim() && setPicking(false)}>OK</Button></div></div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-1">
+                  <span className="grid h-16 w-16 place-items-center rounded-full bg-primary text-xl font-bold text-primary-foreground">{initials(email)}</span>
+                  <p className="font-semibold">{email}</p>
+                  <button type="button" className="text-xs text-primary underline" onClick={() => { setPicking(true); setPin(""); }}>Tap to switch cashier</button>
                 </div>
               )}
-              <div className="flex justify-center gap-3 py-2" aria-label={`${pin.length} digits entered`}>
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <span key={i} className={`h-4 w-4 rounded-full border-2 border-primary ${i < pin.length ? "bg-primary" : ""}`} />
-                ))}
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {["1","2","3","4","5","6","7","8","9"].map((d) => (
-                  <Button key={d} type="button" variant="outline" className="h-14 text-2xl font-bold" onClick={() => setPin((p) => (p.length < 4 ? p + d : p))}>{d}</Button>
-                ))}
-                <Button type="button" variant="ghost" className="h-14" onClick={() => setPin("")}>Clear</Button>
-                <Button type="button" variant="outline" className="h-14 text-2xl font-bold" onClick={() => setPin((p) => (p.length < 4 ? p + "0" : p))}>0</Button>
-                <Button type="button" variant="ghost" className="h-14" aria-label="Delete digit" onClick={() => setPin((p) => p.slice(0, -1))}>⌫</Button>
-              </div>
-            </div>
+              {!showPicker && (
+                <>
+                  <div className="flex justify-center gap-4 py-1" aria-label={`${pin.length} digits entered`}>
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <span key={i} className={`h-4 w-4 rounded-full border-2 border-primary ${i < pin.length ? "bg-primary" : ""}`} />
+                    ))}
+                  </div>
+                  <p className="text-center text-xs text-muted-foreground">{busy ? "Checking…" : "Enter your 4-digit PIN"}</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {["1","2","3","4","5","6","7","8","9"].map((d) => (
+                      <Button key={d} type="button" variant="outline" disabled={busy} className="h-16 text-2xl font-bold" onClick={() => press(d)}>{d}</Button>
+                    ))}
+                    <Button type="button" variant="ghost" className="h-16" onClick={() => setPin("")}>C</Button>
+                    <Button type="button" variant="outline" disabled={busy} className="h-16 text-2xl font-bold" onClick={() => press("0")}>0</Button>
+                    <Button type="button" variant="ghost" className="h-16 text-xl" aria-label="Delete digit" onClick={() => setPin((p) => p.slice(0, -1))}>⌫</Button>
+                  </div>
+                </>
+              )}
+              {activation && <Button type="button" variant="ghost" className="w-full" onClick={() => navigate({ to: "/pos", replace: true })}>Not now — Open till</Button>}
+            </form>
           ) : (
-            <div className="space-y-1.5"><Label htmlFor="password">Password</Label><Input id="password" autoComplete="current-password" type="password" minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
+            <form onSubmit={submit} className="space-y-4">
+              <h1 className="text-xl font-bold">Manager / Back Office</h1>
+              <p className="text-sm text-muted-foreground">Sign in with your username and password. Forgot it? Ask your manager to reset it.</p>
+              <div className="space-y-1.5"><Label htmlFor="username">Username</Label><Input id="username" autoComplete="username" autoCapitalize="none" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+              <div className="space-y-1.5"><Label htmlFor="password">Password</Label><Input id="password" autoComplete="current-password" type="password" minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
+              <Button type="submit" className="w-full" size="lg" disabled={busy}>Sign in</Button>
+              <Button type="button" variant="outline" className="w-full" onClick={google}>Continue with Google</Button>
+              <Button type="button" variant="ghost" className="w-full" onClick={() => setMode("pin")}>Back to till PIN</Button>
+            </form>
           )}
-          <Button type="submit" className="w-full" size="lg" disabled={busy}>{activation ? "Verify PIN" : "Sign in"}</Button>
-        </form>
-        {activation && <Button variant="ghost" className="mt-2 w-full" onClick={() => navigate({ to: "/pos", replace: true })}>Not now — Open till</Button>}
-        <Button variant="outline" className="mt-3 w-full" onClick={google}>Continue with Google</Button>
-        <p className="mt-6 text-center text-sm text-muted-foreground">Staff accounts are created by your store owner.</p>
-      </div>
+        </div>
+        {mode === "pin" && !activation && (
+          <button type="button" onClick={() => setMode("in")} className="mt-6 text-sm underline opacity-80">Manager / Back Office login</button>
+        )}
+        <p className="mt-3 text-xs opacity-60">Staff accounts are created by your store owner.</p>
+      </main>
     </div>
   );
 }
