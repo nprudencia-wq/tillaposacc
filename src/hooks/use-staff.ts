@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cached, setOfflineScope, isNetworkError } from "@/lib/offline";
 import { internetAvailable, networkRead } from "@/lib/connectivity";
 import { deviceSession } from "@/lib/offline-session";
-import { PERMISSIONS, effectivePermission, type Permission } from "@/lib/username";
+import { PERMISSIONS, effectivePermission, canOpenReports, type Permission } from "@/lib/username";
 
 export function useStaff() {
   return useQuery({
@@ -58,14 +58,15 @@ export async function fetchStaff() {
         canRefund: can("refund"),
         canDiscount: can("give_discount"),
         canPostExpense: can("post_expense"),
-        canViewReports: can("view_reports"),
+        canViewReports: profile?.active !== false && canOpenReports(Object.fromEntries((Object.keys(PERMISSIONS) as Permission[]).map((p) => [p, can(p)]))),
+        permOverrides: overrides,
         canOverridePrice: can("override_price"),
         canManageStaff: list.some((r) => ["admin", "owner", "manager"].includes(r)),
         canManagePaymentTypes: list.some((r) => ["admin", "owner", "manager"].includes(r)),
         isOwner: list.some((r) => ["admin", "owner"].includes(r)),
         // Cashier-only accounts are till users: no back office.
         perms: Object.fromEntries((Object.keys(PERMISSIONS) as Permission[]).map((p) => [p, can(p)])) as Record<Permission, boolean>,
-        backOffice: list.some((r) => r !== "cashier") || (Object.keys(overrides) as Permission[]).some((p) => (p.startsWith("module_") || p === "view_reports") && overrides[p]),
+        backOffice: list.some((r) => r !== "cashier") || (Object.keys(overrides) as Permission[]).some((p) => (p.startsWith("module_") || p.startsWith("report_") || p === "view_reports") && overrides[p]),
       };
     });
 }
