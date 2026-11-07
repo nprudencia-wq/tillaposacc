@@ -1,5 +1,5 @@
 # Roadmap
-- [x] Installed-app offline access: saved-session restore, first-login profile/settings caching, verified identity aliases and PIN activation after other sign-ins; 111 checks passed and signed-in no-internet restore/reload/keypad flow verified without shop transactions.
+- [x] Installed-app offline access: saved-session restore, first-login profile/settings caching, verified identity aliases and PIN activation after other sign-ins; 111 checks passed. Rechecked 2026-11-07 with the owner's downloaded catalog and cloud requests blocked: /auth restored to /pos, disconnected reload stayed on /pos, and an isolated browser-only test PIN opened /pos after clearing the active session. No shop transactions or real staff PINs changed; no runtime errors. Physical installed-app cold launch remains unverified.
 - [ ] Installed-phone cold launch verification requires the user's device after publishing.
 - [x] Full offline till: durable sales/receipts, persistent stock deductions, automatic uploads; signed-in disconnected sale, reload, receipt reopening and browser printing verified. Upload response mocked to preserve live stock.
 - [ ] Offline release verification: actual printer/drawer and published no-internet cold launch require the user's till; real queued-sale financial posting not exercised on live stock.
