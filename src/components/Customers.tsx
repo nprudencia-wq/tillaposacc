@@ -1,3 +1,4 @@
+import { cached } from "@/lib/offline";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -13,11 +14,12 @@ export type Customer = { id: string; name: string; phone: string | null; email: 
 export function useCustomers() {
   return useQuery({
     queryKey: ["customers"],
-    queryFn: async () => {
+    queryFn: () => cached("customers", async () => {
       const { data, error } = await supabase.from("customers").select("*").order("name");
       if (error) throw error;
       return (data ?? []).map((c) => ({ ...c, credit_limit: Number(c.credit_limit) })) as Customer[];
-    },
+    }),
+    retry: 1,
   });
 }
 
