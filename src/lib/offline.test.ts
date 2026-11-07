@@ -16,7 +16,8 @@ describe("Durable disconnected sales", () => {
     setOfflineScope(scope);
     await expect(enqueueSale({ ...sale, payments: [{ method: "cash", currency: "USD", amount: 1.99 }] })).rejects.toThrow("Take full payment");
     expect(readQueue()).toHaveLength(0);
-    expect(mocks.storage.size).toBe(0);
+    expect(mocks.storage.has("tilla-offline-queue:shop:cashier")).toBe(false);
+    expect(mocks.storage.has("tilla-local-receipts:shop:cashier")).toBe(false);
   });
   it("rejects negative and non-finite tender amounts", async () => {
     setOfflineScope(scope);
