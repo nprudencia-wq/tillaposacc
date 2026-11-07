@@ -27,6 +27,9 @@ function setup(error: unknown = null) {
     crypto: { randomUUID: () => "test-reference" },
     supabase: { rpc: vi.fn().mockResolvedValue({ data: { sale_number: "test", total: 2, change: 0, rate: 1 }, error }) },
     randEnabled: false, currency: "USD", rate: 1, randRate: 0, shiftId: "shift",
+    saleRef: { current: null }, settings: { business_name: "Shop" }, me: { name: "Cashier" }, subtotal: 2,
+    internetAvailable: () => true, setInternetAvailable: vi.fn(), readLocalShift: async () => null,
+    networkRead: async (run: () => Promise<unknown>) => run(),
     lines: [{ product_id: "product", quantity: 1, unit_price: 2 }],
     products: [{ id: "product", stock: 5 }], discount: 0, total: 2, customer: undefined,
     saleStockError: () => null, currencyRate: () => 1, listPrice: () => 2,
@@ -51,9 +54,9 @@ describe("Till completion tracking", () => {
     expect(finish).not.toHaveBeenCalled();
     expect(track).not.toHaveBeenCalled();
   });
-  it("records offline completion only after the queue save succeeds", () => {
+  it("records offline completion only after the queue save succeeds", async () => {
     const { dependencies, track, enqueueSale } = setup();
-    handler("saveOffline", dependencies)(payment);
+    await handler("saveOffline", dependencies)(payment);
     expect(enqueueSale).toHaveBeenCalledOnce();
     expect(track).toHaveBeenCalledExactlyOnceWith("project.till_sale_completed", { mode: "offline", currency: "USD" });
     const savedAt = enqueueSale.mock.invocationCallOrder[0];
@@ -61,11 +64,18 @@ describe("Till completion tracking", () => {
     if (savedAt === undefined || trackedAt === undefined) throw new Error("Missing save or tracking call");
     expect(savedAt).toBeLessThan(trackedAt);
   });
-  it("does not count an offline sale when storing it fails", () => {
+  it("does not count an offline sale when storing it fails", async () => {
     const { dependencies, track, enqueueSale } = setup();
     enqueueSale.mockImplementation(() => { throw new Error("Storage full"); });
-    expect(() => handler("saveOffline", dependencies)(payment)).toThrow("Storage full");
+    await expect(handler("saveOffline", dependencies)(payment)).rejects.toThrow("Storage full");
     expect(track).not.toHaveBeenCalled();
+  });
+  it("reuses the online reference when a response is lost", async () => {
+    const { dependencies, saveOffline } = setup({ message: "Failed to fetch" });
+    dependencies.isNetworkError = () => true;
+    await handler("complete", dependencies)(payment);
+    expect(saveOffline).toHaveBeenCalledWith(expect.any(Array), "TILL-test-reference");
+    expect(dependencies.supabase.rpc).toHaveBeenCalledWith("complete_sale_once", expect.objectContaining({ p_client_ref: "TILL-test-reference" }));
   });
   it("keeps checkout working when tracking is unavailable", async () => {
     const { dependencies, finish } = setup();

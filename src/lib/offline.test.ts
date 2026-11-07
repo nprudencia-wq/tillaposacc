@@ -1,0 +1,34 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+const mocks = vi.hoisted(() => ({ storage: new Map<string, unknown>(), fail: false, rpc: vi.fn() }));
+vi.mock("@/lib/local-db", () => ({
+  idbGet: async (k: string) => mocks.storage.get(k),
+  idbSet: async (k: string, v: unknown) => { if (mocks.fail) throw new Error("Storage full"); mocks.storage.set(k, structuredClone(v)); },
+  idbSetMany: async (entries: [string, unknown][]) => { if (mocks.fail) throw new Error("Storage full"); entries.forEach(([k, v]) => mocks.storage.set(k, structuredClone(v))); },
+}));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.rpc, from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ data: {}, error: null }) }) }) }) } }));
+import { enqueueSale, readQueue, setOfflineScope, stockAfterQueue, syncQueue, type QueuedSale } from "./offline";
+const scope = { storeId: "shop", userId: "cashier" };
+const sale: QueuedSale = { client_ref: "sale-1", sold_at: "2026-11-07T13:00:00Z", shift_id: "shift", currency: "USD", discount: 0, items: [{ product_id: "bread", quantity: 2 }], payments: [{ method: "cash", currency: "USD", amount: 2 }], total: 2 };
+beforeEach(() => { mocks.storage.clear(); mocks.fail = false; mocks.rpc.mockReset(); localStorage.clear(); setOfflineScope(null); });
+describe("Durable disconnected sales", () => {
+  it("restores queued sales and deducted quantities after reload", async () => {
+    setOfflineScope(scope); await enqueueSale(sale);
+    setOfflineScope(null); setOfflineScope(scope);
+    await enqueueSale({ ...sale, client_ref: "sale-2", items: [{ product_id: "bread", quantity: 1 }] });
+    expect(readQueue()).toHaveLength(2);
+    expect(stockAfterQueue([{ id: "bread", stock: 5 }])[0]?.stock).toBe(2);
+  });
+  it("does not accept a sale when durable storage fails", async () => {
+    setOfflineScope(scope); await enqueueSale(sale); mocks.fail = true;
+    await expect(enqueueSale({ ...sale, client_ref: "lost" })).rejects.toThrow("Storage full");
+    expect(readQueue().map((s) => s.client_ref)).toEqual(["sale-1"]);
+  });
+  it("retries the same reference and never removes a rejected upload", async () => {
+    setOfflineScope(scope); await enqueueSale(sale);
+    mocks.rpc.mockResolvedValueOnce({ error: { message: "Rejected" } });
+    await syncQueue(); expect(readQueue()[0]?.error).toBe("Rejected");
+    mocks.rpc.mockResolvedValueOnce({ error: null });
+    await syncQueue(); expect(readQueue()).toHaveLength(0);
+    expect(mocks.rpc.mock.calls.map((c) => c[1].p_client_ref)).toEqual(["sale-1", "sale-1"]);
+  });
+});

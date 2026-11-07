@@ -190,7 +190,7 @@ function Till({ shiftId }: { shiftId: string }) {
     const at = new Date().toISOString();
     const change = Math.max(0, Math.round((paidUSD(paid, rate, randRate) - total) * 100) / 100);
     const snapshot: ReceiptData = {
-      sale_number: ref, created_at: at, business: settings?.business_name ?? "", cashier: me?.name ?? "", customer: customer?.name,
+      sale_number: ref, created_at: at, business: settings?.business_name ?? "", cashier: me?.name ?? "", customer: customer?.name ?? null,
       currency, rate: currency === "ZAR" ? randRate : rate, total, change, subtotal, discount, payments: paid,
       items: lines.map((l) => ({ name: l.name, quantity: l.quantity, unit_price: l.unit_price, line_total: l.unit_price * l.quantity })),
     };
@@ -221,7 +221,10 @@ function Till({ shiftId }: { shiftId: string }) {
     if (!internetAvailable() && overridden) { toast.error("Changed prices need the internet. Undo the price change or wait to reconnect."); return; }
     const ref = saleRef.current ?? `TILL-${crypto.randomUUID()}`;
     saleRef.current = ref;
-    if (!internetAvailable() || await readLocalShift()) { await saveOffline(paid, ref); return; }
+    if (!internetAvailable() || await readLocalShift()) {
+      if (onAccount || overridden) { toast.error("Upload this shift before using account payments or changed prices"); return; }
+      await saveOffline(paid, ref); return;
+    }
     let result;
     try { result = await networkRead(() => supabase.rpc("complete_sale_once", {
       p_client_ref: ref,
@@ -447,7 +450,7 @@ function PayDialog({ total, currency, rate, randRate, onClose, onPay }: {
             </div>
             {change > 0 && currency === "USD" && <div className="text-right text-xs text-muted-foreground">or {money(fromUSD(change, "ZiG", rate), "ZiG")}</div>}
           </div>
-          <Button size="lg" className="h-14 w-full text-lg" disabled={change < 0 || busy}
+          <Button size="lg" className="h-14 w-full text-lg" disabled={change < 0 || busy || !methods.length}
             onClick={async () => { setBusy(true); try { await onPay(payments); } catch (e) { toast.error(e instanceof Error ? e.message : "Sale not saved. Keep this sale open and try again."); } finally { setBusy(false); } }}>
             Complete sale
           </Button>

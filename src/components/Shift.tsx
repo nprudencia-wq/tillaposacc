@@ -13,7 +13,7 @@ import { methodLabel } from "@/lib/payment-types";
 import { summarizeItemsSold, type SoldSummary } from "@/lib/items-sold";
 import { useStaff } from "@/hooks/use-staff";
 import { deviceSession } from "@/lib/offline-session";
-import { internetAvailable, networkRead } from "@/lib/connectivity";
+import { internetAvailable } from "@/lib/connectivity";
 
 export type ShiftSummary = {
   shift: {
@@ -85,15 +85,6 @@ export function OpenShiftGate() {
     // Always give an opening a stable local ID; the idempotent uploader creates it online.
     await openOffline();
     if (navigator.onLine) void syncQueue().then(() => qc.invalidateQueries({ queryKey: ["open-shift"] }));
-    return;
-    /*
-    const { error } = await supabase.rpc("open_shift_three", { p_float_zar: floats.zar, p_float_usd: floats.usd, p_float_zig: floats.zig });
-    if (error && isNetworkError(error)) { await openOffline(); return; }
-    setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Shift opened");
-    qc.invalidateQueries({ queryKey: ["open-shift"] });
-    */
   }
   return (
     <div className="grid min-h-[70vh] place-items-center p-6">
