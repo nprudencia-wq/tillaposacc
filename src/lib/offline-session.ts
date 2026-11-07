@@ -29,9 +29,8 @@ export async function hasDeviceLogin(): Promise<boolean> {
   if (navigator.onLine) {
     const res = await withTimeout(supabase.auth.getUser(), 5000);
     if (res?.data.user) return true;
-    // A real "not signed in" answer from the server means signed out; no answer means no internet.
+    // Signed out on this device: nothing saved to fall back to.
     if (res && !res.error) return false;
-    if (res?.error && (res.error as { status?: number }).status && (res.error as { status?: number }).status! < 500 && !savedSession()) return false;
   }
   return !!(await deviceSession());
 }
