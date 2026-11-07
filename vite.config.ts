@@ -30,7 +30,7 @@ export default defineConfig({
           cleanupOutdatedCaches: true,
           runtimeCaching: [
             {
-              urlPattern: ({ request, url }) => request.mode === "navigate" && !url.pathname.startsWith("/~oauth"),
+              urlPattern: ({ request, url, sameOrigin }) => sameOrigin && request.method === "GET" && !url.pathname.startsWith("/~oauth") && (request.mode === "navigate" || url.pathname === "/auth" || url.pathname === "/pos"),
               handler: "NetworkFirst",
               options: { cacheName: "pages", networkTimeoutSeconds: 4, expiration: { maxEntries: 30 } },
             },

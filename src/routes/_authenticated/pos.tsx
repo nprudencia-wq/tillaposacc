@@ -59,6 +59,7 @@ function Till({ shiftId }: { shiftId: string }) {
   const qc = useQueryClient();
   const { data: me } = useStaff();
   const { data: settings } = useSettings();
+  usePaymentTypes(); // Download shop tenders before a connection drops, not on first payment.
   const rate = settings?.zig_rate ?? 1;
   const randEnabled = randCheckoutEnabled(settings?.rand_rate ?? 0, settings?.rand_confirmed_rate);
   const randRate = randEnabled ? settings?.rand_rate ?? 0 : 0;
