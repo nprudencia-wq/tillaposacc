@@ -164,7 +164,7 @@ function Till({ shiftId }: { shiftId: string }) {
   }
 
   const subtotal = cartSubtotal(lines);
-  const discount = resolveDiscount(subtotal, discKind, discVal);
+  const discount = me?.canDiscount ? resolveDiscount(subtotal, discKind, discVal) : 0;
   const total = Math.round((subtotal - discount) * 100) / 100;
   const show = (usd: number) => money(fromUSD(usd, currency, rate, randRate), currency);
 

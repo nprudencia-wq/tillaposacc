@@ -14,6 +14,11 @@ describe("username logins", () => {
 });
 
 describe("access rights", () => {
+  it("cashiers require an explicit Allow to discount", () => {
+    expect(effectivePermission(["cashier"], "give_discount", {})).toBe(false);
+    expect(effectivePermission(["cashier"], "give_discount", { give_discount: true })).toBe(true);
+    expect(effectivePermission(["supervisor"], "give_discount", {})).toBe(true);
+  });
   it("cashier cannot refund by default", () => {
     expect(effectivePermission(["cashier"], "refund", {})).toBe(false);
   });
