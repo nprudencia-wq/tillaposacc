@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_authenticated")({
 
 const navGroups = [
   { title: "", items: [
-    { to: "/pos", label: "Till", icon: ShoppingCart },
+    { to: "/pos", label: "Open till", icon: ShoppingCart },
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   ] },
   { title: "Inventory & stock", items: [
@@ -72,15 +72,24 @@ function AppLayout() {
   }
 
   // Till-only staff (cashiers): no back office, just the till with a clear sign-out.
-  if (me && !me.backOffice) {
+  // The till is a full-screen counter for everyone: no admin menu. Back-office staff get one button out.
+  if ((me && !me.backOffice) || pathname === "/pos") {
     if (pathname !== "/pos") return <Navigate to="/pos" replace />;
     return (
-      <div className="flex min-h-screen flex-col">
+      <div className="flex h-screen flex-col overflow-hidden">
         <header className="flex flex-wrap items-center justify-between gap-3 bg-sidebar px-4 py-2 text-sidebar-foreground print:hidden">
-          <div className="font-display text-lg font-bold">Tilla<span className="text-sidebar-primary">POS</span></div>
+          <div className="flex items-center gap-3">
+            <div className="font-display text-lg font-bold">Tilla<span className="text-sidebar-primary">POS</span></div>
+            <span className="rounded bg-sidebar-accent px-2 py-0.5 text-xs font-semibold uppercase tracking-wider">Till</span>
+          </div>
           <div className="flex items-center gap-3">
             <ConnectionDot />
-            <span className="hidden text-sm sm:inline">{me.name}</span>
+            {me && <span className="hidden text-sm sm:inline">{me.name} · {me.roles.map((r) => roleLabels[r] ?? r).join(", ")}</span>}
+            {me?.backOffice && (
+              <Link to="/dashboard" className="flex items-center gap-2 rounded-lg border border-sidebar-border px-3 py-2 text-sm font-semibold hover:bg-sidebar-accent">
+                <LayoutDashboard className="h-4 w-4" />Back office
+              </Link>
+            )}
             <InstallButton />
             <ClockButton />
             <button onClick={signOut} className="flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2 text-sm font-semibold hover:opacity-90">
@@ -88,7 +97,7 @@ function AppLayout() {
             </button>
           </div>
         </header>
-        <main className="min-w-0 flex-1"><SubscriptionBanner /><OfflineBar /><Outlet /></main>
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col"><SubscriptionBanner /><OfflineBar /><div className="min-h-0 flex-1"><Outlet /></div></main>
       </div>
     );
   }
