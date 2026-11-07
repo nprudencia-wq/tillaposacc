@@ -58,6 +58,16 @@ export function changeDueUSD(totalUSD: number, payments: Payment[], zigRate: num
   return round2(paidUSD(payments, zigRate, randRate) - totalUSD);
 }
 
+export function requireFullPayment(total: number, payments: Payment[], zigRate: number, randRate = 0) {
+  if (!Number.isFinite(total) || total < 0 || payments.some((p) => !Number.isFinite(p.amount) || p.amount < 0 || (p.exchange_rate !== undefined && (!Number.isFinite(p.exchange_rate) || p.exchange_rate <= 0)))) {
+    throw new Error("Invalid payment amount");
+  }
+  const paid = paidUSD(payments, zigRate, randRate);
+  if (!Number.isFinite(paid) || Math.round(paid * 100) < Math.round(total * 100)) {
+    throw new Error("Take full payment before finishing an offline sale");
+  }
+}
+
 export function money(amount: number, currency: Currency = "USD") {
   const v = Number(amount || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   return currency === "USD" ? `$${v}` : currency === "ZAR" ? `R ${v}` : `ZiG ${v}`;

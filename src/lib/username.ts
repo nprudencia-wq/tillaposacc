@@ -52,7 +52,7 @@ export const ROLE_DEFAULTS: Record<Permission, string[]> = {
   module_expenses: [...SENIOR, "accountant"],
   module_accounting: [...SENIOR, "accountant"],
   module_settings: SENIOR,
-  give_discount: ["admin", "owner", "manager", "supervisor", "cashier"],
+  give_discount: ["admin", "owner", "manager", "supervisor"],
   refund: ["admin", "owner", "manager", "supervisor"],
   manage_stock: ["admin", "owner", "manager", "stock_controller"],
   post_expense: ["admin", "owner", "manager", "accountant"],
