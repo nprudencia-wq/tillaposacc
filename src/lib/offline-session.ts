@@ -6,12 +6,32 @@ export function authStorageKey(): string {
 }
 
 /** The signed-in session; with no internet, the one saved on this device even if it needs refreshing. */
-export async function deviceSession(): Promise<Session | null> {
-  const { data } = await supabase.auth.getSession();
-  if (data.session || navigator.onLine) return data.session;
+export function savedSession(): Session | null {
   try {
     const raw = localStorage.getItem(authStorageKey());
     const s = raw ? (JSON.parse(raw) as Session) : null;
     return s?.user?.id ? s : null;
   } catch { return null; }
+}
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([p.catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), ms))]);
+}
+
+/** The signed-in session; when the internet is down or slow (even with Wi-Fi on), the one saved on this device. */
+export async function deviceSession(): Promise<Session | null> {
+  const res = await withTimeout(supabase.auth.getSession(), 4000);
+  return res?.data.session ?? savedSession();
+}
+
+/** Route guard check: verify online when reachable, otherwise trust this device's saved sign-in. */
+export async function hasDeviceLogin(): Promise<boolean> {
+  if (navigator.onLine) {
+    const res = await withTimeout(supabase.auth.getUser(), 5000);
+    if (res?.data.user) return true;
+    // A real "not signed in" answer from the server means signed out; no answer means no internet.
+    if (res && !res.error) return false;
+    if (res?.error && (res.error as { status?: number }).status && (res.error as { status?: number }).status! < 500 && !savedSession()) return false;
+  }
+  return !!(await deviceSession());
 }
