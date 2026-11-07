@@ -30,7 +30,6 @@ export async function fetchStaff() {
       }
       if (!resolvedStore) throw new Error("Connect once to download your store account on this till.");
       setOfflineScope({ storeId: resolvedStore, userId: u.id });
-      if (u && savedStore) setOfflineScope({ storeId: savedStore, userId: u.id });
       return cached("me", async () => {
       const user = u;
       if (!user) { setOfflineScope(null); return null; }
@@ -74,13 +73,17 @@ export async function fetchStaff() {
 export function useSettings() {
   return useQuery({
     queryKey: ["settings"],
-    queryFn: () => cached("settings", async () => {
+    queryFn: fetchSettings,
+  });
+}
+
+export function fetchSettings() {
+  return cached("settings", async () => {
       const { data, error } = await supabase.from("settings").select("*").single();
       if (error) throw error;
       if (!data.store_id) throw new Error("Store settings ownership unavailable");
       const { data: confirmation, error: confirmationError } = await supabase.from("currency_confirmations").select("rand_rate,confirmed_at").eq("store_id", data.store_id).maybeSingle();
       if (confirmationError) throw confirmationError;
       return { ...data, zig_rate: Number(data.zig_rate), rand_rate: Number(data.rand_rate), rand_confirmed_rate: confirmation ? Number(confirmation.rand_rate) : null, rand_confirmed_at: confirmation?.confirmed_at ?? null };
-    }),
-  });
+    });
 }
