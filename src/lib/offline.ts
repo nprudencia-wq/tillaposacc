@@ -1,8 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Payment, Currency } from "@/lib/pos";
 import { belongsToScope, scopedStorageKey, type StoreScope } from "@/lib/store-scope";
-import { idbGet, idbSet } from "@/lib/local-db";
+import { idbGet, idbSet, idbSetMany } from "@/lib/local-db";
 import { mergeQueues } from "@/lib/queue-merge";
+import { internetAvailable, networkRead, setInternetAvailable } from "@/lib/connectivity";
+import type { ReceiptData } from "@/components/Receipt";
 
 // Browser-only helpers: call from effects, handlers or query functions (never at module scope).
 
@@ -12,6 +14,15 @@ let activeScope: StoreScope | null = null;
 
 let queueMem: QueuedSale[] = [];
 let queueKeyLoaded: string | null = null;
+let queueReady: Promise<void> = Promise.resolve();
+let writes: Promise<unknown> = Promise.resolve();
+const RECEIPTS_KEY = "tilla-local-receipts";
+function sameScope(scope: StoreScope) { return activeScope?.storeId === scope.storeId && activeScope?.userId === scope.userId; }
+function serialized<T>(run: () => Promise<T>): Promise<T> {
+  const result = writes.then(run, run);
+  writes = result.catch(() => {});
+  return result;
+}
 
 export function setOfflineScope(scope: StoreScope | null) {
   const prev = activeScope;
@@ -19,7 +30,8 @@ export function setOfflineScope(scope: StoreScope | null) {
   if (!scope) { queueMem = []; queueKeyLoaded = null; return; }
   if (prev?.storeId === scope.storeId && prev?.userId === scope.userId) return;
   queueMem = []; queueKeyLoaded = null;
-  void hydrateQueue(scope);
+  queueReady = hydrateQueue(scope);
+  void queueReady.catch(() => {});
 }
 
 /** Load this cashier's queue from IndexedDB, moving any older browser-storage copy across. */
@@ -38,8 +50,7 @@ async function hydrateQueue(scope: StoreScope) {
 }
 
 async function persistQueue(key: string) {
-  try { await idbSet(key, queueMem); }
-  catch { try { localStorage.setItem(key, JSON.stringify(queueMem)); } catch { /* quota */ } }
+  await idbSet(key, queueMem);
 }
 
 export function deviceStorageKey(key: string) {
@@ -50,23 +61,35 @@ export function deviceStorageKey(key: string) {
 export function isNetworkError(e: unknown) {
   if (typeof navigator !== "undefined" && !navigator.onLine) return true;
   const msg = String((e as { message?: string })?.message ?? e ?? "");
-  return /failed to fetch|networkerror|network request failed|load failed|fetch failed/i.test(msg);
+  return /failed to fetch|networkerror|network request failed|load failed|fetch failed|network request timed out/i.test(msg);
 }
 
 /** Run a fetch; remember the result; fall back to the remembered copy when offline. */
 export async function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const scope = activeScope;
   const cacheKey = scope ? scopedStorageKey(CACHE_PREFIX + key, scope) : null;
+  const readLocal = async () => {
+    if (!cacheKey) return undefined;
+    const local = await idbGet<T>(cacheKey).catch(() => undefined);
+    if (local !== undefined) return local;
+    const raw = localStorage.getItem(cacheKey);
+    return raw ? JSON.parse(raw) as T : undefined;
+  };
+  if (!internetAvailable()) {
+    const local = await readLocal();
+    if (local !== undefined) return local;
+    throw new Error("No saved copy on this till. Connect once to download it.");
+  }
   try {
-    const v = await fn();
-    if (cacheKey) void idbSet(cacheKey, v).catch(() => { /* quota */ });
+    const v = await networkRead(fn);
+    setInternetAvailable(true);
+    if (cacheKey) await idbSet(cacheKey, v).catch(() => { /* quota */ });
     return v;
   } catch (e) {
     if (cacheKey && isNetworkError(e)) {
-      const local = await idbGet<T>(cacheKey).catch(() => undefined);
+      setInternetAvailable(false);
+      const local = await readLocal();
       if (local !== undefined) return local;
-      const raw = localStorage.getItem(cacheKey);
-      if (raw) return JSON.parse(raw) as T;
     }
     throw e;
   }
@@ -86,21 +109,54 @@ export type QueuedSale = {
   payments: Payment[];
   total: number;
   error?: string;
+  receipt?: ReceiptData;
 };
 
 export function readQueue(): QueuedSale[] {
   if (!activeScope) return [];
   return queueMem;
 }
-function writeQueue(q: QueuedSale[]) {
+async function writeQueue(q: QueuedSale[]) {
   const key = deviceStorageKey(QUEUE_KEY);
+  await idbSet(key, q);
   queueMem = q;
-  if (queueKeyLoaded === key) void persistQueue(key);
   window.dispatchEvent(new Event("tilla-queue"));
 }
-export function enqueueSale(s: QueuedSale) {
-  if (!activeScope) throw new Error("No store selected for this sale");
-  writeQueue([...readQueue(), { ...s, store_id: activeScope.storeId, user_id: activeScope.userId }]);
+export async function enqueueSale(s: QueuedSale) {
+  const scope = activeScope;
+  if (!scope) throw new Error("No store selected for this sale");
+  await queueReady;
+  await serialized(async () => {
+    if (!sameScope(scope)) throw new Error("Cashier changed. Sign back in before saving this sale.");
+    const q = mergeQueues(queueMem, [{ ...s, store_id: scope.storeId, user_id: scope.userId }]);
+    const entries: [string, unknown][] = [[scopedStorageKey(QUEUE_KEY, scope), q]];
+    if (s.receipt) {
+      const key = scopedStorageKey(RECEIPTS_KEY, scope);
+      const receipts = (await idbGet<ReceiptData[]>(key)) ?? [];
+      entries.push([key, [s.receipt, ...receipts.filter((r) => r.sale_number !== s.client_ref)].slice(0, 500)]);
+    }
+    await idbSetMany(entries);
+    if (!sameScope(scope)) return;
+    queueMem = q;
+    window.dispatchEvent(new Event("tilla-queue"));
+  });
+}
+export async function localReceipts(): Promise<ReceiptData[]> {
+  if (!activeScope) return [];
+  return (await idbGet<ReceiptData[]>(deviceStorageKey(RECEIPTS_KEY))) ?? [];
+}
+export function stockAfterQueue<T extends { id: string; stock: number | string }>(products: T[]): T[] {
+  return products.map((p) => ({ ...p, stock: Number(p.stock) - readQueue().reduce((sum, sale) => sum + sale.items.filter((i) => i.product_id === p.id).reduce((n, i) => n + i.quantity, 0), 0) }));
+}
+export async function hasPendingUploads() {
+  await queueReady;
+  return readQueue().length > 0 || !!(await readLocalShift()) || !!(await readPendingClose());
+}
+async function updateUploadedSale(scope: StoreScope, s: QueuedSale, error?: string) {
+  await serialized(async () => {
+    if (!sameScope(scope)) return;
+    await writeQueue(error ? readQueue().map((x) => x.client_ref === s.client_ref ? { ...x, error } : x) : readQueue().filter((x) => x.client_ref !== s.client_ref));
+  });
 }
 
 let syncing = false;
@@ -127,6 +183,8 @@ export async function readLocalShift(): Promise<LocalShift | null> {
 /** Open a shift on this device only. It uploads (with its original time) before any of its sales. */
 export async function openLocalShift(floats: { usd: number; zig: number; zar: number }): Promise<LocalShift> {
   if (!activeScope) throw new Error("Wait for your store account to load");
+  if (await readLocalShift()) throw new Error("A shift is already open on this till");
+  if (await readPendingClose()) throw new Error("Reconnect to upload the previous shift before opening another");
   const s: LocalShift = {
     id: crypto.randomUUID(), shift_number: "Offline shift", status: "open", opened_at: new Date().toISOString(),
     cashier_id: activeScope.userId, opening_float_usd: floats.usd, opening_float_zig: floats.zig, opening_float_zar: floats.zar, offline: true,
@@ -200,13 +258,12 @@ async function syncPendingClose(scope: StoreScope): Promise<boolean> {
     }
   }
   for (const s of readQueue().filter((x) => x.shift_id === p.shift_id)) {
-    if (!belongsToScope(s, scope)) continue;
+    if (!sameScope(scope) || !belongsToScope(s, scope)) return false;
     const { error } = await uploadSale(s);
     if (error) window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "sale", network: isNetworkError(error) });
     if (error && isNetworkError(error)) return false;
-    const rest = readQueue().filter((x) => x.client_ref !== s.client_ref);
-    if (error) { writeQueue([...rest, { ...s, error: error.message }]); return false; }
-    writeQueue(rest);
+    await updateUploadedSale(scope, s, error?.message);
+    if (error) return false;
   }
   const { error } = await supabase.rpc("close_offline_shift", {
     p_id: p.shift_id, p_closed_at: p.closed_at, p_actual_usd: p.usd, p_actual_zig: p.zig, p_actual_zar: p.zar, p_notes: p.notes,
@@ -230,6 +287,10 @@ export async function syncQueue(): Promise<{ synced: number; failed: number }> {
   let synced = 0, failed = 0, complete = false;
   pendingCloseUploaded = false;
   try {
+    await queueReady;
+    const { error: reachError } = await networkRead(() => supabase.from("store_memberships").select("store_id").eq("user_id", scope.userId).single());
+    if (reachError) { if (isNetworkError(reachError)) setInternetAvailable(false); return { synced, failed }; }
+    setInternetAvailable(true);
     // A shift closed offline goes first (its sales, then its count), so the next shift can't merge into it.
     if (!(await syncPendingClose(scope))) return { synced, failed };
     // Sales need their shift on the server first.
@@ -238,14 +299,17 @@ export async function syncQueue(): Promise<{ synced: number; failed: number }> {
     for (const s of readQueue()) {
       if (activeScope?.storeId !== scope.storeId || activeScope?.userId !== scope.userId) break;
       if (!belongsToScope(s, scope)) { failed++; continue; }
-      const { error } = await uploadSale(s);
+      const { error } = await networkRead(() => uploadSale(s));
       if (activeScope?.storeId !== scope.storeId || activeScope?.userId !== scope.userId) break;
       if (error) window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "sale", network: isNetworkError(error) });
-      if (error && isNetworkError(error)) { complete = false; break; }
-      const rest = readQueue().filter((x) => x.client_ref !== s.client_ref);
-      if (error) { failed++; writeQueue([...rest, { ...s, error: error.message }]); }
-      else { synced++; writeQueue(rest); }
+      if (error && isNetworkError(error)) { setInternetAvailable(false); complete = false; break; }
+      await updateUploadedSale(scope, s, error?.message);
+      if (error) { failed++; complete = false; break; }
+      synced++;
     }
+  } catch (e) {
+    if (isNetworkError(e)) setInternetAvailable(false);
+    else failed++;
   } finally {
     setSyncing(false);
     // Only report a completed sync when something actually uploaded, so idle 15-second checks stay silent.
