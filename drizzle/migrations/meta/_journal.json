@@ -414,6 +414,13 @@
       "when": 1794072876198,
       "tag": "0058_enforce_checkout_discount_authority",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1794078000905,
+      "tag": "0059_migration",
+      "breakpoints": true
     }
   ]
 }
