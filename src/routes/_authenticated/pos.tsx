@@ -252,48 +252,48 @@ function Till({ shiftId }: { shiftId: string }) {
   }
 
   return (
-    <div className="flex h-full flex-col lg:flex-row">
+    <div className="flex h-full flex-col md:flex-row">
       {/* Products */}
-      <section className="flex min-h-0 flex-1 flex-col p-4 lg:p-6">
+      <section className="flex min-h-0 flex-1 flex-col p-2 md:p-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)}
             aria-label="Search products by name, SKU or barcode"
             onKeyDown={(e) => e.key === "Enter" && onSearchEnter()}
-            placeholder="Search name, SKU or scan barcode…" className="h-12 bg-card pl-10 text-base"
+            placeholder="Search name, SKU or scan barcode…" className="h-11 bg-card pl-10 text-base"
           />
         </div>
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-2 flex items-center gap-2">
           <div className="flex shrink-0 gap-1 border-r pr-2">
             <Button size="icon" variant={view === "list" ? "default" : "outline"} title="List view" aria-label="List view" aria-pressed={view === "list"} onClick={() => { setView("list"); localStorage.setItem(deviceStorageKey("tilla-product-view"), "list"); }}><List className="h-4 w-4" /></Button>
             <Button size="icon" variant={view === "tile" ? "default" : "outline"} title="Tile view" aria-label="Tile view" aria-pressed={view === "tile"} onClick={() => { setView("tile"); localStorage.setItem(deviceStorageKey("tilla-product-view"), "tile"); }}><LayoutGrid className="h-4 w-4" /></Button>
           </div>
           <div className="flex min-w-0 gap-2 overflow-x-auto pb-1">
-          <Button size="sm" variant={cat === null ? "default" : "outline"} onClick={() => setCat(null)}>All</Button>
+          <Button size="sm" variant={cat === null ? "default" : "outline"} onClick={() => setCat(null)} className="h-7 shrink-0 rounded-full px-3 text-xs">All</Button>
           {categories.map((c) => (
-            <Button key={c.id} size="sm" variant={cat === c.id ? "default" : "outline"} onClick={() => setCat(c.id)} className="shrink-0">{c.name}</Button>
+            <Button key={c.id} size="sm" variant={cat === c.id ? "default" : "outline"} onClick={() => setCat(c.id)} className="h-7 shrink-0 rounded-full px-3 text-xs">{c.name}</Button>
           ))}
           </div>
         </div>
-        <div className={view === "tile" ? "mt-4 grid min-h-0 flex-1 auto-rows-min grid-cols-2 gap-3 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4" : "mt-4 min-h-0 flex-1 overflow-y-auto divide-y border-y"}>
+        <div className={view === "tile" ? "mt-2 grid min-h-0 flex-1 auto-rows-min grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2 overflow-y-auto" : "mt-2 min-h-0 flex-1 overflow-y-auto divide-y border-y"}>
           {filtered.map((p) => {
             const low = Number(p.stock) <= Number(p.min_stock);
             const out = Number(p.stock) <= 0;
             if (view === "list") return <Button key={p.id} variant="ghost" disabled={out} onClick={() => add(p)} aria-label={`Add ${p.name}`} className="h-20 w-full justify-start gap-3 rounded-none px-2 text-left">
               <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-md bg-secondary text-primary">{p.image_url ? <ProductImage src={p.image_url} className="h-full w-full object-cover" /> : p.name.slice(0, 2).toUpperCase()}</div>
-              <div className="min-w-0 flex-1"><div className="truncate font-semibold">{p.name}</div><div className="truncate text-xs font-normal text-muted-foreground">{p.sku} {p.categories?.name ? `· ${p.categories.name}` : ""}</div><div className={out || low ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{out ? "Out of stock" : `${Number(p.stock)} in stock`}</div></div>
-              <span className="shrink-0 font-mono font-semibold text-primary">{show(Number(p.selling_price))}</span><Plus className="h-4 w-4 shrink-0" />
+              <div className="min-w-0 flex-1"><div className="truncate text-base font-bold">{p.name}</div><div className="truncate text-xs font-normal text-muted-foreground">{p.sku} {p.categories?.name ? `· ${p.categories.name}` : ""}</div><div className={out || low ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>{out ? "Out of stock" : `${Number(p.stock)} in stock`}</div></div>
+              <span className="shrink-0 font-mono text-lg font-bold text-primary">{show(Number(p.selling_price))}</span><Plus className="h-4 w-4 shrink-0" />
             </Button>;
             return (
               <Button key={p.id} variant="outline" disabled={out} onClick={() => add(p)} aria-label={`Add ${p.name}`}
-                className="group flex h-auto flex-col items-stretch whitespace-normal rounded-md bg-card p-3 text-left shadow-soft transition active:scale-[0.98] hover:border-primary">
-                <div className="mb-3 grid h-16 place-items-center rounded-lg bg-secondary font-display text-2xl font-bold text-primary">
+                className="group flex h-auto min-h-[150px] flex-col items-stretch whitespace-normal rounded-lg border-2 bg-card p-2.5 text-left shadow-soft transition active:scale-[0.98] hover:border-primary">
+                <div className="mb-2 grid h-20 place-items-center rounded-lg bg-secondary font-display text-2xl font-bold text-primary">
                   {p.image_url ? <ProductImage src={p.image_url} className="h-full w-full rounded-lg object-cover" /> : p.name.slice(0, 2).toUpperCase()}
                 </div>
-                <div className="line-clamp-2 text-sm font-semibold leading-tight">{p.name}</div>
+                <div className="line-clamp-2 text-base font-bold leading-tight">{p.name}</div>
                 <div className="mt-auto flex items-end justify-between pt-2">
-                  <span className="tabular text-base font-semibold text-primary">{show(Number(p.selling_price))}</span>
+                  <span className="tabular text-lg font-bold text-primary">{show(Number(p.selling_price))}</span>
                   <span className={`text-xs ${low ? "font-semibold text-destructive" : "text-muted-foreground"}`}>{out ? "Out of stock" : `${Number(p.stock)} left`}</span>
                 </div>
               </Button>
@@ -304,16 +304,16 @@ function Till({ shiftId }: { shiftId: string }) {
       </section>
 
       {/* Cart */}
-      <aside className="flex max-h-[55vh] w-full flex-col border-t bg-card lg:max-h-none lg:w-[400px] lg:border-l lg:border-t-0">
-        <div className="flex items-center justify-between border-b p-4">
-          <h2 className="text-lg font-bold">Current sale</h2>
+      <aside className="flex max-h-[50vh] w-full flex-col border-t bg-card md:max-h-none md:w-[320px] md:border-l md:border-t-0 xl:w-[360px]">
+        <div className="flex items-center justify-between border-b px-3 py-2">
+          <h2 className="text-base font-bold">Sale</h2>
           <div className="flex gap-1">
             <Button size="sm" variant="ghost" onClick={hold} disabled={!lines.length}><PauseCircle className="h-4 w-4" />Hold</Button>
             <Button size="sm" variant="ghost" onClick={() => setHeldOpen(true)}><PlayCircle className="h-4 w-4" />Held ({held.length})</Button>
             <Button size="sm" variant="ghost" onClick={() => setReprintOpen(true)}><ReceiptText className="h-4 w-4" />Receipts</Button>
           </div>
         </div>
-        <div className="flex gap-2 border-b bg-muted/40 px-4 py-2">
+        <div className="flex gap-2 border-b bg-muted/40 px-3 py-1.5">
           <Button size="sm" variant="outline" className="flex-1" onClick={() => openDrawer().then(() => toast.success("Drawer opened"), (e) => toast.error(e instanceof Error ? e.message : "Drawer failed"))}><Archive className="h-4 w-4" />Open drawer</Button>
           <Button size="sm" variant="outline" className="flex-1" disabled={!lastReceipt} onClick={() => lastReceipt && void printReceipt(lastReceipt, settings)}><Printer className="h-4 w-4" />Reprint last</Button>
           <Button size="sm" variant="ghost" aria-label="Printer and drawer setup" onClick={() => setHwOpen(true)}><Settings2 className="h-4 w-4" /></Button>
@@ -321,7 +321,7 @@ function Till({ shiftId }: { shiftId: string }) {
         <div className="min-h-0 flex-1 overflow-y-auto">
           {!lines.length && <p className="p-8 text-center text-sm text-muted-foreground">Tap a product or scan a barcode.</p>}
           {lines.map((l) => (
-            <div key={l.product_id} className="flex items-center gap-2 border-b px-4 py-3">
+            <div key={l.product_id} className="flex items-center gap-2 border-b px-3 py-2">
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-semibold">{l.name}</div>
                 <div className="tabular text-xs text-muted-foreground">{show(l.unit_price)} each
@@ -338,7 +338,7 @@ function Till({ shiftId }: { shiftId: string }) {
             </div>
           ))}
         </div>
-        <div className="space-y-3 border-t p-4">
+        <div className="space-y-2 border-t p-3">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Customer</span>
             <Select value={customerId} onValueChange={setCustomerId}>
