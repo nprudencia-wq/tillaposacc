@@ -48,7 +48,7 @@ function PosPage() {
   if (isLoading) return <p className="p-8 text-muted-foreground">Loading till…</p>;
   if (!shift) return <OpenShiftGate />;
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-full flex-col">
       <ShiftBar shift={shift} canReadX={!!me?.canRefund} />
       <div className="min-h-0 flex-1"><Till shiftId={shift.id} /></div>
     </div>
