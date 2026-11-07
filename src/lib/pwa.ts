@@ -33,4 +33,10 @@ export async function setupPWA() {
   if (refused()) { await unregisterAppSW(); return; }
   const { registerSW } = await import("virtual:pwa-register");
   registerSW({ immediate: true });
+  // Warm the two visited app entry pages through the generated NetworkFirst worker.
+  await navigator.serviceWorker.ready;
+  if (!navigator.serviceWorker.controller) {
+    await new Promise<void>((resolve) => navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true }));
+  }
+  await Promise.all(["/auth", "/pos"].map((path) => fetch(path, { credentials: "same-origin" }).catch(() => undefined)));
 }
