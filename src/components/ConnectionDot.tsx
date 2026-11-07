@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { isSyncing, readQueue } from "@/lib/offline";
 import { connectionLabels, connectionState, type ConnectionState } from "@/lib/connection";
+import { internetAvailable } from "@/lib/connectivity";
 
 const dotClass: Record<ConnectionState, string> = {
   online: "bg-success",
@@ -26,17 +27,19 @@ export function ConnectionDot({ className = "", tone = "onDark" }: { className?:
 
   useEffect(() => {
     const refresh = () =>
-      setState(connectionState({ online: navigator.onLine, syncing: isSyncing(), pending: readQueue().length }));
+      setState(connectionState({ online: internetAvailable(), syncing: isSyncing(), pending: readQueue().length }));
     refresh();
     window.addEventListener("online", refresh);
     window.addEventListener("offline", refresh);
     window.addEventListener("tilla-queue", refresh);
     window.addEventListener("tilla-sync", refresh);
+    window.addEventListener("tilla-connectivity", refresh);
     return () => {
       window.removeEventListener("online", refresh);
       window.removeEventListener("offline", refresh);
       window.removeEventListener("tilla-queue", refresh);
       window.removeEventListener("tilla-sync", refresh);
+      window.removeEventListener("tilla-connectivity", refresh);
     };
   }, []);
 

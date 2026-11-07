@@ -71,7 +71,8 @@ export async function pair(target: "printer" | "drawer", link: Link | DrawerMode
 
 /** Reconnect to previously approved USB/serial devices without a prompt. */
 async function reconnect(target: "printer" | "drawer", link: string, cfg: HardwareConfig) {
-  if (writers[target]) return writers[target]!;
+  const connected = writers[target];
+  if (connected) return connected;
   const nav = navigator as any;
   const idx = target === "drawer" && link === (cfg.printer as string) ? 1 : 0;
   if (link === "usb" && nav.usb) { const d = (await nav.usb.getDevices())[idx] ?? (await nav.usb.getDevices())[0]; if (d) writers[target] = await usbWriter(d); }
