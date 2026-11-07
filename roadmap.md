@@ -1,4 +1,5 @@
 # Roadmap
+- [ ] Full offline till: durable sales and receipt snapshots, persistent stock deductions, automatic shift/sale/closure upload, disconnected checkout verification.
 - [x] Track sales completed at the till each day after online success or successful offline queue save; never emit again on queue upload. Published event arrival remains unverified.
 - [x] Current GRN request: editable temporary cloud drafts and quantity/cost review; signed-in save/reopen/edit verified without inventory changes. Final stock posting was not exercised on live inventory.
 - [x] Rand rate explicitly confirmed US$1 = R20 (R1 = US$0.050); saved through the owner's currency settings and reloaded enabled. Till payment preview verified $0.50 → R10; no sale posted.
