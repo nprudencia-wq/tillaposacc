@@ -12,6 +12,7 @@ import { loginEmail } from "@/lib/username";
 import { checkOfflinePin, rememberPin } from "@/lib/offline-pin";
 import { authStorageKey } from "@/lib/offline-session";
 import { isNetworkError } from "@/lib/offline";
+import { internetAvailable, setInternetAvailable } from "@/lib/connectivity";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/auth")({
