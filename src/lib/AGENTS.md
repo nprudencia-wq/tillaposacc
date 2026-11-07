@@ -1,2 +1,3 @@
 - Till hardware config is device-local (src/lib/hardware.ts, ESC/POS in escpos.ts); network printers need an HTTP print address. Why: browsers lack raw TCP.
 - Checkout shares one client reference across online and offline retries; queue and receipt commit atomically, and local stock subtracts durable queued quantities. Why: lost responses and reloads must not double-sell or lose sales.
+- Resolve membership before caching first-login profiles; explicit sign-out clears the separate active device session. PIN aliases use verified profile identities, and password/OAuth requires PIN verification before saving a hash. Why: offline access must survive refresh failures without guessing PINs or crossing cashier scopes.
