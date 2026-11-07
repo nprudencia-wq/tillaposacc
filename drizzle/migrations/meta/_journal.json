@@ -393,6 +393,13 @@
       "when": 1793980686108,
       "tag": "0055_guard_customer_credit",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1794059941797,
+      "tag": "0056_idempotent_checkout_retry",
+      "breakpoints": true
     }
   ]
 }
