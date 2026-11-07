@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { Payment, Currency } from "@/lib/pos";
+import { requireFullPayment, type Payment, type Currency } from "@/lib/pos";
 import { belongsToScope, scopedStorageKey, type StoreScope } from "@/lib/store-scope";
 import { idbGet, idbSet, idbSetMany } from "@/lib/local-db";
 import { mergeQueues } from "@/lib/queue-merge";
@@ -124,6 +124,7 @@ async function writeQueue(q: QueuedSale[]) {
   window.dispatchEvent(new Event("tilla-queue"));
 }
 export async function enqueueSale(s: QueuedSale) {
+  requireFullPayment(s.total, s.payments, s.rate ?? 1, s.rand_rate ?? 0);
   const scope = activeScope;
   if (!scope) throw new Error("No store selected for this sale");
   await queueReady;

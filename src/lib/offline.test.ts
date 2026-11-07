@@ -12,6 +12,19 @@ const scope = { storeId: "shop", userId: "cashier" };
 const sale: QueuedSale = { client_ref: "sale-1", sold_at: "2026-11-07T13:00:00Z", shift_id: "shift", currency: "USD", discount: 0, items: [{ product_id: "bread", quantity: 2 }], payments: [{ method: "cash", currency: "USD", amount: 2 }], total: 2 };
 beforeEach(() => { mocks.storage.clear(); mocks.fail = false; mocks.rpc.mockReset(); localStorage.clear(); setOfflineScope(null); });
 describe("Durable disconnected sales", () => {
+  it("rejects short-paid sales before storing a queue or receipt", async () => {
+    setOfflineScope(scope);
+    await expect(enqueueSale({ ...sale, payments: [{ method: "cash", currency: "USD", amount: 1.99 }] })).rejects.toThrow("Take full payment");
+    expect(readQueue()).toHaveLength(0);
+    expect(mocks.storage.size).toBe(0);
+  });
+  it("rejects negative and non-finite tender amounts", async () => {
+    setOfflineScope(scope);
+    for (const amount of [-1, NaN, Infinity]) {
+      await expect(enqueueSale({ ...sale, payments: [{ method: "cash", currency: "USD", amount }] })).rejects.toThrow("Invalid payment");
+    }
+    expect(readQueue()).toHaveLength(0);
+  });
   it("does not cache a late response after switching cashier", async () => {
     setInternetAvailable(true);
     setOfflineScope(scope);
