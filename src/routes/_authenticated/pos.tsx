@@ -252,9 +252,9 @@ function Till({ shiftId }: { shiftId: string }) {
   }
 
   return (
-    <div className="flex h-full flex-col md:flex-row">
+    <div className="flex h-full min-w-0 flex-col overflow-hidden md:flex-row">
       {/* Products */}
-      <section className="flex min-h-0 flex-1 flex-col p-2 md:p-3">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col p-2 md:p-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -304,7 +304,7 @@ function Till({ shiftId }: { shiftId: string }) {
       </section>
 
       {/* Cart */}
-      <aside className="flex max-h-[50vh] w-full flex-col border-t bg-card md:max-h-none md:w-[320px] md:border-l md:border-t-0 xl:w-[360px]">
+      <aside className="flex max-h-[50vh] w-full shrink-0 flex-col border-t bg-card md:max-h-none md:w-[320px] md:border-l md:border-t-0 xl:w-[360px]">
         <div className="flex items-center justify-between border-b px-3 py-2">
           <h2 className="text-base font-bold">Sale</h2>
           <div className="flex gap-1">
