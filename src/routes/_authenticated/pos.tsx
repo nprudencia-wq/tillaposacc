@@ -189,6 +189,7 @@ function Till({ shiftId }: { shiftId: string }) {
   async function saveOffline(paid: Payment[], reference?: string) {
     const ref = reference ?? `OFF-${crypto.randomUUID()}`;
     const at = new Date().toISOString();
+    if (Math.round(paidUSD(paid, rate, randRate) * 100) < Math.round(total * 100)) { toast.error("Take full payment before finishing an offline sale"); return; }
     const change = Math.max(0, Math.round((paidUSD(paid, rate, randRate) - total) * 100) / 100);
     const snapshot: ReceiptData = {
       sale_number: ref, created_at: at, business: settings?.business_name ?? "", cashier: me?.name ?? "", customer: customer?.name ?? null,
