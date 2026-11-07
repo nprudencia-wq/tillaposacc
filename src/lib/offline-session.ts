@@ -29,13 +29,15 @@ export async function deviceSession(): Promise<Session | null> {
 
 /** Route guard check: verify online when reachable, otherwise trust this device's saved sign-in. */
 export async function hasDeviceLogin(): Promise<boolean> {
-  if (navigator.onLine) {
+  const saved = savedSession();
+  if (!saved) return false;
+  if (navigator.onLine && internetAvailable()) {
     const res = await withTimeout(supabase.auth.getUser(), 5000);
     if (res?.data.user) return true;
-    // Signed out on this device: nothing saved to fall back to.
-    if (res && !res.error) return false;
-    if (res?.error && !isNetworkError(res.error)) return false;
+    // Only a definite "signed out" answer from the server ends the session.
+    const status = (res?.error as { status?: number } | undefined)?.status;
+    if (res?.error && !isNetworkError(res.error) && (status === 401 || status === 403)) return false;
     setInternetAvailable(false);
   }
-  return !!(await deviceSession());
+  return true;
 }

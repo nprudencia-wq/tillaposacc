@@ -12,6 +12,7 @@ import { loginEmail } from "@/lib/username";
 import { checkOfflinePin, rememberPin } from "@/lib/offline-pin";
 import { authStorageKey } from "@/lib/offline-session";
 import { isNetworkError } from "@/lib/offline";
+import { internetAvailable, setInternetAvailable } from "@/lib/connectivity";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/auth")({
@@ -64,10 +65,12 @@ function AuthPage() {
         if (!r.ok) throw new Error(r.reason);
         // Put this cashier's saved sign-in back and open the till without reloading the page.
         localStorage.setItem(authStorageKey(), r.session);
+        // Tell the till the internet is down so every check uses this device's saved copies.
+        setInternetAvailable(false);
         await qc.resetQueries();
         navigate({ to: "/pos", replace: true });
       };
-      if (mode === "pin" && !navigator.onLine) {
+      if (mode === "pin" && (!navigator.onLine || !internetAvailable())) {
         await offlineUnlock();
         return;
       } else if (mode === "pin") {
