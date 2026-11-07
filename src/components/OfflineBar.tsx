@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { CloudOff, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isSyncing, readQueue, syncQueue, type QueuedSale } from "@/lib/offline";
+import { internetAvailable } from "@/lib/connectivity";
 
 export function OfflineBar() {
   const qc = useQueryClient();
@@ -17,33 +18,35 @@ export function OfflineBar() {
     const r = await syncQueue();
     setBusy(false);
     setQueue(readQueue());
+    setOnline(internetAvailable());
     if (r.synced) {
       toast.success(`${r.synced} offline sale${r.synced > 1 ? "s" : ""} uploaded`);
-      qc.invalidateQueries();
     }
+    if (internetAvailable()) qc.invalidateQueries();
     if (r.failed) toast.error(`${r.failed} offline sale(s) could not upload`);
     if (manual && !r.synced && !r.failed && !navigator.onLine) toast.error("Still offline");
   }
 
   useEffect(() => {
     const refresh = () => {
-      setOnline(navigator.onLine); setQueue(readQueue());
-      if (navigator.onLine && readQueue().length) void sync();
+      setOnline(internetAvailable()); setQueue(readQueue());
     };
     // Back online: upload queued sales, then pull fresh prices, stock and rates.
-    const goOnline = () => { refresh(); void sync().then(() => qc.invalidateQueries()); };
-    const onVisible = () => { if (document.visibilityState === "visible" && navigator.onLine) refresh(); };
+    const goOnline = () => { refresh(); void sync(); };
+    const onVisible = () => { if (document.visibilityState === "visible" && navigator.onLine) void sync(); };
     refresh();
-    if (navigator.onLine && readQueue().length) void sync();
+    if (navigator.onLine) void sync();
     window.addEventListener("online", goOnline);
     window.addEventListener("offline", refresh);
     window.addEventListener("tilla-queue", refresh);
+    window.addEventListener("tilla-connectivity", refresh);
     document.addEventListener("visibilitychange", onVisible);
-    const t = setInterval(() => { if (navigator.onLine && readQueue().length) void sync(); }, 15_000);
+    const t = setInterval(() => { if (navigator.onLine) void sync(); }, 15_000);
     return () => {
       window.removeEventListener("online", goOnline);
       window.removeEventListener("offline", refresh);
       window.removeEventListener("tilla-queue", refresh);
+      window.removeEventListener("tilla-connectivity", refresh);
       document.removeEventListener("visibilitychange", onVisible);
       clearInterval(t);
     };

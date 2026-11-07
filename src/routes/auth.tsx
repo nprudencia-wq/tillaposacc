@@ -84,7 +84,7 @@ function AuthPage() {
         }
         const { data: v, error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "magiclink" });
         if (error || !v.session) throw new Error("Couldn't sign in, try your password");
-        void rememberPin(email, pin, v.session.user.id, v.session).catch(() => { /* offline unlock just won't be available */ });
+        await rememberPin(email, pin, v.session.user.id, v.session).catch(() => { toast.warning("Signed in, but offline PIN could not be saved on this till. Check browser storage."); });
         await supabase.rpc("log_event", { p_action: "pin_login" });
         navigate({ to: "/pos", replace: true });
       } else if (mode === "in") {

@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Session } from "@supabase/supabase-js";
+import { internetAvailable, setInternetAvailable } from "@/lib/connectivity";
+import { isNetworkError } from "@/lib/offline";
 
 export function authStorageKey(): string {
   return (supabase.auth as unknown as { storageKey: string }).storageKey;
@@ -20,6 +22,7 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
 
 /** The signed-in session; when the internet is down or slow (even with Wi-Fi on), the one saved on this device. */
 export async function deviceSession(): Promise<Session | null> {
+  if (!internetAvailable()) return savedSession();
   const res = await withTimeout(supabase.auth.getSession(), 4000);
   return res?.data.session ?? savedSession();
 }
@@ -31,6 +34,8 @@ export async function hasDeviceLogin(): Promise<boolean> {
     if (res?.data.user) return true;
     // Signed out on this device: nothing saved to fall back to.
     if (res && !res.error) return false;
+    if (res?.error && !isNetworkError(res.error)) return false;
+    setInternetAvailable(false);
   }
   return !!(await deviceSession());
 }

@@ -23,17 +23,19 @@ export default defineConfig({
         manifest: false,
         devOptions: { enabled: false },
         workbox: {
+          clientsClaim: true,
+          skipWaiting: true,
           globPatterns: ["**/*.{js,css,ico,png,svg,woff2,webmanifest}"],
           navigateFallback: null,
           cleanupOutdatedCaches: true,
           runtimeCaching: [
             {
-              urlPattern: ({ request, url }) => request.mode === "navigate" && !url.pathname.startsWith("/~oauth"),
+              urlPattern: ({ request, url, sameOrigin }) => sameOrigin && request.method === "GET" && !url.pathname.startsWith("/~oauth") && (request.mode === "navigate" || url.pathname === "/auth" || url.pathname === "/pos"),
               handler: "NetworkFirst",
               options: { cacheName: "pages", networkTimeoutSeconds: 4, expiration: { maxEntries: 30 } },
             },
             {
-              urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith("/assets/"),
+              urlPattern: ({ url, sameOrigin }) => sameOrigin && /\/assets\/[^/]+-[\w-]+\.(?:js|css|woff2|png|svg)$/.test(url.pathname),
               handler: "CacheFirst",
               options: { cacheName: "assets", expiration: { maxEntries: 200 } },
             },

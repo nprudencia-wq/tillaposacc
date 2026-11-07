@@ -22,5 +22,5 @@ describe("payment types", () => {
     expect(isCashMethod("cash")).toBe(true);
   });
   it("offers only switched-on types", () => expect(activeTypes(types).map((t) => t.code)).toEqual(["cash", "ecocash"]));
-  it("still offers the built-in four if the list is empty", () => expect(activeTypes([]).length).toBe(4));
+  it("never invents payment types when the shop list is empty", () => expect(activeTypes([])).toEqual([]));
 });

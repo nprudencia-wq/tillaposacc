@@ -2586,6 +2586,17 @@ export type Database = {
         }
         Returns: Json
       }
+      complete_sale_once: {
+        Args: {
+          p_client_ref: string
+          p_currency: string
+          p_customer?: string
+          p_discount: number
+          p_items: Json
+          p_payments: Json
+        }
+        Returns: Json
+      }
       convert_quote_to_invoice: {
         Args: { p_document: string }
         Returns: string

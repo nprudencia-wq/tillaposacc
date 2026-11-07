@@ -13,6 +13,7 @@ import { methodLabel } from "@/lib/payment-types";
 import { summarizeItemsSold, type SoldSummary } from "@/lib/items-sold";
 import { useStaff } from "@/hooks/use-staff";
 import { deviceSession } from "@/lib/offline-session";
+import { internetAvailable } from "@/lib/connectivity";
 
 export type ShiftSummary = {
   shift: {
@@ -38,7 +39,6 @@ export function useOpenShift() {
     enabled: !!me,
     queryFn: async () => {
       // A shift opened on this device without internet stays in charge until it has uploaded.
-      if (navigator.onLine && ((await readLocalShift()) || (await readPendingClose()))) await syncQueue();
       const local = await readLocalShift();
       if (local) return local;
       const open = await fetchOpen();
@@ -82,13 +82,9 @@ export function OpenShiftGate() {
       toast.success("Shift opened offline — it will upload when the internet is back");
       qc.invalidateQueries({ queryKey: ["open-shift"] });
     };
-    if (!navigator.onLine) { await openOffline(); return; }
-    const { error } = await supabase.rpc("open_shift_three", { p_float_zar: floats.zar, p_float_usd: floats.usd, p_float_zig: floats.zig });
-    if (error && isNetworkError(error)) { await openOffline(); return; }
-    setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Shift opened");
-    qc.invalidateQueries({ queryKey: ["open-shift"] });
+    // Always give an opening a stable local ID; the idempotent uploader creates it online.
+    await openOffline();
+    if (navigator.onLine) void syncQueue().then(() => qc.invalidateQueries({ queryKey: ["open-shift"] }));
   }
   return (
     <div className="grid min-h-[70vh] place-items-center p-6">
@@ -194,9 +190,9 @@ function CloseDialog({ shiftId, onClose, onClosed }: { shiftId: string; onClose:
       qc.invalidateQueries({ queryKey: ["open-shift"] });
       onClose();
     };
-    if (!navigator.onLine) { await closeOffline(); return; }
+    if (!internetAvailable()) { await closeOffline(); return; }
     await syncQueue();
-    if (!navigator.onLine) { await closeOffline(); return; }
+    if (!internetAvailable()) { await closeOffline(); return; }
     if (readQueue().length || (await readLocalShift()) || (await readPendingClose())) { setBusy(false); toast.error("Some offline sales haven't uploaded yet. Check the offline bar at the top, then try again."); return; }
     const { error } = await supabase.rpc("close_shift_three", { p_actual_zar: Number(zar), p_actual_usd: Number(usd), p_actual_zig: Number(zig), p_notes: notes });
     if (error && isNetworkError(error)) { await closeOffline(); return; }

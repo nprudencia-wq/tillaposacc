@@ -15,7 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { type ReceiptData } from "@/components/Receipt";
 import { SaleComplete, printReceipt } from "@/components/SaleComplete";
-import { cached, deviceStorageKey, enqueueSale, isNetworkError } from "@/lib/offline";
+import { cached, deviceStorageKey, enqueueSale, isNetworkError, stockAfterQueue, localReceipts, readLocalShift } from "@/lib/offline";
+import { internetAvailable, networkRead, setInternetAvailable } from "@/lib/connectivity";
 import { useSubscription } from "@/components/SubscriptionBanner";
 import { OpenShiftGate, ShiftBar, useOpenShift } from "@/components/Shift";
 import {
@@ -58,11 +59,12 @@ function Till({ shiftId }: { shiftId: string }) {
   const qc = useQueryClient();
   const { data: me } = useStaff();
   const { data: settings } = useSettings();
+  usePaymentTypes(); // Download shop tenders before a connection drops, not on first payment.
   const rate = settings?.zig_rate ?? 1;
   const randEnabled = randCheckoutEnabled(settings?.rand_rate ?? 0, settings?.rand_confirmed_rate);
   const randRate = randEnabled ? settings?.rand_rate ?? 0 : 0;
 
-  const { data: products = [] } = useQuery({
+  const { data: catalog = [] } = useQuery({
     queryKey: ["products", "active"],
     queryFn: () => cached("products-active", async () => {
       const { data, error } = await supabase.from("products").select("*, categories(name)").eq("active", true).order("name");
@@ -70,6 +72,13 @@ function Till({ shiftId }: { shiftId: string }) {
       return data;
     }),
   });
+  const [queueVersion, setQueueVersion] = useState(0);
+  useEffect(() => {
+    const refresh = () => setQueueVersion((v) => v + 1);
+    window.addEventListener("tilla-queue", refresh);
+    return () => window.removeEventListener("tilla-queue", refresh);
+  }, []);
+  const products = useMemo(() => stockAfterQueue(catalog), [catalog, queueVersion]);
   const { data: categories = [] } = useQuery({
     queryKey: ["categories"],
     queryFn: () => cached("categories", async () => {
@@ -95,6 +104,7 @@ function Till({ shiftId }: { shiftId: string }) {
   const [reprintOpen, setReprintOpen] = useState(false);
   const [hwOpen, setHwOpen] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
+  const saleRef = useRef<string | null>(null);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const { data: customers = [] } = useCustomers();
@@ -103,6 +113,7 @@ function Till({ shiftId }: { shiftId: string }) {
   const customer = customers.find((c) => c.id === customerId);
 
   useEffect(() => {
+    void localReceipts().then((rs) => setLastReceipt(rs[0] ?? null));
     try { setHeld(JSON.parse(localStorage.getItem(deviceStorageKey(HELD_KEY)) || "[]")); } catch { /* identity not ready */ }
     try { setView(localStorage.getItem(deviceStorageKey("tilla-product-view")) === "tile" ? "tile" : "list"); } catch { /* list default */ }
     searchRef.current?.focus();
@@ -171,20 +182,24 @@ function Till({ shiftId }: { shiftId: string }) {
       subtotal, discount, payments: paid,
     };
     setReceipt(full); setLastReceipt(full);
+    saleRef.current = null;
     setPayOpen(false); setLines([]); setDiscVal(0); setCustomerId("none");
   }
 
-  function saveOffline(paid: Payment[]) {
-    const ref = `OFF-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`;
-    enqueueSale({
+  async function saveOffline(paid: Payment[], reference?: string) {
+    const ref = reference ?? `OFF-${crypto.randomUUID()}`;
+    const at = new Date().toISOString();
+    const change = Math.max(0, Math.round((paidUSD(paid, rate, randRate) - total) * 100) / 100);
+    const snapshot: ReceiptData = {
+      sale_number: ref, created_at: at, business: settings?.business_name ?? "", cashier: me?.name ?? "", customer: customer?.name ?? null,
+      currency, rate: currency === "ZAR" ? randRate : rate, total, change, subtotal, discount, payments: paid,
+      items: lines.map((l) => ({ name: l.name, quantity: l.quantity, unit_price: l.unit_price, line_total: l.unit_price * l.quantity })),
+    };
+    await enqueueSale({
       client_ref: ref, sold_at: new Date().toISOString(), shift_id: shiftId, currency, discount,
-      items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price })), payments: paid, total, rate, rand_rate: randRate,
+      items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price })), payments: paid, total, rate, rand_rate: randRate, receipt: snapshot,
     });
     window.__lovableEvents?.track?.("project.till_sale_completed", { mode: "offline", currency });
-    // Reduce the cached stock so the till shows sensible numbers while offline.
-    qc.setQueryData(["products", "active"], (old: typeof products | undefined) =>
-      old?.map((p) => { const l = lines.find((x) => x.product_id === p.id); return l ? { ...p, stock: Number(p.stock) - l.quantity } : p; }));
-    const change = Math.max(0, Math.round((paidUSD(paid, rate, randRate) - total) * 100) / 100);
     finish({ sale_number: ref, created_at: new Date().toISOString(), rate: currency === "ZAR" ? randRate : rate, total, change }, paid);
     const nonCash = paid.some((p) => !isCashMethod(p.method));
     toast.success(`Saved offline as ${ref}. It will upload when you're back online.${nonCash ? " Non-cash payments will need checking." : ""}`);
@@ -202,18 +217,29 @@ function Till({ shiftId }: { shiftId: string }) {
     const paid = payments.filter((p) => p.amount > 0).map((p) => ({ ...p, exchange_rate: currencyRate(p.currency, rate, randRate) }));
     const onAccount = paid.some((p) => isAccountMethod(p.method));
     if (onAccount && !customer) { toast.error("Choose the customer first to put this sale on account"); return; }
-    if (onAccount && !navigator.onLine) { toast.error("On-account sales need the internet so the credit limit can be checked"); return; }
+    if (onAccount && !internetAvailable()) { toast.error("On-account sales need the internet so the credit limit can be checked"); return; }
     const overridden = lines.some((l) => l.unit_price !== listPrice(l.product_id));
-    if (!navigator.onLine && overridden) { toast.error("Changed prices need the internet. Undo the price change or wait to reconnect."); return; }
-    if (!navigator.onLine) { saveOffline(paid); return; }
-    const { data, error } = await supabase.rpc("complete_sale", {
+    if (!internetAvailable() && overridden) { toast.error("Changed prices need the internet. Undo the price change or wait to reconnect."); return; }
+    const ref = saleRef.current ?? `TILL-${crypto.randomUUID()}`;
+    saleRef.current = ref;
+    if (!internetAvailable() || await readLocalShift()) {
+      if (onAccount || overridden) { toast.error("Upload this shift before using account payments or changed prices"); return; }
+      await saveOffline(paid, ref); return;
+    }
+    let result;
+    try { result = await networkRead(() => supabase.rpc("complete_sale_once", {
+      p_client_ref: ref,
       p_items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, ...(l.unit_price !== listPrice(l.product_id) ? { price: l.unit_price } : {}) })),
       p_payments: paid as never,
       p_discount: discount,
       p_currency: currency,
       ...(customer ? { p_customer: customer.id } : {}),
-    });
-    if (error && isNetworkError(error) && !onAccount && !overridden) { saveOffline(paid); return; }
+    })); } catch (e) {
+      if (isNetworkError(e) && !onAccount && !overridden) { setInternetAvailable(false); await saveOffline(paid, ref); return; }
+      throw e;
+    }
+    const { data, error } = result;
+    if (error && isNetworkError(error) && !onAccount && !overridden) { setInternetAvailable(false); await saveOffline(paid, ref); return; }
     if (error) { toast.error(error.message); qc.invalidateQueries({ queryKey: ["open-shift"] }); return; }
     window.__lovableEvents?.track?.("project.till_sale_completed", { mode: "online", currency });
     const res = data as { sale_number: string; total: number; change: number; rate: number };
@@ -425,8 +451,8 @@ function PayDialog({ total, currency, rate, randRate, onClose, onPay }: {
             </div>
             {change > 0 && currency === "USD" && <div className="text-right text-xs text-muted-foreground">or {money(fromUSD(change, "ZiG", rate), "ZiG")}</div>}
           </div>
-          <Button size="lg" className="h-14 w-full text-lg" disabled={change < 0 || busy}
-            onClick={async () => { setBusy(true); await onPay(payments); setBusy(false); }}>
+          <Button size="lg" className="h-14 w-full text-lg" disabled={change < 0 || busy || !methods.length}
+            onClick={async () => { setBusy(true); try { await onPay(payments); } catch (e) { toast.error(e instanceof Error ? e.message : "Sale not saved. Keep this sale open and try again."); } finally { setBusy(false); } }}>
             Complete sale
           </Button>
         </div>

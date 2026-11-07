@@ -36,12 +36,22 @@ export async function idbGet<T>(key: string): Promise<T | undefined> {
 }
 
 export async function idbSet(key: string, value: unknown): Promise<void> {
+  return idbSetMany([[key, value]]);
+}
+
+/** Commit the receipt and queued sale together before a cashier is told it succeeded. */
+export async function idbSetMany(entries: [string, unknown][]): Promise<void> {
   const db = await openDb();
-  if (!db) { localStorage.setItem(key, JSON.stringify(value)); return; }
+  if (!db) {
+    // A single envelope avoids a partially saved multi-key fallback.
+    if (entries.length > 1) throw new Error("Offline storage unavailable. Enable browser storage before selling offline.");
+    for (const [key, value] of entries) localStorage.setItem(key, JSON.stringify(value));
+    return;
+  }
   return new Promise((resolve, reject) => {
     try {
       const tx = db.transaction(STORE, "readwrite");
-      tx.objectStore(STORE).put(value, key);
+      for (const [key, value] of entries) tx.objectStore(STORE).put(value, key);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error);

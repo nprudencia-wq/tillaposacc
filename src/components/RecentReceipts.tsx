@@ -5,7 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
+import { ReceiptActions, Receipt, type ReceiptData } from "@/components/Receipt";
+import { localReceipts } from "@/lib/offline";
+import { printReceipt } from "@/components/SaleComplete";
+import { Printer } from "lucide-react";
 import { RefundDialog } from "@/components/RefundDialog";
 import { money, type Currency, type PayMethod } from "@/lib/pos";
 import { methodLabel } from "@/lib/payment-types";
@@ -25,6 +28,8 @@ export function RecentReceipts({ open, onOpenChange }: { open: boolean; onOpenCh
   const [mine, setMine] = useState(true);
   const [current, setCurrent] = useState<{ sale: Sale; receipt: ReceiptData; refundable: boolean } | null>(null);
   const [refundFor, setRefundFor] = useState<{ id: string; sale_number: string } | null>(null);
+  const [localCurrent, setLocalCurrent] = useState<ReceiptData | null>(null);
+  const { data: saved = [] } = useQuery({ queryKey: ["local-receipts", me?.id, open], enabled: open, queryFn: localReceipts });
   const { data: sales = [], isLoading } = useQuery({
     queryKey: ["sales", "till-receipts", day, mine, me?.id, q.trim()],
     enabled: open,
@@ -91,6 +96,9 @@ export function RecentReceipts({ open, onOpenChange }: { open: boolean; onOpenCh
                 <span className="text-muted-foreground">{sales.length} · {money(dayTotal)}</span>
               </div>
               <div className="max-h-[50vh] divide-y overflow-y-auto rounded-lg border">
+                {saved.filter((r) => (!q.trim() || r.sale_number.toLowerCase().includes(q.trim().toLowerCase())) && (!day || localDay(new Date(r.created_at)) === day)).map((r) => (
+                  <Button key={r.sale_number} variant="ghost" className="h-auto w-full justify-between whitespace-normal p-3 text-left" onClick={() => setLocalCurrent(r)}><span className="min-w-0 break-all">{r.sale_number}<br /><span className="text-xs text-muted-foreground">Saved on this till</span></span><span>{money(r.total)}</span></Button>
+                ))}
                 {isLoading && <p className="p-3 text-sm text-muted-foreground">Loading…</p>}
                 {!isLoading && sales.length === 0 && <p className="p-3 text-sm text-muted-foreground">No receipts for this day. Sales saved offline appear after they upload.</p>}
                 {sales.map((s) => {
@@ -107,6 +115,11 @@ export function RecentReceipts({ open, onOpenChange }: { open: boolean; onOpenCh
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!localCurrent} onOpenChange={(o) => { if (!o) setLocalCurrent(null); }}>
+        <DialogContent className="max-w-sm"><DialogHeader><DialogTitle>Saved receipt</DialogTitle></DialogHeader>
+          {localCurrent && <><Button onClick={() => void printReceipt(localCurrent, settings)}><Printer className="h-4 w-4" />Print Receipt</Button><div className="max-h-[60vh] overflow-auto"><Receipt r={localCurrent} /></div></>}
         </DialogContent>
       </Dialog>
       {refundFor && <RefundDialog sale={refundFor} onClose={() => { setRefundFor(null); setCurrent(null); }} />}
