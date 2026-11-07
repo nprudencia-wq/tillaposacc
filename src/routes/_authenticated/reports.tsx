@@ -179,7 +179,9 @@ function Reports() {
     ];
   }, [data, cashier]);
 
-  const rep = reports.find((r) => r.id === active);
+  const { data: me } = useStaff();
+  const visible = useMemo(() => reports.filter((r) => me?.perms && canSeeReport(me.perms, r.id, me.permOverrides)), [reports, me]);
+  const rep = visible.find((r) => r.id === active) ?? visible[0];
   const rows = rep ? (rep.totals ? [...rep.rows, rep.totals] : rep.rows) : [];
   const sub = `${settings?.business_name ?? ""} · ${from} to ${to}${rep?.subtitle ? ` · ${rep.subtitle}` : ""}`;
   const file = `${rep?.label.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}-${from}-${to}`;
@@ -212,9 +214,9 @@ function Reports() {
       </div>
       <div className="mt-6 flex flex-col gap-6 lg:flex-row">
         <nav className="flex shrink-0 gap-1 overflow-x-auto lg:w-52 lg:flex-col">
-          {reports.map((r) => (
+          {visible.map((r) => (
             <button key={r.id} onClick={() => setActive(r.id)}
-              className={`shrink-0 rounded-lg px-3 py-2 text-left text-sm font-medium ${active === r.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}>{r.label}</button>
+              className={`shrink-0 rounded-lg px-3 py-2 text-left text-sm font-medium ${rep?.id === r.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}>{r.label}</button>
           ))}
         </nav>
         <div className="min-w-0 flex-1 overflow-x-auto rounded-xl border bg-card shadow-soft">

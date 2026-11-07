@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { money, roleLabels } from "@/lib/pos";
-import { PERMISSIONS, ROLE_DEFAULTS, isModulePermission, effectivePermission, type Permission } from "@/lib/username";
+import { PERMISSIONS, ROLE_DEFAULTS, isModulePermission, isReportPermission, effectivePermission, type Permission } from "@/lib/username";
 import { createStaffAccount, resetStaffPassword } from "@/lib/staff.functions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ActivityTab, AttendanceTab, PerformanceTab, PinDialog } from "@/components/StaffTabs";
@@ -240,7 +240,7 @@ function AccessDialog({ row, onClose, onDone }: { row: Row; onClose: () => void;
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader><DialogTitle>Access rights · {row.full_name}</DialogTitle></DialogHeader>
         <p className="text-sm text-muted-foreground">"Role default" follows their role ({row.role ? roleLabels[row.role] : "none"}). Choose Allow or Block to override it for this person only.</p>
-        {[{ t: "Back-office modules (can open)", ps: (Object.keys(PERMISSIONS) as Permission[]).filter(isModulePermission) }, { t: "Actions", ps: (Object.keys(PERMISSIONS) as Permission[]).filter((p) => !isModulePermission(p)) }].map((sec) => (
+        {[{ t: "Back-office modules (can open)", ps: (Object.keys(PERMISSIONS) as Permission[]).filter(isModulePermission) }, { t: "Reports they can view (used when “View reports” is off; Block hides a report)", ps: (Object.keys(PERMISSIONS) as Permission[]).filter(isReportPermission) }, { t: "Actions", ps: (Object.keys(PERMISSIONS) as Permission[]).filter((p) => !isModulePermission(p) && !isReportPermission(p)) }].map((sec) => (
         <div key={sec.t}><div className="pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{sec.t}</div>
         <div className="divide-y rounded-lg border">
           {sec.ps.map((p) => {

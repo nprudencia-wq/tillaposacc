@@ -34,9 +34,25 @@ export const PERMISSIONS = {
   module_expenses: "Expenses",
   module_accounting: "Accounting",
   module_settings: "Settings (payment types, currency, store, billing)",
+  report_pl: "Profit & loss",
+  report_expenses: "Expenses",
+  report_daily: "Daily sales",
+  report_product: "By product",
+  report_category: "By category",
+  report_cashier: "By cashier",
+  report_payment: "By payment method",
+  report_stock: "Stock on hand",
+  report_low: "Low stock",
+  report_movers: "Fast & slow movers",
+  report_cashier_items: "Products sold by cashier",
+  report_movement: "Stock movement",
 } as const;
 export type Permission = keyof typeof PERMISSIONS;
+export const isReportPermission = (p: Permission) => p.startsWith("report_");
 export const isModulePermission = (p: Permission) => p.startsWith("module_") || p === "view_reports";
+/** Permission key for a single report on the Reports page. */
+export const reportPermission = (id: string) => `report_${id.replace(/-/g, "_")}` as Permission;
+const REPORT_ROLES = ["admin", "owner", "manager", "accountant"];
 
 const SENIOR = ["admin", "owner", "manager"];
 export const ROLE_DEFAULTS: Record<Permission, string[]> = {
@@ -58,7 +74,21 @@ export const ROLE_DEFAULTS: Record<Permission, string[]> = {
   post_expense: ["admin", "owner", "manager", "accountant"],
   view_reports: ["admin", "owner", "manager", "accountant"],
   override_price: ["admin", "owner", "manager", "supervisor"],
+  report_pl: REPORT_ROLES, report_expenses: REPORT_ROLES, report_daily: REPORT_ROLES, report_product: REPORT_ROLES,
+  report_category: REPORT_ROLES, report_cashier: REPORT_ROLES, report_payment: REPORT_ROLES, report_stock: REPORT_ROLES,
+  report_low: REPORT_ROLES, report_movers: REPORT_ROLES, report_cashier_items: REPORT_ROLES, report_movement: REPORT_ROLES,
 };
+
+/** Someone may open Reports with full access or with at least one single report allowed. */
+export function canOpenReports(perms: Partial<Record<Permission, boolean>>) {
+  return !!perms.view_reports || (Object.keys(perms) as Permission[]).some((p) => isReportPermission(p) && perms[p]);
+}
+/** Full report access shows every report; otherwise only individually allowed ones. */
+export function canSeeReport(perms: Partial<Record<Permission, boolean>>, id: string, overrides: Partial<Record<Permission, boolean>> = {}) {
+  const key = reportPermission(id);
+  if (overrides[key] === false) return false;
+  return !!perms.view_reports || !!perms[key];
+}
 
 /** Personal override wins; otherwise the role decides. Mirrors public.has_permission. */
 export function effectivePermission(roles: string[], perm: Permission, overrides: Partial<Record<Permission, boolean>>) {

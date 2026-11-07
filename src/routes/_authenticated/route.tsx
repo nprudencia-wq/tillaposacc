@@ -104,7 +104,7 @@ function AppLayout() {
     );
   }
 
-  const allowed = (path: string) => { const p = moduleFor(path); return !p || !me || me.perms?.[p] !== false; };
+  const allowed = (path: string) => { const p = moduleFor(path); return !p || !me || (p === "view_reports" ? me.canViewReports : me.perms?.[p] !== false); };
   if (me && !allowed(pathname)) return <Navigate to="/pos" replace />;
 
   return (
