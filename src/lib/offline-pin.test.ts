@@ -27,6 +27,20 @@ describe("offline till PIN", () => {
     expect((await checkOfflinePin("stranger", "1234")).ok).toBe(false);
   });
 
+  it("accepts verified username, full name and email aliases with the same PIN", async () => {
+    await rememberPin("nprudencia", "1234", "u1", {}, ["prudencia ngandu", "nprudencia@example.com"]);
+    expect((await checkOfflinePin(" PRUDENCIA NGANDU ", "1234")).ok).toBe(true);
+    expect((await checkOfflinePin("nprudencia@example.com", "1234")).ok).toBe(true);
+    expect((await checkOfflinePin("nprudencia", "1234")).ok).toBe(true);
+  });
+
+  it("rejects ambiguous names rather than selecting another cashier", async () => {
+    await rememberPin("cashier1", "1234", "u1", {}, ["Sam"]);
+    await rememberPin("cashier2", "5678", "u2", {}, ["Sam"]);
+    expect((await checkOfflinePin("Sam", "1234")).ok).toBe(false);
+    expect((await checkOfflinePin("cashier1", "1234")).ok).toBe(true);
+  });
+
   it("locks for 5 minutes after 5 wrong tries, even with the right PIN", async () => {
     await rememberPin("tendai", "1234", "u1", {});
     const t = 1_000_000;

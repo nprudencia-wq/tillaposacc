@@ -6,11 +6,21 @@ vi.mock("@/lib/local-db", () => ({
   idbSetMany: async (entries: [string, unknown][]) => { if (mocks.fail) throw new Error("Storage full"); entries.forEach(([k, v]) => mocks.storage.set(k, structuredClone(v))); },
 }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.rpc, from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ data: {}, error: null }) }) }) }) } }));
-import { enqueueSale, readQueue, setOfflineScope, stockAfterQueue, syncQueue, openLocalShift, closeShiftOffline, readPendingClose, type QueuedSale } from "./offline";
+import { cached, enqueueSale, readQueue, setOfflineScope, stockAfterQueue, syncQueue, openLocalShift, closeShiftOffline, readPendingClose, type QueuedSale } from "./offline";
+import { setInternetAvailable } from "./connectivity";
 const scope = { storeId: "shop", userId: "cashier" };
 const sale: QueuedSale = { client_ref: "sale-1", sold_at: "2026-11-07T13:00:00Z", shift_id: "shift", currency: "USD", discount: 0, items: [{ product_id: "bread", quantity: 2 }], payments: [{ method: "cash", currency: "USD", amount: 2 }], total: 2 };
 beforeEach(() => { mocks.storage.clear(); mocks.fail = false; mocks.rpc.mockReset(); localStorage.clear(); setOfflineScope(null); });
 describe("Durable disconnected sales", () => {
+  it("does not cache a late response after switching cashier", async () => {
+    setInternetAvailable(true);
+    setOfflineScope(scope);
+    await expect(cached("settings", async () => {
+      setOfflineScope({ storeId: "other-shop", userId: "other-cashier" });
+      return { store_id: "shop" };
+    })).rejects.toThrow("Cashier changed");
+    expect(mocks.storage.has("tilla-cache:settings:shop:cashier")).toBe(false);
+  });
   it("restores queued sales and deducted quantities after reload", async () => {
     setOfflineScope(scope); await enqueueSale(sale);
     setOfflineScope(null); setOfflineScope(scope);

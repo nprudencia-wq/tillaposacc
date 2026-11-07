@@ -82,6 +82,7 @@ export async function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
   }
   try {
     const v = await networkRead(fn);
+    if (scope && !sameScope(scope)) throw new Error("Cashier changed. Sign back in before loading this till.");
     setInternetAvailable(true);
     if (cacheKey) await idbSet(cacheKey, v).catch(() => { /* quota */ });
     return v;

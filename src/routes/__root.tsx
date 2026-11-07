@@ -17,6 +17,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { setupPWA } from "@/lib/pwa";
 import { setOfflineScope } from "@/lib/offline";
 import { refreshSavedSession } from "@/lib/offline-pin";
+import { rememberDeviceSession } from "@/lib/offline-session";
+import { internetAvailable } from "@/lib/connectivity";
 
 function NotFoundComponent() {
   return (
@@ -130,8 +132,12 @@ function RootComponent() {
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if ((event === "TOKEN_REFRESHED" || event === "SIGNED_IN") && session) void refreshSavedSession(session.user.id, session).catch(() => {});
+      if ((event === "TOKEN_REFRESHED" || event === "SIGNED_IN") && session) {
+        rememberDeviceSession(session);
+        void refreshSavedSession(session.user.id, session).catch(() => {});
+      }
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+      if (event === "SIGNED_OUT" && !internetAvailable()) return;
       if (event === "SIGNED_OUT") { setOfflineScope(null); queryClient.clear(); }
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();

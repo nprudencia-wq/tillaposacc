@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut, Truck, BarChart3, Users, Wallet, Clock, CreditCard, Contact, ClipboardList, Store, BookOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaff } from "@/hooks/use-staff";
-import { hasDeviceLogin } from "@/lib/offline-session";
+import { hasDeviceLogin, clearDeviceSession } from "@/lib/offline-session";
 import { roleLabels } from "@/lib/pos";
 import type { Permission } from "@/lib/username";
 import { OfflineBar } from "@/components/OfflineBar";
@@ -67,7 +67,8 @@ function AppLayout() {
     await supabase.rpc("log_event", { p_action: "logout" }).then(() => {}, () => {});
     await qc.cancelQueries();
     qc.clear();
-    await supabase.auth.signOut();
+    clearDeviceSession();
+    await supabase.auth.signOut({ scope: "local" });
     navigate({ to: "/auth", replace: true });
   }
 

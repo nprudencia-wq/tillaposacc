@@ -8,7 +8,7 @@ const ITERATIONS = 150_000;
 export const MAX_TRIES = 5;
 export const LOCK_MS = 5 * 60_000;
 
-type Entry = { username: string; userId: string; salt: string; hash: string; session: string; tries: number; lockedUntil: number };
+type Entry = { username: string; aliases?: string[]; userId: string; salt: string; hash: string; session: string; tries: number; lockedUntil: number };
 
 const norm = (u: string) => u.trim().toLowerCase();
 const b64 = (b: ArrayBuffer | Uint8Array) => btoa(String.fromCharCode(...new Uint8Array(b)));
@@ -24,9 +24,9 @@ async function all(): Promise<Entry[]> { return (await idbGet<Entry[]>(KEY).catc
 async function save(list: Entry[]) { await idbSet(KEY, list); }
 
 /** Call after a successful online PIN sign-in. */
-export async function rememberPin(username: string, pin: string, userId: string, session: unknown) {
+export async function rememberPin(username: string, pin: string, userId: string, session: unknown, aliases: string[] = []) {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const entry: Entry = { username: norm(username), userId, salt: b64(salt), hash: await hashPin(pin, salt), session: JSON.stringify(session), tries: 0, lockedUntil: 0 };
+  const entry: Entry = { username: norm(username), aliases: aliases.map(norm).filter(Boolean), userId, salt: b64(salt), hash: await hashPin(pin, salt), session: JSON.stringify(session), tries: 0, lockedUntil: 0 };
   const list = (await all()).filter((e) => e.username !== entry.username && e.userId !== userId);
   await save([...list, entry]);
 }
@@ -49,7 +49,9 @@ export type OfflineResult = { ok: true; session: string } | { ok: false; reason:
 /** Check a PIN against this device's saved copy. 5 wrong tries lock that user here for 5 minutes. */
 export async function checkOfflinePin(username: string, pin: string, now = Date.now()): Promise<OfflineResult> {
   const list = await all();
-  const e = list.find((x) => x.username === norm(username));
+  const matches = list.filter((x) => x.username === norm(username) || x.aliases?.includes(norm(username)));
+  if (matches.length > 1) return { ok: false, reason: "More than one cashier uses this name. Enter your unique username or email." };
+  const e = matches[0];
   if (!e) return { ok: false, reason: "This person hasn't signed in on this till before. Connect to the internet for their first sign-in." };
   if (e.lockedUntil > now) return { ok: false, reason: "Too many wrong PINs. Try again in 5 minutes." };
   const good = (await hashPin(pin, unb64(e.salt))) === e.hash;
