@@ -197,9 +197,9 @@ export async function openLocalShift(floats: { usd: number; zig: number; zar: nu
 async function syncLocalShift(scope: StoreScope): Promise<boolean> {
   const s = await readLocalShift();
   if (!s) return true;
-  const { error } = await supabase.rpc("open_offline_shift", {
+  const { error } = await networkRead(() => supabase.rpc("open_offline_shift", {
     p_id: s.id, p_opened_at: s.opened_at, p_float_usd: s.opening_float_usd, p_float_zig: s.opening_float_zig, p_float_zar: s.opening_float_zar,
-  });
+  }));
   if (error) {
     window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "shift_open", network: isNetworkError(error) });
     return false;
@@ -249,9 +249,9 @@ async function syncPendingClose(scope: StoreScope): Promise<boolean> {
   if (!p) return true;
   if (p.local_shift) {
     const ls = p.local_shift;
-    const { error } = await supabase.rpc("open_offline_shift", {
+    const { error } = await networkRead(() => supabase.rpc("open_offline_shift", {
       p_id: ls.id, p_opened_at: ls.opened_at, p_float_usd: ls.opening_float_usd, p_float_zig: ls.opening_float_zig, p_float_zar: ls.opening_float_zar,
-    });
+    }));
     if (error) {
       window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "shift_open", network: isNetworkError(error) });
       return false;

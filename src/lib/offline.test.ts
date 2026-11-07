@@ -6,7 +6,7 @@ vi.mock("@/lib/local-db", () => ({
   idbSetMany: async (entries: [string, unknown][]) => { if (mocks.fail) throw new Error("Storage full"); entries.forEach(([k, v]) => mocks.storage.set(k, structuredClone(v))); },
 }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.rpc, from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ data: {}, error: null }) }) }) }) } }));
-import { enqueueSale, readQueue, setOfflineScope, stockAfterQueue, syncQueue, type QueuedSale } from "./offline";
+import { enqueueSale, readQueue, setOfflineScope, stockAfterQueue, syncQueue, openLocalShift, closeShiftOffline, readPendingClose, type QueuedSale } from "./offline";
 const scope = { storeId: "shop", userId: "cashier" };
 const sale: QueuedSale = { client_ref: "sale-1", sold_at: "2026-11-07T13:00:00Z", shift_id: "shift", currency: "USD", discount: 0, items: [{ product_id: "bread", quantity: 2 }], payments: [{ method: "cash", currency: "USD", amount: 2 }], total: 2 };
 beforeEach(() => { mocks.storage.clear(); mocks.fail = false; mocks.rpc.mockReset(); localStorage.clear(); setOfflineScope(null); });
@@ -30,5 +30,16 @@ describe("Durable disconnected sales", () => {
     mocks.rpc.mockResolvedValueOnce({ error: null });
     await syncQueue(); expect(readQueue()).toHaveLength(0);
     expect(mocks.rpc.mock.calls.map((c) => c[1].p_client_ref)).toEqual(["sale-1", "sale-1"]);
+  });
+  it("uploads an offline shift opening, sales and closing count in that order", async () => {
+    setOfflineScope(scope);
+    const shift = await openLocalShift({ usd: 10, zig: 0, zar: 20 });
+    await enqueueSale({ ...sale, shift_id: shift.id });
+    await closeShiftOffline(shift.id, { usd: 12, zig: 0, zar: 20, notes: "Closed without internet" });
+    mocks.rpc.mockResolvedValue({ error: null });
+    await syncQueue();
+    expect(mocks.rpc.mock.calls.map((c) => c[0])).toEqual(["open_offline_shift", "complete_offline_sale", "close_offline_shift"]);
+    expect(mocks.rpc.mock.calls[2]?.[1]).toMatchObject({ p_actual_usd: 12, p_actual_zar: 20 });
+    expect(await readPendingClose()).toBeNull();
   });
 });
