@@ -181,9 +181,14 @@ function Till({ shiftId }: { shiftId: string }) {
       items: lines.map((l) => ({ name: l.name, quantity: l.quantity, unit_price: l.unit_price, line_total: l.unit_price * l.quantity })),
       subtotal, discount, payments: paid,
     };
-    setReceipt(full); setLastReceipt(full);
+    setLastReceipt(full);
     saleRef.current = null;
     setPayOpen(false); setLines([]); setDiscVal(0); setCustomerId("none");
+    // Account/credit sales: no change to hand over, so go straight to the next sale.
+    if (paid.some((p) => isAccountMethod(p.method))) {
+      toast.success(`${r.sale_number} charged to account`, { action: { label: "Print", onClick: () => void printReceipt(full, settings) } });
+      setTimeout(() => searchRef.current?.focus(), 0);
+    } else setReceipt(full);
   }
 
   async function saveOffline(paid: Payment[], reference?: string) {
@@ -308,6 +313,7 @@ function Till({ shiftId }: { shiftId: string }) {
         <div className="flex items-center justify-between border-b px-3 py-2">
           <h2 className="text-base font-bold">Sale</h2>
           <div className="flex gap-1">
+            <Button size="sm" variant="ghost" className="text-destructive" disabled={!lines.length && customerId === "none"} onClick={() => { setLines([]); setDiscVal(0); setCustomerId("none"); saleRef.current = null; searchRef.current?.focus(); }}><Trash2 className="h-4 w-4" />Clear</Button>
             <Button size="sm" variant="ghost" onClick={hold} disabled={!lines.length}><PauseCircle className="h-4 w-4" />Hold</Button>
             <Button size="sm" variant="ghost" onClick={() => setHeldOpen(true)}><PlayCircle className="h-4 w-4" />Held ({held.length})</Button>
             <Button size="sm" variant="ghost" onClick={() => setReprintOpen(true)}><ReceiptText className="h-4 w-4" />Receipts</Button>
