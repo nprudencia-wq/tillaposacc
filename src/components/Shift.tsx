@@ -50,8 +50,9 @@ export function useOpenShift() {
   });
 }
 
-function fetchOpen() {
-  return cached("open-shift", async () => {
+async function fetchOpen() {
+  try {
+    return await cached("open-shift", async () => {
       const uid = (await deviceSession())?.user.id;
       if (!uid) return null;
       const { data, error } = await supabase.from("cashier_shifts").select("*")
@@ -59,6 +60,11 @@ function fetchOpen() {
       if (error) throw error;
       return data;
     });
+  } catch (e) {
+    // Offline with no saved shift: let the cashier open one on this till.
+    if (isNetworkError(e) || /No saved copy/.test((e as Error).message)) return null;
+    throw e;
+  }
 }
 
 export async function fetchShiftSummary(id: string) {
