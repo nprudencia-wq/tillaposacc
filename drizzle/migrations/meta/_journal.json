@@ -442,6 +442,13 @@
       "when": 1794212577928,
       "tag": "0062_settlement_approval_tracking",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1794214234505,
+      "tag": "0063_offline_receipt_numbers",
+      "breakpoints": true
     }
   ]
 }
