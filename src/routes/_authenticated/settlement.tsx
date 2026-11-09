@@ -134,6 +134,8 @@ function Settlement({ storeId }: { storeId: string }) {
     if (bad) { toast.error(`Enter the counted amount for ${bad.label}.`); return; }
     setBusy(true);
     const lines = data.rows.map((r) => ({ method: r.method, label: r.label, group: r.group, expected: r.expected, counted: r.group === "account" ? r.expected : countOf(r), difference: r.group === "account" ? 0 : Math.round((countOf(r)! - r.expected) * 100) / 100 }));
+    const owedLine = (data.saved?.lines as { method: string }[] | undefined)?.find((l) => l.method === "_owed");
+    if (owedLine) (lines as unknown[]).push(owedLine);
     const { data: u } = await supabase.auth.getSession();
     const record = { store_id: storeId, day, lines, notes, settled_by: u.session?.user.id ?? "", settled_at: new Date().toISOString(), auto: false };
     let offline = !internetAvailable();
