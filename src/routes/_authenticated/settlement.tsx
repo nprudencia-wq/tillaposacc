@@ -71,6 +71,9 @@ function Settlement({ storeId }: { storeId: string }) {
       const saved = pending ? (pending as unknown as NonNullable<typeof server.saved>) : server.saved;
       return { rows, saved, shiftCash: server.shiftCash, shiftCount: server.shiftCount, settledBy: pending ? `${me} (waiting to upload)` : server.settledBy, saleCount: server.sales.length + local.length, localCount: local.length + reps.length, checkedAt: server.checkedAt };
     },
+    // Keep the day's figures up to date while the page is open.
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   });
   async function loadServer() {
       const [types, profiles, settings, saved] = await Promise.all([
@@ -113,9 +116,17 @@ function Settlement({ storeId }: { storeId: string }) {
   const [notes, setNotes] = useState("");
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [edited, setEdited] = useState(false);
+  const autoCounts = () => {
+    const cashRows = data.rows.filter((r) => r.group === "cash");
+    return Object.fromEntries(data.rows.filter((r) => r.group !== "account").map((r) => [r.method,
+      r.group === "cash" && cashRows.length === 1 && data.shiftCash !== null ? String(data.shiftCash) : String(r.expected)]));
+  };
+  const signature = data.rows.map((r) => `${r.method}:${r.expected}`).join("|");
   useEffect(() => {
-    const manual = data.saved && data.saved.lines.length > 0;
-    if (manual) setCounted(Object.fromEntries(data.saved!.lines.map((l) => [l.method, String(l.counted)])));
+    const manual = data.saved && !data.saved.auto && data.saved.lines.length > 0;
+    if (edited && !manual) return; // don't overwrite what the manager is typing
+    if (data.saved && data.saved.lines.length > 0 && manual) setCounted(Object.fromEntries(data.saved!.lines.map((l) => [l.method, String(l.counted)])));
     else {
       // Filled in automatically: cash from the shift close counts, card/mobile at what the till recorded.
       const cashRows = data.rows.filter((r) => r.group === "cash");
@@ -124,7 +135,7 @@ function Settlement({ storeId }: { storeId: string }) {
     }
     setNotes(data.saved?.notes ?? "");
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.saved, data.rows.length, data.shiftCash]);
+  }, [data.saved, signature, data.shiftCash]);
   const savedOwed = (data.saved?.lines as { method: string; expected?: number }[] | undefined)?.find((l) => l.method === "_owed");
   const liveOwed = useQuery({
     queryKey: ["settlement-owed", storeId],
@@ -143,7 +154,9 @@ function Settlement({ storeId }: { storeId: string }) {
   const countOf = (r: MethodRow) => (counted[r.method] === undefined || counted[r.method] === "" ? null : Number(counted[r.method]));
   const settleRows = data.rows.filter((r) => r.group !== "account");
 
-  async function save() {
+  async function save(override?: Record<string, string>) {
+    const src = override ?? counted;
+    const countOf = (r: MethodRow) => (src[r.method] === undefined || src[r.method] === "" ? null : Number(src[r.method]));
     const bad = settleRows.find((r) => countOf(r) === null || !Number.isFinite(countOf(r)!) || countOf(r)! < 0);
     if (bad) { toast.error(`Enter the counted amount for ${bad.label}.`); return; }
     setBusy(true);
@@ -164,7 +177,14 @@ function Settlement({ storeId }: { storeId: string }) {
     if (offline) await queueSettlement(record);
     setBusy(false);
     toast.success(offline ? "Day settled on this device — it uploads when the internet is back" : "Day settled");
+    setEdited(false);
     qc.invalidateQueries({ queryKey: ["settlement", storeId, day] });
+  }
+  async function settleAuto() {
+    const auto = autoCounts();
+    setCounted(auto);
+    if (!notes) setNotes(`Settled automatically from till figures${data.shiftCount ? ` and ${data.shiftCount} shift close count(s)` : ""}.`);
+    await save(auto);
   }
 
   return (
@@ -180,6 +200,7 @@ function Settlement({ storeId }: { storeId: string }) {
         </div>
         <div className="flex gap-2 print:hidden">
           <Input type="date" value={day} onChange={(e) => e.target.value && navigate({ search: { day: e.target.value } })} className="w-44" />
+          <Button onClick={settleAuto} disabled={busy || data.rows.length === 0}>Settle day automatically</Button>
           <Button variant="outline" onClick={() => window.print()}>Print report</Button>
         </div>
       </div>
