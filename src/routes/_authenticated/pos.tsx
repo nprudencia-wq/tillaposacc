@@ -323,20 +323,22 @@ function Till({ shiftId }: { shiftId: string }) {
                   <span className="tabular w-9 text-center text-sm font-semibold">{l.quantity}</span>
                   <Button size="icon" variant="ghost" className="h-8 w-8 rounded-l-none border-l" aria-label={`Add one more ${l.name}`} onClick={() => setQty(l.product_id, l.quantity + 1)}><Plus className="h-4 w-4" /></Button>
                 </div>
-                <span className="tabular min-w-0 flex-1 truncate text-xs text-muted-foreground">{show(l.unit_price)} each</span>
+                <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                  <span className="tabular min-w-0 truncate text-xs text-muted-foreground">{show(l.unit_price)} each</span>
+                  {me?.canOverridePrice && <button type="button" className="shrink-0 text-xs underline" aria-label={`Change price of ${l.name}`} onClick={() => changePrice(l.product_id, l.name, l.unit_price)}>Change price</button>}
+                </div>
                 <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-destructive" aria-label={`Remove ${l.name} from this sale`} onClick={() => setQty(l.product_id, 0)}><Trash2 className="h-4 w-4" /></Button>
               </div>
-              {(listPrice(l.product_id) !== l.unit_price || l.quantity > l.stock || me?.canOverridePrice) && (
-                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+              {(listPrice(l.product_id) !== l.unit_price || l.quantity > l.stock) && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs">
                   {listPrice(l.product_id) !== l.unit_price && <span className="text-warning">price changed from {show(listPrice(l.product_id))}</span>}
                   {l.quantity > l.stock && <span className="text-destructive">Only {l.stock} in stock</span>}
-                  {me?.canOverridePrice && <button type="button" className="underline" aria-label={`Change price of ${l.name}`} onClick={() => changePrice(l.product_id, l.name, l.unit_price)}>Change price</button>}
                 </div>
               )}
             </div>
           ))}
         </div>
-        <div className="space-y-2 border-t p-3">
+        <div className="space-y-1.5 border-t px-3 pb-3 pt-2.5">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Customer</span>
             <Select value={customerId} onValueChange={setCustomerId}>
@@ -359,19 +361,19 @@ function Till({ shiftId }: { shiftId: string }) {
           </div>}
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Currency</span>
-            <div className="flex rounded-lg bg-muted p-1">
+            <div className="flex rounded-lg bg-muted p-0.5">
               {(["USD", "ZiG", "ZAR"] as Currency[]).map((c) => (
-                <Button key={c} size="sm" variant={currency === c ? "default" : "ghost"} disabled={c === "ZAR" && randRate <= 0} onClick={() => setCurrency(c)}>{c === "ZAR" ? "Rand" : c}</Button>
+                <Button key={c} size="sm" variant={currency === c ? "default" : "ghost"} className="h-7 px-2.5 text-xs" disabled={c === "ZAR" && randRate <= 0} onClick={() => setCurrency(c)}>{c === "ZAR" ? "Rand" : c}</Button>
               ))}
             </div>
           </div>
           <div className="tabular space-y-1 text-sm">
-            <div className="flex justify-between"><span>Subtotal</span><span>{show(subtotal)}</span></div>
+            {discount > 0 && <div className="flex justify-between"><span>Subtotal</span><span>{show(subtotal)}</span></div>}
             {discount > 0 && <div className="flex justify-between text-destructive"><span>Discount</span><span>-{show(discount)}</span></div>}
             <div className="flex justify-between pt-1 font-display text-2xl font-bold"><span>Total</span><span>{show(total)}</span></div>
             {currency === "ZiG" && <div className="text-right text-xs text-muted-foreground">{money(total)} at ZiG {rate}/USD</div>}
           </div>
-          <Button size="lg" className="h-14 w-full text-lg" disabled={!lines.length} onClick={() => setPayOpen(true)}>Charge {show(total)}</Button>
+          <Button size="lg" className="h-12 w-full text-lg" disabled={!lines.length} onClick={() => setPayOpen(true)}>Charge {show(total)}</Button>
         </div>
       </aside>
       {/* Categories */}
