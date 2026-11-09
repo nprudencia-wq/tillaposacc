@@ -24,7 +24,7 @@ function setup(error: unknown = null) {
   const finish = vi.fn();
   const dependencies = {
     window: { __lovableEvents: { track }, dispatchEvent: vi.fn() }, Event: class {}, creditSnapshot: async () => undefined, customerOwed: async () => 0, creditLimitError: () => null, navigator: { onLine: true },
-    crypto: { randomUUID: () => "test-reference" },
+    crypto: { randomUUID: () => "test-reference" }, takeReservedNumber: async () => null, offlineRef: (n: number) => `RSV-${n}-x`, receiptNumber: (n: number) => `TXN-${n}`,
     supabase: { rpc: vi.fn().mockResolvedValue({ data: { sale_number: "test", total: 2, change: 0, rate: 1 }, error }) },
     randEnabled: false, currency: "USD", rate: 1, randRate: 0, shiftId: "shift",
     saleRef: { current: null }, settings: { business_name: "Shop" }, me: { name: "Cashier" }, subtotal: 2,

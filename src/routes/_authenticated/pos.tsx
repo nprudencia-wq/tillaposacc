@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, List, LayoutGrid, ReceiptText, Printer, Archive, Settings2, HandCoins } from "lucide-react";
 import { openDrawer } from "@/lib/hardware";
 import { RecentReceipts } from "@/components/RecentReceipts";
+import { offlineRef, receiptNumber, takeReservedNumber, topUpReservedNumbers } from "@/lib/receipt-numbers";
 import { ProductImage } from "@/components/ProductImage";
 import { HardwareSettings } from "@/components/HardwareSettings";
 import { CashierDashboard } from "@/components/CashierDashboard";
@@ -102,6 +103,13 @@ function Till({ shiftId }: { shiftId: string }) {
   useEffect(() => {
     if (!randEnabled && currency === "ZAR") { setCurrency("USD"); setPayOpen(false); }
   }, [randEnabled, currency]);
+  useEffect(() => {
+    if (!me?.id) return;
+    const top = () => void topUpReservedNumbers();
+    top();
+    window.addEventListener("online", top); window.addEventListener("tilla-sync", top);
+    return () => { window.removeEventListener("online", top); window.removeEventListener("tilla-sync", top); };
+  }, [me?.id]);
   const [payOpen, setPayOpen] = useState(false);
   const [held, setHeld] = useState<Held[]>([]);
   const [heldOpen, setHeldOpen] = useState(false);
@@ -207,12 +215,15 @@ function Till({ shiftId }: { shiftId: string }) {
   }
 
   async function saveOffline(paid: Payment[], reference?: string) {
-    const ref = reference ?? `OFF-${crypto.randomUUID()}`;
     const at = new Date().toISOString();
     if (Math.round(paidUSD(paid, rate, randRate) * 100) < Math.round(total * 100)) { toast.error("Take full payment before finishing an offline sale"); return; }
+    // A reference from a failed online attempt must stay (that attempt may have landed); otherwise use a reserved TXN number.
+    const reserved = reference ? null : await takeReservedNumber();
+    const ref = reference ?? (reserved ? offlineRef(reserved) : `OFF-${crypto.randomUUID()}`);
+    const number = reserved ? receiptNumber(reserved) : ref;
     const change = Math.max(0, Math.round((paidUSD(paid, rate, randRate) - total) * 100) / 100);
     const snapshot: ReceiptData = {
-      sale_number: ref, created_at: at, business: settings?.business_name ?? "", cashier: me?.name ?? "", customer: customer?.name ?? null,
+      sale_number: number, created_at: at, business: settings?.business_name ?? "", cashier: me?.name ?? "", customer: customer?.name ?? null,
       currency, rate: currency === "ZAR" ? randRate : rate, total, change, subtotal, discount, payments: paid,
       items: lines.map((l) => ({ name: l.name, quantity: l.quantity, unit_price: l.unit_price, line_total: l.unit_price * l.quantity })),
     };
@@ -222,9 +233,9 @@ function Till({ shiftId }: { shiftId: string }) {
       ...(customer ? { customer_id: customer.id } : {}),
     });
     window.__lovableEvents?.track?.("project.till_sale_completed", { mode: "offline", currency });
-    finish({ sale_number: ref, created_at: new Date().toISOString(), rate: currency === "ZAR" ? randRate : rate, total, change }, paid);
+    finish({ sale_number: number, created_at: at, rate: currency === "ZAR" ? randRate : rate, total, change }, paid);
     const nonCash = paid.some((p) => !isCashMethod(p.method));
-    toast.success(`Saved offline as ${ref}. It will upload when you're back online.${nonCash ? " Non-cash payments will need checking." : ""}`);
+    toast.success(`Saved offline as ${number}. It will upload when you're back online.${nonCash ? " Non-cash payments will need checking." : ""}`);
   }
 
   async function complete(payments: Payment[]) {

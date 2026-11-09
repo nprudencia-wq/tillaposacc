@@ -149,7 +149,7 @@ export async function enqueueSale(s: QueuedSale) {
     if (s.receipt) {
       const key = scopedStorageKey(RECEIPTS_KEY, scope);
       const receipts = (await idbGet<ReceiptData[]>(key)) ?? [];
-      entries.push([key, [s.receipt, ...receipts.filter((r) => r.sale_number !== s.client_ref)].slice(0, 500)]);
+      entries.push([key, [s.receipt, ...receipts.filter((r) => r.sale_number !== s.receipt!.sale_number)].slice(0, 500)]);
     }
     await idbSetMany(entries);
     if (!sameScope(scope)) return;

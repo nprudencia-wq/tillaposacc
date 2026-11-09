@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ReceiptActions, Receipt, type ReceiptData } from "@/components/Receipt";
-import { localReceipts } from "@/lib/offline";
+import { cached, localReceipts } from "@/lib/offline";
 import { printReceipt } from "@/components/SaleComplete";
 import { Printer } from "lucide-react";
 import { RefundDialog } from "@/components/RefundDialog";
@@ -17,7 +17,7 @@ import { toast } from "sonner";
 
 const localDay = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-type Sale = { id: string; sale_number: string; created_at: string; cashier_id: string; currency: string; exchange_rate: number; subtotal: number; discount: number; total: number; change_given: number; sale_payments: { method: string }[] | null };
+type Sale = { id: string; sale_number: string; created_at: string; cashier_id: string; currency: string; exchange_rate: number; subtotal: number; discount: number; total: number; change_given: number; cashier_name?: string; sale_payments: { method: string; currency: string; amount: number }[] | null; sale_items?: { name: string; quantity: number; unit_price: number; line_total: number; refunded_qty: number }[] };
 
 /** Till-side past receipts (Salesplay-style): pick a day, search, view, reprint, share and refund. */
 export function RecentReceipts({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
@@ -33,24 +33,26 @@ export function RecentReceipts({ open, onOpenChange }: { open: boolean; onOpenCh
   const { data: sales = [], isLoading } = useQuery({
     queryKey: ["sales", "till-receipts", day, mine, me?.id, q.trim()],
     enabled: open,
-    queryFn: async () => {
-      let query = supabase.from("sales").select("id, sale_number, created_at, cashier_id, currency, exchange_rate, subtotal, discount, total, change_given, sale_payments(method)").order("created_at", { ascending: false }).limit(200);
+    // Whole receipts (lines, payments, cashier name) are downloaded and kept on the till, so they open offline.
+    queryFn: () => cached(`till-receipts:${day}:${mine ? me?.id : "all"}:${q.trim().toLowerCase()}`, async () => {
+      let query = supabase.from("sales").select("id, sale_number, created_at, cashier_id, currency, exchange_rate, subtotal, discount, total, change_given, sale_payments(method, currency, amount), sale_items(name, quantity, unit_price, line_total, refunded_qty)").order("created_at", { ascending: false }).limit(200);
       const term = q.trim();
       if (term) query = query.ilike("sale_number", `%${term}%`);
       else if (day) query = query.gte("created_at", new Date(day + "T00:00:00").toISOString()).lte("created_at", new Date(day + "T23:59:59.999").toISOString());
       if (mine && me?.id) query = query.eq("cashier_id", me.id);
-      return ((await query).data ?? []) as unknown as Sale[];
-    },
+      const [{ data, error }, { data: profs }] = await Promise.all([query, supabase.from("profiles").select("id, full_name")]);
+      if (error) throw error;
+      const names = new Map((profs ?? []).map((p) => [p.id, p.full_name]));
+      return ((data ?? []) as unknown as Sale[]).map((s) => ({ ...s, cashier_name: names.get(s.cashier_id) ?? "" }));
+    }).catch(() => [] as Sale[]),
   });
+  const savedNumbers = new Set(saved.map((r) => r.sale_number));
   const dayTotal = sales.reduce((s, x) => s + Number(x.total), 0);
 
-  async function view(s: Sale) {
-    const [{ data: items, error }, { data: pays }, { data: prof }] = await Promise.all([
-      supabase.from("sale_items").select("*").eq("sale_id", s.id),
-      supabase.from("sale_payments").select("*").eq("sale_id", s.id),
-      supabase.from("profiles").select("full_name").eq("id", s.cashier_id).maybeSingle(),
-    ]);
-    if (error) { toast.error("Couldn't load that receipt"); return; }
+  function view(s: Sale) {
+    const items = s.sale_items, pays = s.sale_payments;
+    if (!items) { toast.error("Couldn't load that receipt"); return; }
+    const prof = { full_name: s.cashier_name };
     setCurrent({
       sale: s,
       refundable: (items ?? []).some((i) => Number(i.quantity) > Number(i.refunded_qty)),
@@ -96,7 +98,7 @@ export function RecentReceipts({ open, onOpenChange }: { open: boolean; onOpenCh
                 <span className="text-muted-foreground">{sales.length} · {money(dayTotal)}</span>
               </div>
               <div className="max-h-[50vh] divide-y overflow-y-auto rounded-lg border">
-                {saved.filter((r) => (!q.trim() || r.sale_number.toLowerCase().includes(q.trim().toLowerCase())) && (!day || localDay(new Date(r.created_at)) === day)).map((r) => (
+                {saved.filter((r) => !sales.some((s) => s.sale_number === r.sale_number)).filter((r) => (!q.trim() || r.sale_number.toLowerCase().includes(q.trim().toLowerCase())) && (!day || localDay(new Date(r.created_at)) === day)).map((r) => (
                   <Button key={r.sale_number} variant="ghost" className="h-auto w-full justify-between whitespace-normal p-3 text-left" onClick={() => setLocalCurrent(r)}><span className="min-w-0 break-all">{r.sale_number}<br /><span className="text-xs text-muted-foreground">Saved on this till</span></span><span>{money(r.total)}</span></Button>
                 ))}
                 {isLoading && <p className="p-3 text-sm text-muted-foreground">Loading…</p>}
