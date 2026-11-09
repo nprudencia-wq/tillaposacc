@@ -338,9 +338,9 @@ function Till({ shiftId }: { shiftId: string }) {
             </div>
           ))}
         </div>
-        <div className="space-y-1.5 border-t px-3 pb-3 pt-2.5">
+        <div className="space-y-3 border-t px-3 pb-3 pt-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Customer</span>
+            <span className="w-[4.5rem] shrink-0 text-sm text-muted-foreground">Customer</span>
             <Select value={customerId} onValueChange={setCustomerId}>
               <SelectTrigger className="h-8 flex-1" aria-label="Customer for this sale"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -394,6 +394,14 @@ function Till({ shiftId }: { shiftId: string }) {
             placeholder="Search name, SKU or scan barcode…" className="h-11 bg-card pl-10 text-base"
           />
           </div>
+          {/* Category dropdown: jump straight to any category, however many there are */}
+          <Select value={cat ?? "all"} onValueChange={(v) => setCat(v === "all" ? null : v)}>
+            <SelectTrigger className="h-11 w-32 shrink-0 bg-card md:w-44" aria-label="Filter products by category"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All products</SelectItem>
+              {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
         <div className="mt-2 flex gap-2 overflow-x-auto pb-1 md:hidden">
           <Button size="sm" variant={cat === null ? "default" : "outline"} onClick={() => setCat(null)} className="h-8 shrink-0 rounded-full px-3 text-xs">All</Button>
