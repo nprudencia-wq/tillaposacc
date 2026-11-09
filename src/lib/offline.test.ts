@@ -111,7 +111,7 @@ describe("Durable disconnected sales", () => {
     expect(await readPendingClose()).not.toBeNull();
     mocks.rpc.mockReset(); mocks.rpc.mockResolvedValue({ error: null });
     await syncQueue();
-    expect(mocks.rpc.mock.calls.map((c) => c[0])).toEqual(["complete_offline_sale", "close_offline_shift"]);
+    expect(mocks.rpc.mock.calls.map((c) => c[0])).toEqual(["complete_offline_sale_v2", "close_offline_shift"]);
     expect(readQueue()).toHaveLength(0);
     expect(await readPendingClose()).toBeNull();
   });
@@ -122,7 +122,7 @@ describe("Durable disconnected sales", () => {
     await closeShiftOffline(shift.id, { usd: 12, zig: 0, zar: 20, notes: "Closed without internet" });
     mocks.rpc.mockResolvedValue({ error: null });
     await syncQueue();
-    expect(mocks.rpc.mock.calls.map((c) => c[0])).toEqual(["open_offline_shift", "complete_offline_sale", "close_offline_shift"]);
+    expect(mocks.rpc.mock.calls.map((c) => c[0])).toEqual(["open_offline_shift", "complete_offline_sale_v2", "close_offline_shift"]);
     expect(mocks.rpc.mock.calls[2]?.[1]).toMatchObject({ p_actual_usd: 12, p_actual_zar: 20 });
     expect(await readPendingClose()).toBeNull();
   });
