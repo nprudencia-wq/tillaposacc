@@ -23,7 +23,7 @@ export async function printReceipt(receipt: ReceiptData, settings: unknown) {
       try { logo = await receiptLogoRaster(st.logo_url, config.paper_width); }
       catch { toast.warning("Logo unavailable; printing receipt details only"); }
     }
-    await sendToPrinter(receiptBytes(receipt, st, config, { logo }), hw); toast.success("Receipt printed");
+    await sendToPrinter(receiptBytes(receipt, st, config, logo ? { logo } : {}), hw); toast.success("Receipt printed");
   }
   catch (e) { toast.error(`Printer: ${e instanceof Error ? e.message : "failed"}`); }
 }

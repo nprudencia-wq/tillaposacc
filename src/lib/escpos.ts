@@ -9,8 +9,10 @@ export function logoRaster(width: number, height: number, pixels: Uint8ClampedAr
   bytes.set([GS, 0x76, 0x30, 0, bytesWide & 255, bytesWide >> 8, height & 255, height >> 8]);
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
     const i = (y * width + x) * 4;
-    const brightness = (pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114) * pixels[i + 3] / 255 + 255 - pixels[i + 3];
-    if (brightness < 160) bytes[8 + y * bytesWide + Math.floor(x / 8)] |= 0x80 >> (x % 8);
+    const alpha = pixels[i + 3] ?? 0;
+    const brightness = ((pixels[i] ?? 255) * 0.299 + (pixels[i + 1] ?? 255) * 0.587 + (pixels[i + 2] ?? 255) * 0.114) * alpha / 255 + 255 - alpha;
+    const target = 8 + y * bytesWide + Math.floor(x / 8);
+    if (brightness < 160) bytes[target] = (bytes[target] ?? 0) | (0x80 >> (x % 8));
   }
   return bytes;
 }
