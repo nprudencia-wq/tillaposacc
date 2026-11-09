@@ -519,6 +519,13 @@
       "when": 1794229326929,
       "tag": "0073_branches_one_main_per_store",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1794229415141,
+      "tag": "0074_trial_store_provisioning_scope",
+      "breakpoints": true
     }
   ]
 }
