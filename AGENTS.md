@@ -12,7 +12,6 @@
 - Sales and stock changes go through the `complete_sale` / `adjust_stock` database functions only; tables have no direct write grants for sales or stock movements, so prices and the stock audit trail can't be bypassed by cashiers.
 - Roles live in `user_roles`; `handle_new_user` only accepts trusted administrative staff creation. Public staff signup is rejected to prevent outsiders entering the existing shop.
 - Money is stored in USD; ZiG amounts are converted with `settings.zig_rate` at sale time and the rate is saved on each sale.
-- Offline sales queue and catalog cache live in IndexedDB via src/lib/local-db.ts (src/lib/offline.ts keeps an in-memory mirror; older localStorage queues migrate on load) and upload via `complete_offline_sale`, which dedupes on `client_ref`; non-cash offline payments start unverified. Why: retries must never double-sell.
 - The service worker registers only from src/lib/pwa.ts and never in dev/preview. Why: stale caches break the editor preview.
 - Staff log in by username mapped to `<username>@staff.tilla.local` (src/lib/username.ts); accounts with real emails still log in by email. Why: auth requires an email; auto-confirm is on because placeholder addresses can't receive mail.
 - Access rights = role default overridden per person in `user_permissions`, resolved by `has_permission()`; `can_refund`/`can_manage_stock`/`can_post_expense` wrap it and disabled profiles fail `is_staff`. Keep src/lib/username.ts ROLE_DEFAULTS in sync with `role_allows()`.
@@ -28,11 +27,8 @@
 - Privileged staff password resets must verify the caller and target share a store before loading the admin client. Why: global management roles must not authorize cross-store account changes.
 - Staff creation derives trusted store metadata from the authenticated membership before loading the admin client; non-vendor usernames are store-prefixed to preserve unique sign-in identities. Why: staff must not default into the vendor shop.
 - All legacy business rows carry a backfilled store_id with restrictive authenticated policies and immutable ownership guards; these are not a substitute for auditing privileged reads and related IDs. Why: security-definer routines bypass row policies.
-- Device persistence keys include both store and staff identity; unidentified legacy queues remain quarantined rather than reassigned. Why: changing login must never upload another cashier's sales.
 
 - Sales documents are store-scoped snapshots linked to protected sales/refunds, never a second stock, debt or accounting ledger; posting locks the document to prevent duplicate transactions.
 - Tender exchange rates are stored per payment; Rand units per USD remain unconfigured until entered, and historical USD accounting never uses today's rates.
 - Rand checkout requires a store-scoped confirmation matching the current rate; rate changes invalidate confirmation and database sale/payment triggers enforce it. Why: ambiguous conversions must not enable trading.
 - GRN drafts are store-scoped, version-checked snapshots; locked posting delegates to receive_goods_currency and retains the linked receipt for deduplication. Why: temporary saves cannot change stock or double-receive.
-- Offline shifts are created on the device (src/lib/offline.ts LocalShift) with a client UUID and uploaded via idempotent `open_offline_shift` before any queued sale. Why: offline sales must always have a real shift to attach to.
-- Offline till PIN unlock keeps only a PBKDF2 hash plus that cashier's own saved sign-in on the device (src/lib/offline-pin.ts), only after an online PIN sign-in there, with a local 5-try lock. Why: the server PIN store stays unreadable; offline unlock can't admit someone who never signed in on that till.
