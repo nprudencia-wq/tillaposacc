@@ -15,6 +15,8 @@ export interface Payment {
   currency: Currency;
   amount: number;
   exchange_rate?: number;
+  /** Card/mobile approval or transaction code; never set for cash. */
+  reference?: string;
 }
 
 export const round2 = (n: number) => Math.round(n * 100) / 100;

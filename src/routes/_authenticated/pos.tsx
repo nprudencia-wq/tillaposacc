@@ -288,6 +288,8 @@ function Till({ shiftId }: { shiftId: string }) {
     if (error) { toast.error(error.message); qc.invalidateQueries({ queryKey: ["open-shift"] }); return; }
     window.__lovableEvents?.track?.("project.till_sale_completed", { mode: "online", currency });
     const res = data as { sale_number: string; total: number; change: number; rate: number };
+    const refs = paid.filter((p) => p.reference?.trim()).map((p) => ({ method: p.method, currency: p.currency, reference: p.reference!.trim() }));
+    if (refs.length) void supabase.rpc("set_sale_payment_references", { p_sale_number: res.sale_number, p_refs: refs }).then(({ error: e }) => { if (e) toast.error("Payment reference not saved: " + e.message); });
     finish({ sale_number: res.sale_number, created_at: new Date().toISOString(), rate: Number(res.rate), total: Number(res.total), change: Number(res.change) }, paid);
     qc.invalidateQueries({ queryKey: ["products"] });
     qc.invalidateQueries({ queryKey: ["sales"] });
@@ -496,6 +498,8 @@ function PayDialog({ total, currency, rate, randRate, onClose, onPay }: {
   const [payments, setPayments] = useState<Payment[]>([{ method: first, currency, amount: fromUSD(total, currency, rate, randRate) }]);
   const [busy, setBusy] = useState(false);
   const change = changeDueUSD(total, payments, rate, randRate);
+  const isCashType = (code: string) => !!types?.find((t) => t.code === code)?.is_cash;
+  const isAccountType = (code: string) => !!(types?.find((t) => t.code === code) as { is_account?: boolean } | undefined)?.is_account;
   const upd = (i: number, p: Partial<Payment>) => setPayments((ps) => ps.map((x, k) => (k === i ? { ...x, ...p } : x)));
 
   return (
@@ -514,6 +518,7 @@ function PayDialog({ total, currency, rate, randRate, onClose, onPay }: {
                 <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem><SelectItem value="ZAR" disabled={randRate <= 0}>Rand</SelectItem></SelectContent>
               </Select>
               <Input type="number" min={0} step="0.01" value={p.amount || ""} onChange={(e) => upd(i, { amount: Number(e.target.value) })} className="tabular flex-1" />
+              {!isCashType(p.method) && !isAccountType(p.method) && <Input aria-label={`${methodLabel(p.method)} reference or approval code`} placeholder="Ref / approval code" maxLength={80} value={p.reference ?? ""} onChange={(e) => upd(i, { reference: e.target.value })} className="w-36" />}
               {payments.length > 1 && <Button size="icon" variant="ghost" aria-label={`Remove this ${methodLabel(p.method)} payment`} onClick={() => setPayments(payments.filter((_, k) => k !== i))}><X className="h-4 w-4" /></Button>}
             </div>
           ))}
