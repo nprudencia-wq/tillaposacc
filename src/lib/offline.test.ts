@@ -6,12 +6,21 @@ vi.mock("@/lib/local-db", () => ({
   idbSetMany: async (entries: [string, unknown][]) => { if (mocks.fail) throw new Error("Storage full"); entries.forEach(([k, v]) => mocks.storage.set(k, structuredClone(v))); },
 }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.rpc, from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ data: {}, error: null }) }) }) }) } }));
-import { cached, enqueueSale, readQueue, setOfflineScope, stockAfterQueue, syncQueue, openLocalShift, closeShiftOffline, readPendingClose, type QueuedSale } from "./offline";
+import { cached, deviceSales, enqueueSale, readQueue, setOfflineScope, stockAfterQueue, syncQueue, openLocalShift, closeShiftOffline, readPendingClose, type QueuedSale } from "./offline";
 import { setInternetAvailable } from "./connectivity";
 const scope = { storeId: "shop", userId: "cashier" };
 const sale: QueuedSale = { client_ref: "sale-1", sold_at: "2026-11-07T13:00:00Z", shift_id: "shift", currency: "USD", discount: 0, items: [{ product_id: "bread", quantity: 2 }], payments: [{ method: "cash", currency: "USD", amount: 2 }], total: 2 };
 beforeEach(() => { mocks.storage.clear(); mocks.fail = false; mocks.rpc.mockReset(); localStorage.clear(); setOfflineScope(null); });
 describe("Durable disconnected sales", () => {
+  it("retains uploaded device sales across reload for offline reports without crossing cashiers", async () => {
+    setOfflineScope(scope); await enqueueSale(sale);
+    mocks.rpc.mockResolvedValue({ error: null }); await syncQueue();
+    expect(readQueue()).toHaveLength(0);
+    setOfflineScope(null); setOfflineScope(scope);
+    expect((await deviceSales()).map((s) => s.client_ref)).toEqual(["sale-1"]);
+    setOfflineScope({ ...scope, userId: "someone-else" });
+    expect(await deviceSales()).toEqual([]);
+  });
   it("allows a manual sync to finish a slow upload without losing the sale", async () => {
     setOfflineScope(scope); await enqueueSale(sale);
     vi.useFakeTimers();

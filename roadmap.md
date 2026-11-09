@@ -1,4 +1,5 @@
 # Roadmap
+- [ ] Verify offline X-report/items/printing, My day and shift-close Z-report with cached and local shifts; keep account sales, drawer movements and live Back Office writes online-only.
 - [x] Reconciled existing real shift SH-1017 (Charmaine): offline TXN-1011 $1.50 and TXN-1012 $6.00 uploaded before close; signed-in Back Office Z-report matches $7.50 sales, $10.00 counted and $2.50 over, ZiG/Rand exact. No shop records changed. This verifies historical records and current report readback, not a newly operated end-to-end shift.
 - [ ] New real cashier shift walkthrough requires agreed products/quantities/payments, cashier identity and physical drawer counts; do not fabricate sales or close the three currently open shifts.
 - [x] Back Office → Shifts now shows Shift close with Harare date/cashier filters, daily uploaded sales and three-currency submitted counts/variances. Existing X/Z-reports and handover retained. Signed-in date change verified (Nov 8: 3 sales, US$8.50); desktop/mobile checked, build and 14 focused tests passed. Not yet published.

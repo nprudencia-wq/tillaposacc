@@ -2,7 +2,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { CloudOff, Package, ReceiptText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { cached, readQueue } from "@/lib/offline";
+import { cached, deviceSales, readQueue, type QueuedSale } from "@/lib/offline";
 import { harareDay, cashierDailyTotals } from "@/lib/cashier-dashboard";
 import { money } from "@/lib/pos";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,8 +21,10 @@ export function CashierDashboard(props: Props) {
 function DashboardBody({ cashier, products }: Props) {
   const [now, setNow] = useState(() => new Date());
   const [, refresh] = useState(0);
+  const [history, setHistory] = useState<QueuedSale[]>([]);
   useEffect(() => {
-    const update = () => refresh((v) => v + 1);
+    const update = () => { refresh((v) => v + 1); void deviceSales().then(setHistory); };
+    update();
     window.addEventListener("tilla-queue", update);
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => { window.removeEventListener("tilla-queue", update); clearInterval(timer); };
@@ -42,7 +44,7 @@ function DashboardBody({ cashier, products }: Props) {
     refetchInterval: 30000,
   });
   const queue = readQueue().filter((s) => s.store_id === cashier.storeId && s.user_id === cashier.id);
-  const totals = cashierDailyTotals(snapshot?.sales ?? [], queue, cashier.storeId, cashier.id, start, end);
+  const totals = cashierDailyTotals(snapshot?.sales ?? [], history, cashier.storeId, cashier.id, start, end);
   const low = products.filter((p) => Number(p.stock) <= Number(p.min_stock));
   const initials = cashier.name.split(/\s+/).slice(0, 2).map((s) => s[0]).join("");
   return <div className="space-y-5 p-5">
