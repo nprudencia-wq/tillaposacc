@@ -303,7 +303,7 @@ export function ReceiveGoods({ suppliers, onClose, draft }: { suppliers: { id: s
       const { data, error } = await supabase.rpc("post_grn_draft", { p_id: d.id, p_version: d.version });
       if (error) throw error;
       window.__lovableEvents?.track?.("project.grn_inventory_posted", { currency, line_count: entered.length });
-      await Promise.all(["grn-drafts", "goods-received", "reports", "suppliers", "products", "movements", "gl-lines", "branch_stock", "activity"].map((key) => qc.invalidateQueries({ queryKey: [key] })));
+      await Promise.all(["grn-drafts", "goods-received", "reports", "suppliers", "products", "movements", "gl-lines", "gl-accounts", "journals", "branch_stock", "activity", "manage-products", "stocktakes", "stocktake", "categories", "sales", "settlement", "multi-till", "cashier-perf"].map((key) => qc.invalidateQueries({ queryKey: [key] })));
       toast.success(`${(data as { grn_number: string }).grn_number} received — stock updated`);
       onClose();
     } catch (error) { toast.error((error as { message?: string }).message ?? "Receive goods failed"); }
