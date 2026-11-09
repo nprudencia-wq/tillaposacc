@@ -31,8 +31,8 @@ const navGroups = [
   { title: "Inventory", icon: Boxes, items: [
     { to: "/inventory", label: "Inventory" },
     { to: "/stock", label: "Stock control" },
-    { to: "/goods-received", label: "Goods received" },
     { to: "/suppliers", label: "Suppliers" },
+    { to: "/goods-received", label: "Goods received" },
   ] },
   { title: "Sales", icon: Receipt, items: [
     { to: "/sales", label: "Sales" },

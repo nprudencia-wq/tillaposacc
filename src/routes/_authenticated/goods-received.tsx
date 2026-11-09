@@ -1,14 +1,15 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronRight, PackagePlus } from "lucide-react";
+import { ChevronDown, ChevronRight, PackagePlus, Plus, Contact } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { money } from "@/lib/pos";
-import { ReceiveGoods } from "./suppliers";
+import { ReceiveGoods, SupplierForm } from "./suppliers";
+import { useStaff } from "@/hooks/use-staff";
 
 export const Route = createFileRoute("/_authenticated/goods-received")({
   head: () => ({ meta: [{ title: "Goods received — Tilla POS" }, { name: "description", content: "Record supplier deliveries with quantity, cost price and date." }, { property: "og:title", content: "Goods received — Tilla POS" }, { property: "og:description", content: "Record supplier deliveries with quantity, cost price and date." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -21,6 +22,8 @@ function GoodsReceivedPage() {
   const [from, setFrom] = useState(() => { const d = new Date(); d.setDate(1); return iso(d); });
   const [to, setTo] = useState(() => iso(new Date()));
   const [open, setOpen] = useState(false);
+  const [supplierOpen, setSupplierOpen] = useState(false);
+  const { data: me } = useStaff();
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const { data } = useQuery({
@@ -47,7 +50,13 @@ function GoodsReceivedPage() {
           <h1 className="text-3xl font-bold">Goods received</h1>
           <p className="text-muted-foreground">Each delivery adds stock and counts as purchases in the income statement.</p>
         </div>
-        <Button onClick={() => setOpen(true)} disabled={!data?.suppliers.length}><PackagePlus className="h-4 w-4" />Receive goods</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild><Link to="/suppliers"><Contact className="h-4 w-4" />Suppliers</Link></Button>
+          {me?.canManageStock && <>
+            <Button variant="outline" onClick={() => setSupplierOpen(true)}><Plus className="h-4 w-4" />New supplier</Button>
+            <Button onClick={() => setOpen(true)} disabled={!data?.suppliers.length}><PackagePlus className="h-4 w-4" />Receive goods</Button>
+          </>}
+        </div>
       </div>
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <div className="space-y-1.5"><Label htmlFor="gr-from">From</Label><Input id="gr-from" type="date" value={from} max={to} onChange={(e) => e.target.value && setFrom(e.target.value)} className="bg-card" /></div>
@@ -87,6 +96,7 @@ function GoodsReceivedPage() {
         </Table>
       </div>
       {open && <ReceiveGoods draft={null} suppliers={data?.suppliers ?? []} onClose={() => setOpen(false)} />}
+      {supplierOpen && <SupplierForm onClose={() => setSupplierOpen(false)} />}
     </div>
   );
 }
