@@ -7,6 +7,7 @@ import { openDrawer } from "@/lib/hardware";
 import { RecentReceipts } from "@/components/RecentReceipts";
 import { ProductImage } from "@/components/ProductImage";
 import { HardwareSettings } from "@/components/HardwareSettings";
+import { CashierDashboard } from "@/components/CashierDashboard";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings, useStaff } from "@/hooks/use-staff";
 import { Button } from "@/components/ui/button";
@@ -103,6 +104,7 @@ function Till({ shiftId }: { shiftId: string }) {
   const [heldOpen, setHeldOpen] = useState(false);
   const [reprintOpen, setReprintOpen] = useState(false);
   const [hwOpen, setHwOpen] = useState(false);
+  const [dashboardOpen, setDashboardOpen] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
   const saleRef = useRef<string | null>(null);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
@@ -270,6 +272,7 @@ function Till({ shiftId }: { shiftId: string }) {
           />
         </div>
         <div className="mt-2 flex items-center gap-2">
+          <Button size="sm" variant="outline" className="shrink-0" onClick={() => setDashboardOpen(true)}><ReceiptText className="h-4 w-4" />My day</Button>
           <div className="flex shrink-0 gap-1 border-r pr-2">
             <Button size="icon" variant={view === "list" ? "default" : "outline"} title="List view" aria-label="List view" aria-pressed={view === "list"} onClick={() => { setView("list"); localStorage.setItem(deviceStorageKey("tilla-product-view"), "list"); }}><List className="h-4 w-4" /></Button>
             <Button size="icon" variant={view === "tile" ? "default" : "outline"} title="Tile view" aria-label="Tile view" aria-pressed={view === "tile"} onClick={() => { setView("tile"); localStorage.setItem(deviceStorageKey("tilla-product-view"), "tile"); }}><LayoutGrid className="h-4 w-4" /></Button>
@@ -387,6 +390,7 @@ function Till({ shiftId }: { shiftId: string }) {
 
       <RecentReceipts open={reprintOpen} onOpenChange={setReprintOpen} />
       <HardwareSettings open={hwOpen} onOpenChange={setHwOpen} />
+      {me && dashboardOpen && <CashierDashboard open={dashboardOpen} onOpenChange={setDashboardOpen} cashier={me} products={products} />}
       <Dialog open={heldOpen} onOpenChange={setHeldOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Held sales</DialogTitle></DialogHeader>
