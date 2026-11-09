@@ -26,6 +26,7 @@ import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/po
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSalesRouteImport } from './routes/_authenticated/sales'
 import { Route as AuthenticatedSettlementRouteImport } from './routes/_authenticated/settlement'
+import { Route as AuthenticatedSettlementHistoryRouteImport } from './routes/_authenticated/settlement-history'
 import { Route as AuthenticatedShiftsRouteImport } from './routes/_authenticated/shifts'
 import { Route as AuthenticatedStaffRouteImport } from './routes/_authenticated/staff'
 import { Route as AuthenticatedStockRouteImport } from './routes/_authenticated/stock'
@@ -117,6 +118,12 @@ const AuthenticatedSettlementRoute = AuthenticatedSettlementRouteImport.update({
   path: '/settlement',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedSettlementHistoryRoute =
+  AuthenticatedSettlementHistoryRouteImport.update({
+    id: '/settlement-history',
+    path: '/settlement-history',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedShiftsRoute = AuthenticatedShiftsRouteImport.update({
   id: '/shifts',
   path: '/shifts',
@@ -160,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof AuthenticatedReportsRoute
   '/sales': typeof AuthenticatedSalesRoute
   '/settlement': typeof AuthenticatedSettlementRoute
+  '/settlement-history': typeof AuthenticatedSettlementHistoryRoute
   '/shifts': typeof AuthenticatedShiftsRoute
   '/staff': typeof AuthenticatedStaffRoute
   '/stock': typeof AuthenticatedStockRoute
@@ -183,6 +191,7 @@ export interface FileRoutesByTo {
   '/reports': typeof AuthenticatedReportsRoute
   '/sales': typeof AuthenticatedSalesRoute
   '/settlement': typeof AuthenticatedSettlementRoute
+  '/settlement-history': typeof AuthenticatedSettlementHistoryRoute
   '/shifts': typeof AuthenticatedShiftsRoute
   '/staff': typeof AuthenticatedStaffRoute
   '/stock': typeof AuthenticatedStockRoute
@@ -208,6 +217,7 @@ export interface FileRoutesById {
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/sales': typeof AuthenticatedSalesRoute
   '/_authenticated/settlement': typeof AuthenticatedSettlementRoute
+  '/_authenticated/settlement-history': typeof AuthenticatedSettlementHistoryRoute
   '/_authenticated/shifts': typeof AuthenticatedShiftsRoute
   '/_authenticated/staff': typeof AuthenticatedStaffRoute
   '/_authenticated/stock': typeof AuthenticatedStockRoute
@@ -233,6 +243,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/sales'
     | '/settlement'
+    | '/settlement-history'
     | '/shifts'
     | '/staff'
     | '/stock'
@@ -256,6 +267,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/sales'
     | '/settlement'
+    | '/settlement-history'
     | '/shifts'
     | '/staff'
     | '/stock'
@@ -280,6 +292,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reports'
     | '/_authenticated/sales'
     | '/_authenticated/settlement'
+    | '/_authenticated/settlement-history'
     | '/_authenticated/shifts'
     | '/_authenticated/staff'
     | '/_authenticated/stock'
@@ -414,6 +427,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettlementRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settlement-history': {
+      id: '/_authenticated/settlement-history'
+      path: '/settlement-history'
+      fullPath: '/settlement-history'
+      preLoaderRoute: typeof AuthenticatedSettlementHistoryRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/shifts': {
       id: '/_authenticated/shifts'
       path: '/shifts'
@@ -467,6 +487,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSalesRoute: typeof AuthenticatedSalesRoute
   AuthenticatedSettlementRoute: typeof AuthenticatedSettlementRoute
+  AuthenticatedSettlementHistoryRoute: typeof AuthenticatedSettlementHistoryRoute
   AuthenticatedShiftsRoute: typeof AuthenticatedShiftsRoute
   AuthenticatedStaffRoute: typeof AuthenticatedStaffRoute
   AuthenticatedStockRoute: typeof AuthenticatedStockRoute
@@ -489,6 +510,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSalesRoute: AuthenticatedSalesRoute,
   AuthenticatedSettlementRoute: AuthenticatedSettlementRoute,
+  AuthenticatedSettlementHistoryRoute: AuthenticatedSettlementHistoryRoute,
   AuthenticatedShiftsRoute: AuthenticatedShiftsRoute,
   AuthenticatedStaffRoute: AuthenticatedStaffRoute,
   AuthenticatedStockRoute: AuthenticatedStockRoute,

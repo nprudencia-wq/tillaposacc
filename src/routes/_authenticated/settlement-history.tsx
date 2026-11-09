@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Suspense, useState } from "react";
+import { Fragment, Suspense, useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaff } from "@/hooks/use-staff";
@@ -58,8 +58,8 @@ function History({ storeId }: { storeId: string }) {
               const cnt = lines.reduce((t, l) => t + Number(l.counted ?? l.expected ?? 0), 0);
               const diff = Math.round((cnt - exp) * 100) / 100;
               return (
-                <>
-                  <tr key={r.id} className="border-t">
+                <Fragment key={r.id}>
+                  <tr className="border-t">
                     <td className="p-3">
                       <button className="font-semibold underline-offset-2 hover:underline" onClick={() => setOpen(open === r.id ? null : r.id)}>{open === r.id ? "▾" : "▸"} {r.day}</button>
                     </td>
@@ -79,7 +79,7 @@ function History({ storeId }: { storeId: string }) {
                     </td>
                   </tr>
                   {open === r.id && (
-                    <tr key={`${r.id}-detail`} className="bg-muted/30"><td colSpan={6} className="p-3">
+                    <tr className="bg-muted/30"><td colSpan={6} className="p-3">
                       <table className="w-full text-xs">
                         <thead className="text-muted-foreground"><tr><th className="p-1 text-left">Payment type</th><th className="p-1 text-right">Expected</th><th className="p-1 text-right">Counted</th><th className="p-1 text-right">Difference</th></tr></thead>
                         <tbody>
@@ -98,7 +98,7 @@ function History({ storeId }: { storeId: string }) {
                       <Button asChild variant="outline" size="sm" className="mt-2"><Link to="/settlement" search={{ day: r.day }}>Open day</Link></Button>
                     </td></tr>
                   )}
-                </>
+                </Fragment>
               );
             })}
           </tbody>
