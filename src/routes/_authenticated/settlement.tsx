@@ -88,13 +88,13 @@ function Settlement({ storeId }: { storeId: string }) {
 
   async function save() {
     const bad = settleRows.find((r) => countOf(r) === null || !Number.isFinite(countOf(r)!) || countOf(r)! < 0);
-    if (bad) return toast.error(`Enter the counted amount for ${bad.label}.`);
+    if (bad) { toast.error(`Enter the counted amount for ${bad.label}.`); return; }
     setBusy(true);
     const lines = data.rows.map((r) => ({ method: r.method, label: r.label, group: r.group, expected: r.expected, counted: r.group === "account" ? r.expected : countOf(r), difference: r.group === "account" ? 0 : Math.round((countOf(r)! - r.expected) * 100) / 100 }));
     const { data: u } = await supabase.auth.getUser();
     const { error } = await db.from("daily_settlements").upsert({ store_id: storeId, day, lines, notes, settled_by: u.user?.id, settled_at: new Date().toISOString() }, { onConflict: "store_id,day" });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Day settled");
     qc.invalidateQueries({ queryKey: ["settlement", storeId, day] });
   }
