@@ -338,9 +338,9 @@ function Till({ shiftId }: { shiftId: string }) {
             </div>
           ))}
         </div>
-        <div className="space-y-1.5 border-t px-3 pb-3 pt-2.5">
+        <div className="space-y-3 border-t px-3 pb-3 pt-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Customer</span>
+            <span className="w-[4.5rem] shrink-0 text-sm text-muted-foreground">Customer</span>
             <Select value={customerId} onValueChange={setCustomerId}>
               <SelectTrigger className="h-8 flex-1" aria-label="Customer for this sale"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -352,22 +352,22 @@ function Till({ shiftId }: { shiftId: string }) {
             {customer && <Button size="icon" variant="outline" className="h-8 w-8" title="Take account payment" aria-label={`Take account payment from ${customer.name}`} onClick={() => setPayCust(true)}><HandCoins className="h-4 w-4" /></Button>}
           </div>
           {me?.canDiscount !== false && <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Discount</span>
+            <span className="w-[4.5rem] shrink-0 text-sm text-muted-foreground">Discount</span>
             <Select value={discKind} onValueChange={(v) => setDiscKind(v as "percent" | "fixed")}>
               <SelectTrigger className="h-8 w-14"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="percent">%</SelectItem><SelectItem value="fixed">$</SelectItem></SelectContent>
             </Select>
             <Input type="number" min={0} value={discVal || ""} onChange={(e) => setDiscVal(Number(e.target.value))} className="h-8 w-20" placeholder="0" />
           </div>}
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Currency</span>
-            <div className="flex rounded-lg bg-muted p-0.5">
+          <div className="flex items-center gap-2">
+            <span className="w-[4.5rem] shrink-0 text-sm text-muted-foreground">Currency</span>
+            <div className="flex flex-1 rounded-lg bg-muted p-0.5">
               {(["USD", "ZiG", "ZAR"] as Currency[]).map((c) => (
-                <Button key={c} size="sm" variant={currency === c ? "default" : "ghost"} className="h-7 px-2.5 text-xs" disabled={c === "ZAR" && randRate <= 0} onClick={() => setCurrency(c)}>{c === "ZAR" ? "Rand" : c}</Button>
+                <Button key={c} size="sm" variant={currency === c ? "default" : "ghost"} className="h-7 flex-1 px-2 text-xs" disabled={c === "ZAR" && randRate <= 0} onClick={() => setCurrency(c)}>{c === "ZAR" ? "Rand" : c}</Button>
               ))}
             </div>
           </div>
-          <div className="tabular space-y-1 text-sm">
+          <div className="tabular space-y-1 border-t pt-2.5 text-sm">
             {discount > 0 && <div className="flex justify-between"><span>Subtotal</span><span>{show(subtotal)}</span></div>}
             {discount > 0 && <div className="flex justify-between text-destructive"><span>Discount</span><span>-{show(discount)}</span></div>}
             <div className="flex justify-between pt-1 font-display text-xl font-bold"><span>Total</span><span>{show(total)}</span></div>
@@ -383,9 +383,9 @@ function Till({ shiftId }: { shiftId: string }) {
       </nav>
       {/* Products */}
       <section className="flex min-h-0 min-w-0 flex-1 flex-col p-2 md:order-2 md:p-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button size="icon" variant="outline" className="h-11 w-11 shrink-0" aria-label="Open till menu" onClick={() => setMenuOpen(true)}><Menu className="h-5 w-5" /></Button>
-          <div className="relative flex-1">
+          <div className="relative min-w-[10rem] flex-1">
           <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)}
@@ -394,10 +394,14 @@ function Till({ shiftId }: { shiftId: string }) {
             placeholder="Search name, SKU or scan barcode…" className="h-11 bg-card pl-10 text-base"
           />
           </div>
-        </div>
-        <div className="mt-2 flex gap-2 overflow-x-auto pb-1 md:hidden">
-          <Button size="sm" variant={cat === null ? "default" : "outline"} onClick={() => setCat(null)} className="h-8 shrink-0 rounded-full px-3 text-xs">All</Button>
-          {categories.map((c) => <Button key={c.id} size="sm" variant={cat === c.id ? "default" : "outline"} onClick={() => setCat(c.id)} className="h-8 shrink-0 rounded-full px-3 text-xs">{c.name}</Button>)}
+          {/* Category dropdown: jump straight to any category, however many there are */}
+          <Select value={cat ?? "all"} onValueChange={(v) => setCat(v === "all" ? null : v)}>
+            <SelectTrigger className="h-11 w-32 shrink-0 bg-card md:w-44" aria-label="Filter products by category"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All products</SelectItem>
+              {categories.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
         <div className={view === "tile" ? "mt-2 grid min-h-0 flex-1 auto-rows-min grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2 overflow-y-auto" : "mt-2 min-h-0 flex-1 overflow-y-auto divide-y border-y"}>
           {filtered.map((p) => {
