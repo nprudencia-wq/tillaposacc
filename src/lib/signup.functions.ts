@@ -12,7 +12,7 @@ export const signupStore = createServerFn({ method: "POST" })
       p_name: data.shopName.trim(), p_phone: data.phone.trim(), p_email: email,
     });
     if (storeError) console.error("create_trial_store failed", storeError.message);
-    if (storeError || !storeId) throw new Error("Could not create your shop. Please try again.");
+    if (storeError || !storeId) throw new Error("Could not create your shop. Please try again. " + (storeError?.message ?? ""));
     const { error } = await supabaseAdmin.auth.admin.createUser({
       email, password: data.password, email_confirm: true,
       user_metadata: { full_name: data.ownerName.trim(), username: email },
