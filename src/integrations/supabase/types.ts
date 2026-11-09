@@ -2731,6 +2731,7 @@ export type Database = {
         Returns: undefined
       }
       delete_supplier: { Args: { p_id: string }; Returns: undefined }
+      discard_trial_store: { Args: { p_store: string }; Returns: undefined }
       finish_stocktake: {
         Args: { p_apply: boolean; p_stocktake: string }
         Returns: undefined

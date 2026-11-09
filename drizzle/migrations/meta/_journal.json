@@ -526,6 +526,13 @@
       "when": 1794229415141,
       "tag": "0074_trial_store_provisioning_scope",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1794229493027,
+      "tag": "0075_discard_unclaimed_trial_store",
+      "breakpoints": true
     }
   ]
 }
