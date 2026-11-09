@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, List, LayoutGrid, ReceiptText, Printer, Archive, Settings2, HandCoins, Menu } from "lucide-react";
+import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, ReceiptText, Printer, Archive, Settings2, HandCoins, Menu } from "lucide-react";
 import { openDrawer } from "@/lib/hardware";
 import { RecentReceipts } from "@/components/RecentReceipts";
 import { offlineRef, receiptNumber, takeReservedNumber, topUpReservedNumbers } from "@/lib/receipt-numbers";
@@ -34,7 +34,7 @@ import { AccountPaymentDialog } from "@/components/AccountPayment";
 import { randCheckoutEnabled } from "@/lib/currency-settings";
 
 export const Route = createFileRoute("/_authenticated/pos")({
-  head: () => ({ meta: [{ title: "Till — Tilla POS" }, { name: "description", content: "Tilla POS checkout, product list and receipt printing." }, { property: "og:title", content: "Till — Tilla POS" }, { property: "og:description", content: "Checkout, product list and receipt printing." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
+  head: () => ({ meta: [{ title: "Till — Tilla POS" }, { name: "description", content: "Tilla POS checkout, barcode scanning and receipt printing." }, { property: "og:title", content: "Till — Tilla POS" }, { property: "og:description", content: "Checkout, barcode scanning and receipt printing." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: PosPage,
 });
 
@@ -85,18 +85,8 @@ function Till({ shiftId }: { shiftId: string }) {
     return () => window.removeEventListener("tilla-queue", refresh);
   }, []);
   const products = useMemo(() => stockAfterQueue(catalog), [catalog, queueVersion]);
-  const { data: categories = [] } = useQuery({
-    queryKey: ["categories"],
-    queryFn: () => cached("categories", async () => {
-      const { data, error } = await supabase.from("categories").select("*").order("name");
-      if (error) throw error;
-      return data ?? [];
-    }),
-  });
 
   const [q, setQ] = useState("");
-  const [view, setView] = useState<"list" | "tile">("list");
-  const [cat, setCat] = useState<string | null>(null);
   const [lines, setLines] = useState<CartLine[]>([]);
   const [discKind, setDiscKind] = useState<"percent" | "fixed">("percent");
   const [discVal, setDiscVal] = useState(0);
@@ -140,17 +130,17 @@ function Till({ shiftId }: { shiftId: string }) {
   useEffect(() => {
     void localReceipts().then((rs) => setLastReceipt(rs[0] ?? null));
     try { setHeld(JSON.parse(localStorage.getItem(deviceStorageKey(HELD_KEY)) || "[]")); } catch { /* identity not ready */ }
-    try { setView(localStorage.getItem(deviceStorageKey("tilla-product-view")) === "tile" ? "tile" : "list"); } catch { /* list default */ }
     searchRef.current?.focus();
   }, [me?.id, me?.storeId]);
   const saveHeld = (h: Held[]) => { setHeld(h); localStorage.setItem(deviceStorageKey(HELD_KEY), JSON.stringify(h)); };
 
+  // Matches only, and only while the cashier is typing: the till carries no standing product list.
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
+    if (!s) return [];
     return products.filter((p) =>
-      (!cat || p.category_id === cat) &&
-      (!s || p.name.toLowerCase().includes(s) || p.sku?.toLowerCase().includes(s) || p.barcode?.includes(s)));
-  }, [products, q, cat]);
+      p.name.toLowerCase().includes(s) || p.sku?.toLowerCase().includes(s) || p.barcode?.includes(s));
+  }, [products, q]);
 
   const listPrice = (id: string) => Number(products.find((p) => p.id === id)?.selling_price ?? 0);
   function changePrice(id: string, name: string, current: number) {
