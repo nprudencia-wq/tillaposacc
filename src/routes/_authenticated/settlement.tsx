@@ -112,7 +112,7 @@ function Settlement({ storeId }: { storeId: string }) {
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    const manual = data.saved && !data.saved.auto && data.saved.lines.length > 0;
+    const manual = data.saved && data.saved.lines.length > 0;
     if (manual) setCounted(Object.fromEntries(data.saved!.lines.map((l) => [l.method, String(l.counted)])));
     else {
       // Filled in automatically: cash from the shift close counts, card/mobile at what the till recorded.
@@ -134,6 +134,8 @@ function Settlement({ storeId }: { storeId: string }) {
     if (bad) { toast.error(`Enter the counted amount for ${bad.label}.`); return; }
     setBusy(true);
     const lines = data.rows.map((r) => ({ method: r.method, label: r.label, group: r.group, expected: r.expected, counted: r.group === "account" ? r.expected : countOf(r), difference: r.group === "account" ? 0 : Math.round((countOf(r)! - r.expected) * 100) / 100 }));
+    const owedLine = (data.saved?.lines as { method: string }[] | undefined)?.find((l) => l.method === "_owed");
+    if (owedLine) (lines as unknown[]).push(owedLine);
     const { data: u } = await supabase.auth.getSession();
     const record = { store_id: storeId, day, lines, notes, settled_by: u.session?.user.id ?? "", settled_at: new Date().toISOString(), auto: false };
     let offline = !internetAvailable();
@@ -155,7 +157,8 @@ function Settlement({ storeId }: { storeId: string }) {
           <h1 className="text-2xl font-bold">Daily settlement</h1>
           <p className="text-sm text-muted-foreground">Sales by payment type for {day} (Harare time) · {data.saleCount} sales</p>
           {data.localCount > 0 && <p className="mt-1 text-sm text-warning">Includes {data.localCount} sale(s)/payment(s) still waiting to upload from this till.</p>}
-          {data.saved?.auto && <p className="mt-1 text-sm font-medium text-warning">Auto-closed at midnight — check the counts below and tap Approve settlement.</p>}
+          {data.saved?.auto && <p className="mt-1 text-sm font-medium text-warning">Auto-settled at midnight — check the counts below and tap Approve settlement.</p>}
+          {(() => { const o = (data.saved?.lines as { method: string; expected?: number }[] | undefined)?.find((l) => l.method === "_owed"); return o ? <p className="mt-1 text-sm">Total owed by customers at close: <span className="font-semibold">{money(Number(o.expected))}</span></p> : null; })()}
           {autoFilled && data.rows.length > 0 && <p className="mt-1 text-sm text-muted-foreground">Counts filled in automatically{data.shiftCount ? ` from ${data.shiftCount} closed shift(s)` : ""}; change any that differ.</p>}
           {data.saved && !data.saved.auto && <p className="mt-1 text-sm font-medium text-primary">Settled by {data.settledBy} at {new Date(data.saved.settled_at).toLocaleString()}</p>}
         </div>
