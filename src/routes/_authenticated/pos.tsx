@@ -344,13 +344,13 @@ function Till({ shiftId }: { shiftId: string }) {
 
       {/* Cart */}
       <aside className="flex max-h-[50vh] w-full shrink-0 flex-col border-t bg-card md:max-h-none md:w-[320px] md:border-l md:border-t-0 xl:w-[360px]">
-        <div className="flex items-center justify-between border-b px-3 py-2">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 border-b px-3 py-2">
           <h2 className="text-base font-bold">Sale</h2>
-          <div className="flex gap-1">
-            <Button size="sm" variant="ghost" className="text-destructive" disabled={!lines.length && customerId === "none"} onClick={() => { setLines([]); setDiscVal(0); setCustomerId("none"); saleRef.current = null; searchRef.current?.focus(); }}><Trash2 className="h-4 w-4" />Clear</Button>
-            <Button size="sm" variant="ghost" onClick={hold} disabled={!lines.length}><PauseCircle className="h-4 w-4" />Hold</Button>
-            <Button size="sm" variant="ghost" onClick={() => setHeldOpen(true)}><PlayCircle className="h-4 w-4" />Held ({held.length})</Button>
-            <Button size="sm" variant="ghost" onClick={() => setReprintOpen(true)}><ReceiptText className="h-4 w-4" />Receipts</Button>
+          <div className="flex min-w-0 justify-end gap-1 overflow-x-auto">
+            <Button size="sm" variant="ghost" className="shrink-0 text-destructive" disabled={!lines.length && customerId === "none"} onClick={() => { setLines([]); setDiscVal(0); setCustomerId("none"); saleRef.current = null; searchRef.current?.focus(); }}><Trash2 className="h-4 w-4" />Clear</Button>
+            <Button size="sm" variant="ghost" className="shrink-0" onClick={hold} disabled={!lines.length}><PauseCircle className="h-4 w-4" />Hold</Button>
+            <Button size="sm" variant="ghost" className="shrink-0" onClick={() => setHeldOpen(true)}><PlayCircle className="h-4 w-4" />Held ({held.length})</Button>
+            <Button size="sm" variant="ghost" className="shrink-0" onClick={() => setReprintOpen(true)}><ReceiptText className="h-4 w-4" />Receipts</Button>
           </div>
         </div>
         <div className="flex gap-2 border-b bg-muted/40 px-3 py-1.5">
