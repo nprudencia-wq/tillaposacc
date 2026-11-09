@@ -221,6 +221,7 @@ function Reports() {
           ))}
         </nav>
         <div className="min-w-0 flex-1 overflow-x-auto rounded-xl border bg-card shadow-soft">
+          {data && !rep && <p className="p-8 text-muted-foreground">No reports are switched on for you yet. Ask your manager to allow one under Staff → Access rights.</p>}
           {rep && (
             <Table>
               <TableHeader><TableRow>{rep.cols.map((c) => <TableHead key={c.key} className={c.key === "name" ? "" : "text-right"}>{c.label}</TableHead>)}</TableRow></TableHeader>

@@ -456,6 +456,13 @@
       "when": 1794214812208,
       "tag": "0064_shift_device_name",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1794216531565,
+      "tag": "0065_report_permissions_allowed",
+      "breakpoints": true
     }
   ]
 }
