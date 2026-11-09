@@ -67,7 +67,7 @@ function Settlement({ storeId }: { storeId: string }) {
       });
       const pending = (await readPendingSettlements()).find((p) => p.store_id === storeId && p.day === day);
       const saved = pending ? (pending as unknown as NonNullable<typeof server.saved>) : server.saved;
-      return { rows, saved, settledBy: pending ? `${me} (waiting to upload)` : server.settledBy, saleCount: server.sales.length + local.length, localCount: local.length + reps.length, checkedAt: server.checkedAt };
+      return { rows, saved, shiftCash: server.shiftCash, shiftCount: server.shiftCount, settledBy: pending ? `${me} (waiting to upload)` : server.settledBy, saleCount: server.sales.length + local.length, localCount: local.length + reps.length, checkedAt: server.checkedAt };
     },
   });
   async function loadServer() {
@@ -79,11 +79,12 @@ function Settlement({ storeId }: { storeId: string }) {
       ]);
       const names = new Map((profiles.data ?? []).map((p) => [p.id, p.full_name]));
       const who = (id?: string | null) => (id && names.get(id)) || "Staff";
-      const [sales, refunds, repayments, moves] = await Promise.all([
+      const [sales, refunds, repayments, moves, shifts] = await Promise.all([
         all<any>(() => supabase.from("sales").select("id, sale_number, created_at, cashier_id, change_given, status, client_ref, sale_payments(method, amount, exchange_rate)").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
         all<any>(() => supabase.from("refunds").select("id, created_at, refunded_by, method, amount").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
         all<any>(() => supabase.from("customer_payments").select("payment_number, created_at, received_by, method, amount, client_ref").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
         all<any>(() => supabase.from("shift_cash_movements").select("id, created_at, user_id, type, currency, amount, reason").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
+        all<any>(() => supabase.from("cashier_shifts").select("id, opening_float_usd, opening_float_zig, opening_float_zar, actual_cash_usd, actual_cash_zig, actual_cash_zar").eq("store_id", storeId).eq("status", "closed").gte("closed_at", start).lt("closed_at", end).order("id")),
       ]);
       const rate = (c: string) => (c === "ZiG" || c === "ZIG" ? Number(settings.data?.zig_rate) : c === "ZAR" ? Number(settings.data?.rand_rate) : 1) || 1;
       const { data: auth } = await supabase.auth.getSession();
@@ -95,7 +96,13 @@ function Settlement({ storeId }: { storeId: string }) {
         movements: moves.map((m) => ({ ...m, cashier: who(m.user_id), usd: Number(m.amount) / rate(m.currency) })),
         saleRefs: sales.map((s) => s.client_ref).filter(Boolean) as string[],
         payRefs: repayments.map((p) => p.client_ref).filter(Boolean) as string[],
-        saved: saved.data as null | { lines: { method: string; counted: number }[]; notes: string; settled_at: string; settled_by: string },
+        // Cash the cashiers counted at shift close, minus their floats, in US$.
+        shiftCash: shifts.length ? Math.round(shifts.reduce((t, s) => t
+          + (Number(s.actual_cash_usd ?? 0) - Number(s.opening_float_usd ?? 0))
+          + (Number(s.actual_cash_zig ?? 0) - Number(s.opening_float_zig ?? 0)) / rate("ZiG")
+          + (Number(s.actual_cash_zar ?? 0) - Number(s.opening_float_zar ?? 0)) / rate("ZAR"), 0) * 100) / 100 : null,
+        shiftCount: shifts.length,
+        saved: saved.data as null | { lines: { method: string; counted: number }[]; notes: string; settled_at: string; settled_by: string; auto?: boolean },
         settledBy: who(saved.data?.settled_by), me: who(auth.session?.user.id), checkedAt: new Date().toISOString(),
       };
   }
@@ -105,9 +112,18 @@ function Settlement({ storeId }: { storeId: string }) {
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    setCounted(Object.fromEntries((data.saved?.lines ?? []).map((l) => [l.method, String(l.counted)])));
+    const manual = data.saved && !data.saved.auto && data.saved.lines.length > 0;
+    if (manual) setCounted(Object.fromEntries(data.saved!.lines.map((l) => [l.method, String(l.counted)])));
+    else {
+      // Filled in automatically: cash from the shift close counts, card/mobile at what the till recorded.
+      const cashRows = data.rows.filter((r) => r.group === "cash");
+      setCounted(Object.fromEntries(data.rows.filter((r) => r.group !== "account").map((r) => [r.method,
+        r.group === "cash" && cashRows.length === 1 && data.shiftCash !== null ? String(data.shiftCash) : String(r.expected)])));
+    }
     setNotes(data.saved?.notes ?? "");
-  }, [data.saved]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.saved, data.rows.length, data.shiftCash]);
+  const autoFilled = !(data.saved && !data.saved.auto && data.saved.lines.length > 0);
 
   const totals = groupTotals(data.rows);
   const countOf = (r: MethodRow) => (counted[r.method] === undefined || counted[r.method] === "" ? null : Number(counted[r.method]));
@@ -119,7 +135,7 @@ function Settlement({ storeId }: { storeId: string }) {
     setBusy(true);
     const lines = data.rows.map((r) => ({ method: r.method, label: r.label, group: r.group, expected: r.expected, counted: r.group === "account" ? r.expected : countOf(r), difference: r.group === "account" ? 0 : Math.round((countOf(r)! - r.expected) * 100) / 100 }));
     const { data: u } = await supabase.auth.getSession();
-    const record = { store_id: storeId, day, lines, notes, settled_by: u.session?.user.id ?? "", settled_at: new Date().toISOString() };
+    const record = { store_id: storeId, day, lines, notes, settled_by: u.session?.user.id ?? "", settled_at: new Date().toISOString(), auto: false };
     let offline = !internetAvailable();
     if (!offline) {
       const { error } = await uploadSettlement(record).catch((e) => ({ error: e as { message: string } }));
@@ -139,7 +155,9 @@ function Settlement({ storeId }: { storeId: string }) {
           <h1 className="text-2xl font-bold">Daily settlement</h1>
           <p className="text-sm text-muted-foreground">Sales by payment type for {day} (Harare time) · {data.saleCount} sales</p>
           {data.localCount > 0 && <p className="mt-1 text-sm text-warning">Includes {data.localCount} sale(s)/payment(s) still waiting to upload from this till.</p>}
-          {data.saved && <p className="mt-1 text-sm font-medium text-primary">Settled by {data.settledBy} at {new Date(data.saved.settled_at).toLocaleString()}</p>}
+          {data.saved?.auto && <p className="mt-1 text-sm font-medium text-warning">Auto-closed at midnight — check the counts below and tap Approve settlement.</p>}
+          {autoFilled && data.rows.length > 0 && <p className="mt-1 text-sm text-muted-foreground">Counts filled in automatically{data.shiftCount ? ` from ${data.shiftCount} closed shift(s)` : ""}; change any that differ.</p>}
+          {data.saved && !data.saved.auto && <p className="mt-1 text-sm font-medium text-primary">Settled by {data.settledBy} at {new Date(data.saved.settled_at).toLocaleString()}</p>}
         </div>
         <div className="flex gap-2 print:hidden">
           <Input type="date" value={day} onChange={(e) => e.target.value && navigate({ search: { day: e.target.value } })} className="w-44" />
@@ -205,7 +223,7 @@ function Settlement({ storeId }: { storeId: string }) {
 
       <div className="space-y-3 rounded-2xl border bg-card p-4 print:hidden">
         <label className="block text-sm font-semibold">Settlement notes<Textarea className="mt-2" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Bank deposit slip, card batch number, shortages explained…" /></label>
-        <Button size="lg" disabled={busy || data.rows.length === 0} onClick={save}>{data.saved ? "Update settlement" : "Settle day"}</Button>
+        <Button size="lg" disabled={busy || data.rows.length === 0} onClick={save}>{data.saved?.auto ? "Approve settlement" : data.saved ? "Update settlement" : "Settle day"}</Button>
       </div>
       {notes && <p className="hidden text-sm print:block">Notes: {notes}</p>}
     </div>

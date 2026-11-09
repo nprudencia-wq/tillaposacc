@@ -421,6 +421,13 @@
       "when": 1794078000905,
       "tag": "0059_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1794212167903,
+      "tag": "0060_auto_close_daily_settlements",
+      "breakpoints": true
     }
   ]
 }

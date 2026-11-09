@@ -457,6 +457,7 @@ export type Database = {
       }
       daily_settlements: {
         Row: {
+          auto: boolean
           day: string
           id: string
           lines: Json
@@ -466,6 +467,7 @@ export type Database = {
           store_id: string
         }
         Insert: {
+          auto?: boolean
           day: string
           id?: string
           lines?: Json
@@ -475,6 +477,7 @@ export type Database = {
           store_id?: string
         }
         Update: {
+          auto?: boolean
           day?: string
           id?: string
           lines?: Json
@@ -2561,6 +2564,10 @@ export type Database = {
           p_qty: number
           p_type: string
         }
+        Returns: number
+      }
+      auto_close_daily_settlements: {
+        Args: { p_day?: string }
         Returns: number
       }
       can_adjust_customer_balance: { Args: never; Returns: boolean }
