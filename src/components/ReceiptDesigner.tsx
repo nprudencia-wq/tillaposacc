@@ -7,7 +7,7 @@ import { useSettings, useStaff } from "@/hooks/use-staff";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Receipt, type ReceiptData } from "@/components/Receipt";
+import { Receipt, type ReceiptData, type StoreLike } from "@/components/Receipt";
 import { receiptConfig, type ReceiptConfig } from "@/lib/receipt-config";
 
 const TOGGLES: [keyof ReceiptConfig, string][] = [
@@ -27,7 +27,7 @@ const SAMPLE: ReceiptData = {
   payments: [{ method: "cash", currency: "USD", amount: 7.41 }],
 };
 
-export function ReceiptDesigner() {
+export function ReceiptDesigner({ store }: { store?: StoreLike }) {
   const { data: st } = useSettings();
   const { data: me } = useStaff();
   const qc = useQueryClient();
@@ -81,7 +81,7 @@ export function ReceiptDesigner() {
         </div>
         <div className="rounded-xl border bg-muted/40 p-3">
           <div className="mb-2 text-xs text-muted-foreground">Preview ({c.paper_width})</div>
-          <Receipt r={{ ...SAMPLE, business: st.business_name ?? "" }} store={st} config={c} />
+          <Receipt r={{ ...SAMPLE, business: store?.business_name ?? st.business_name ?? "" }} store={store ?? st} config={c} />
         </div>
       </div>
     </div>
