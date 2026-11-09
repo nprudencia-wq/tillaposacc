@@ -5,6 +5,8 @@ import { idbGet, idbSet, idbSetMany } from "@/lib/local-db";
 import { mergeQueues } from "@/lib/queue-merge";
 import { internetAvailable, networkRead, setInternetAvailable } from "@/lib/connectivity";
 import type { ReceiptData } from "@/components/Receipt";
+import { creditSnapshot, pendingRepayments, syncRepayments } from "@/lib/offline-credit";
+import { readPendingSettlements, syncSettlements } from "@/lib/settlement-queue";
 
 // Browser-only helpers: call from effects, handlers or query functions (never at module scope).
 
@@ -53,6 +55,8 @@ async function hydrateQueue(scope: StoreScope) {
 async function persistQueue(key: string) {
   await idbSet(key, queueMem);
 }
+
+export function currentScope() { return activeScope; }
 
 export function deviceStorageKey(key: string) {
   if (!activeScope) throw new Error("Wait for your store account to load");
@@ -110,6 +114,7 @@ export type QueuedSale = {
   rand_rate?: number;
   payments: Payment[];
   total: number;
+  customer_id?: string;
   error?: string;
   receipt?: ReceiptData;
 };
@@ -161,7 +166,7 @@ export function stockAfterQueue<T extends { id: string; stock: number | string }
 }
 export async function hasPendingUploads() {
   await queueReady;
-  return readQueue().length > 0 || !!(await readLocalShift()) || !!(await readPendingClose());
+  return readQueue().length > 0 || !!(await readLocalShift()) || !!(await readPendingClose()) || (await pendingRepayments()).length > 0 || (await readPendingSettlements()).length > 0;
 }
 async function updateUploadedSale(scope: StoreScope, s: QueuedSale, error?: string) {
   await serialized(async () => {
@@ -255,10 +260,11 @@ export async function closeShiftOffline(shiftId: string, count: { usd: number; z
 }
 
 async function uploadSale(s: QueuedSale) {
-  return supabase.rpc("complete_offline_sale", {
-    p_client_ref: s.client_ref, p_items: s.items as never, p_payments: s.payments as never,
+  return supabase.rpc("complete_offline_sale_v2" as never, {
+    p_client_ref: s.client_ref, p_items: s.items, p_payments: s.payments,
     p_discount: s.discount, p_currency: s.currency, p_sold_at: s.sold_at, p_shift: s.shift_id,
-  });
+    ...(s.customer_id ? { p_customer: s.customer_id } : {}),
+  } as never) as unknown as Promise<{ data: unknown; error: { message: string } | null }>;
 }
 
 /** Uploads an offline-closed shift: its opening (if offline), its sales, then the count. Returns false to retry later. */
@@ -285,6 +291,8 @@ async function syncPendingClose(scope: StoreScope, timeout: number): Promise<boo
   // Rejected sales remain durable for retry, but must not block later sales.
   // Never close the shift until every sale belonging to it has uploaded.
   if (!sameScope(scope) || readQueue().some((s) => s.shift_id === p.shift_id)) return false;
+  // Cash debt payments belong in this drawer's expected cash, so they upload before the count.
+  if (!(await syncRepayments(scope, timeout, p.shift_id))) return false;
   const { error } = await networkRead(() => supabase.rpc("close_offline_shift", {
     p_id: p.shift_id, p_closed_at: p.closed_at, p_actual_usd: p.usd, p_actual_zig: p.zig, p_actual_zar: p.zar, p_notes: p.notes,
   }), timeout);
@@ -315,6 +323,7 @@ export async function syncQueue(timeout = 5000): Promise<{ synced: number; faile
     if (!(await syncPendingClose(scope, timeout))) return { synced, failed };
     // Sales need their shift on the server first.
     if (!(await syncLocalShift(scope, timeout))) return { synced, failed };
+    if (!(await syncRepayments(scope, timeout))) return { synced, failed };
     complete = true;
     for (const s of readQueue()) {
       if (activeScope?.storeId !== scope.storeId || activeScope?.userId !== scope.userId) break;
@@ -327,6 +336,9 @@ export async function syncQueue(timeout = 5000): Promise<{ synced: number; faile
       if (error) { failed++; complete = false; continue; }
       synced++;
     }
+    if (complete && !(await syncSettlements(scope, timeout))) complete = false;
+    // Fresh balances, so the next offline credit check includes what just uploaded.
+    if (synced > 0) void creditSnapshot().catch(() => {});
   } catch (e) {
     if (isNetworkError(e)) setInternetAvailable(false);
     else failed++;

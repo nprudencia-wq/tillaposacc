@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, List, LayoutGrid, ReceiptText, Printer, Archive, Settings2 } from "lucide-react";
+import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, List, LayoutGrid, ReceiptText, Printer, Archive, Settings2, HandCoins } from "lucide-react";
 import { openDrawer } from "@/lib/hardware";
 import { RecentReceipts } from "@/components/RecentReceipts";
 import { ProductImage } from "@/components/ProductImage";
@@ -27,6 +27,8 @@ import {
 } from "@/lib/pos";
 import { activeTypes, isAccountMethod, isCashMethod, methodLabel, usePaymentTypes } from "@/lib/payment-types";
 import { CustomerDialog, useCustomers } from "@/components/Customers";
+import { creditLimitError, creditSnapshot, customerOwed } from "@/lib/offline-credit";
+import { AccountPaymentDialog } from "@/components/AccountPayment";
 import { randCheckoutEnabled } from "@/lib/currency-settings";
 
 export const Route = createFileRoute("/_authenticated/pos")({
@@ -113,6 +115,9 @@ function Till({ shiftId }: { shiftId: string }) {
   const { data: customers = [] } = useCustomers();
   const [customerId, setCustomerId] = useState<string>("none");
   const [addCust, setAddCust] = useState(false);
+  const [payCust, setPayCust] = useState(false);
+  // Keep customer balances on the device so credit limits are checked offline too.
+  useEffect(() => { void creditSnapshot().catch(() => {}); }, []);
   const customer = customers.find((c) => c.id === customerId);
 
   useEffect(() => {
@@ -207,6 +212,7 @@ function Till({ shiftId }: { shiftId: string }) {
     await enqueueSale({
       client_ref: ref, sold_at: new Date().toISOString(), shift_id: shiftId, currency, discount,
       items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price })), payments: paid, total, rate, rand_rate: randRate, receipt: snapshot,
+      ...(customer ? { customer_id: customer.id } : {}),
     });
     window.__lovableEvents?.track?.("project.till_sale_completed", { mode: "offline", currency });
     finish({ sale_number: ref, created_at: new Date().toISOString(), rate: currency === "ZAR" ? randRate : rate, total, change }, paid);
@@ -226,13 +232,19 @@ function Till({ shiftId }: { shiftId: string }) {
     const paid = payments.filter((p) => p.amount > 0).map((p) => ({ ...p, exchange_rate: currencyRate(p.currency, rate, randRate) }));
     const onAccount = paid.some((p) => isAccountMethod(p.method));
     if (onAccount && !customer) { toast.error("Choose the customer first to put this sale on account"); return; }
-    if (onAccount && !internetAvailable()) { toast.error("On-account sales need the internet so the credit limit can be checked"); return; }
+    if (onAccount && customer) {
+      // Checked on the till too, so the limit still holds with no internet.
+      const charge = paid.filter((p) => isAccountMethod(p.method)).reduce((n, p) => n + p.amount / (p.exchange_rate || 1), 0);
+      const limitError = creditLimitError(customer.name, Number(customer.credit_limit), await customerOwed(customer.id), charge);
+      if (limitError) { toast.error(limitError); return; }
+      if (paidUSD(paid, rate, randRate) - total > 0.005) { toast.error("An on-account sale cannot give change"); return; }
+    }
     const overridden = lines.some((l) => l.unit_price !== listPrice(l.product_id));
     if (!internetAvailable() && overridden) { toast.error("Changed prices need the internet. Undo the price change or wait to reconnect."); return; }
     const ref = saleRef.current ?? `TILL-${crypto.randomUUID()}`;
     saleRef.current = ref;
     if (!internetAvailable() || await readLocalShift()) {
-      if (onAccount || overridden) { toast.error("Upload this shift before using account payments or changed prices"); return; }
+      if (overridden) { toast.error("Upload this shift before using changed prices"); return; }
       await saveOffline(paid, ref); return;
     }
     let result;
@@ -244,11 +256,11 @@ function Till({ shiftId }: { shiftId: string }) {
       p_currency: currency,
       ...(customer ? { p_customer: customer.id } : {}),
     })); } catch (e) {
-      if (isNetworkError(e) && !onAccount && !overridden) { setInternetAvailable(false); await saveOffline(paid, ref); return; }
+      if (isNetworkError(e) && !overridden) { setInternetAvailable(false); await saveOffline(paid, ref); return; }
       throw e;
     }
     const { data, error } = result;
-    if (error && isNetworkError(error) && !onAccount && !overridden) { setInternetAvailable(false); await saveOffline(paid, ref); return; }
+    if (error && isNetworkError(error) && !overridden) { setInternetAvailable(false); await saveOffline(paid, ref); return; }
     if (error) { toast.error(error.message); qc.invalidateQueries({ queryKey: ["open-shift"] }); return; }
     window.__lovableEvents?.track?.("project.till_sale_completed", { mode: "online", currency });
     const res = data as { sale_number: string; total: number; change: number; rate: number };
@@ -256,6 +268,7 @@ function Till({ shiftId }: { shiftId: string }) {
     qc.invalidateQueries({ queryKey: ["products"] });
     qc.invalidateQueries({ queryKey: ["sales"] });
     qc.invalidateQueries({ queryKey: ["customer-ledger"] });
+    if (onAccount) void creditSnapshot().catch(() => {});
     window.dispatchEvent(new Event("tilla-sale"));
     toast.success(`Sale ${res.sale_number} completed`);
   }
@@ -361,6 +374,7 @@ function Till({ shiftId }: { shiftId: string }) {
               </SelectContent>
             </Select>
             <Button size="icon" variant="outline" className="h-9 w-9" aria-label="Add a new customer" onClick={() => setAddCust(true)}><Plus className="h-4 w-4" /></Button>
+            {customer && <Button size="icon" variant="outline" className="h-9 w-9" title="Take account payment" aria-label={`Take account payment from ${customer.name}`} onClick={() => setPayCust(true)}><HandCoins className="h-4 w-4" /></Button>}
           </div>
           {me?.canDiscount !== false && <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Discount</span>
@@ -388,6 +402,7 @@ function Till({ shiftId }: { shiftId: string }) {
         </div>
       </aside>
 
+      {payCust && customer && <AccountPaymentDialog customer={customer} shiftId={shiftId} zigRate={rate} randRate={randRate} randEnabled={randEnabled} onClose={() => setPayCust(false)} />}
       {addCust && <CustomerDialog customer={null} onClose={() => setAddCust(false)} onSaved={(c) => { qc.invalidateQueries({ queryKey: ["customers"] }); setCustomerId(c.id); }} />}
       {payOpen && <PayDialog total={total} currency={currency} rate={rate} randRate={randRate} onClose={() => setPayOpen(false)} onPay={complete} />}
 

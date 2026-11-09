@@ -23,7 +23,7 @@ function setup(error: unknown = null) {
   const saveOffline = vi.fn();
   const finish = vi.fn();
   const dependencies = {
-    window: { __lovableEvents: { track } }, navigator: { onLine: true },
+    window: { __lovableEvents: { track }, dispatchEvent: vi.fn() }, Event: class {}, creditSnapshot: async () => undefined, customerOwed: async () => 0, creditLimitError: () => null, navigator: { onLine: true },
     crypto: { randomUUID: () => "test-reference" },
     supabase: { rpc: vi.fn().mockResolvedValue({ data: { sale_number: "test", total: 2, change: 0, rate: 1 }, error }) },
     randEnabled: false, currency: "USD", rate: 1, randRate: 0, shiftId: "shift",
@@ -79,7 +79,7 @@ describe("Till completion tracking", () => {
   });
   it("keeps checkout working when tracking is unavailable", async () => {
     const { dependencies, finish } = setup();
-    dependencies.window = {} as typeof dependencies.window;
+    dependencies.window = { dispatchEvent: vi.fn() } as unknown as typeof dependencies.window;
     await handler("complete", dependencies)(payment);
     expect(finish).toHaveBeenCalledOnce();
   });

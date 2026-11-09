@@ -6,6 +6,8 @@ vi.mock("@/lib/local-db", () => ({
   idbSetMany: async (entries: [string, unknown][]) => { if (mocks.fail) throw new Error("Storage full"); entries.forEach(([k, v]) => mocks.storage.set(k, structuredClone(v))); },
 }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.rpc, from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ data: {}, error: null }) }) }) }) } }));
+vi.mock("@/lib/offline-credit", () => ({ creditSnapshot: async () => undefined, pendingRepayments: async () => [], syncRepayments: async () => true }));
+vi.mock("@/lib/settlement-queue", () => ({ readPendingSettlements: async () => [], syncSettlements: async () => true }));
 import { cached, deviceSales, enqueueSale, readQueue, setOfflineScope, stockAfterQueue, syncQueue, openLocalShift, closeShiftOffline, readPendingClose, type QueuedSale } from "./offline";
 import { setInternetAvailable } from "./connectivity";
 const scope = { storeId: "shop", userId: "cashier" };
@@ -111,7 +113,7 @@ describe("Durable disconnected sales", () => {
     expect(await readPendingClose()).not.toBeNull();
     mocks.rpc.mockReset(); mocks.rpc.mockResolvedValue({ error: null });
     await syncQueue();
-    expect(mocks.rpc.mock.calls.map((c) => c[0])).toEqual(["complete_offline_sale", "close_offline_shift"]);
+    expect(mocks.rpc.mock.calls.map((c) => c[0])).toEqual(["complete_offline_sale_v2", "close_offline_shift"]);
     expect(readQueue()).toHaveLength(0);
     expect(await readPendingClose()).toBeNull();
   });
@@ -122,7 +124,7 @@ describe("Durable disconnected sales", () => {
     await closeShiftOffline(shift.id, { usd: 12, zig: 0, zar: 20, notes: "Closed without internet" });
     mocks.rpc.mockResolvedValue({ error: null });
     await syncQueue();
-    expect(mocks.rpc.mock.calls.map((c) => c[0])).toEqual(["open_offline_shift", "complete_offline_sale", "close_offline_shift"]);
+    expect(mocks.rpc.mock.calls.map((c) => c[0])).toEqual(["open_offline_shift", "complete_offline_sale_v2", "close_offline_shift"]);
     expect(mocks.rpc.mock.calls[2]?.[1]).toMatchObject({ p_actual_usd: 12, p_actual_zar: 20 });
     expect(await readPendingClose()).toBeNull();
   });

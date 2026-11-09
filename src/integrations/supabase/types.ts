@@ -452,6 +452,44 @@ export type Database = {
           },
         ]
       }
+      daily_settlements: {
+        Row: {
+          day: string
+          id: string
+          lines: Json
+          notes: string
+          settled_at: string
+          settled_by: string
+          store_id: string
+        }
+        Insert: {
+          day: string
+          id?: string
+          lines?: Json
+          notes?: string
+          settled_at?: string
+          settled_by?: string
+          store_id?: string
+        }
+        Update: {
+          day?: string
+          id?: string
+          lines?: Json
+          notes?: string
+          settled_at?: string
+          settled_by?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_settlements_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_counters: {
         Row: {
           kind: string

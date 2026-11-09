@@ -17,7 +17,7 @@ describe("daily settlement", () => {
     ],
     refunds: [{ id: "r1234567890", created_at: "2026-11-09T11:00:00Z", cashier: "A", method: "cash", amount: 1 }],
     repayments: [{ payment_number: "PAY-1", created_at: "2026-11-09T12:00:00Z", cashier: "B", method: "cash", amount: 4 }],
-    movements: [{ id: "m", created_at: "2026-11-09T13:00:00Z", cashier: "A", type: "cash_drop", usd: 5 }],
+    movements: [{ id: "m", created_at: "2026-11-09T13:00:00Z", cashier: "A", type: "cash_drop", usd: 5 }, { id: "d", created_at: "2026-11-09T12:00:00Z", cashier: "B", type: "paid_in", usd: 4, reason: "Debt payment from Jo" }],
   });
 
   it("cash expected = sales less change + repayments − refunds − drops, Rand converted to USD", () => {
