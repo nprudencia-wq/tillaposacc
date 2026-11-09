@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { CloudOff, Package, ReceiptText } from "lucide-react";
+import { CloudOff, Package, ReceiptText, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { cached, deviceSales, readQueue, type QueuedSale } from "@/lib/offline";
 import { harareDay, cashierDailyTotals } from "@/lib/cashier-dashboard";
@@ -12,8 +13,9 @@ type Props = { open: boolean; onOpenChange: (open: boolean) => void; cashier: { 
 export function CashierDashboard(props: Props) {
   return <Dialog open={props.open} onOpenChange={props.onOpenChange}>
     <DialogContent className="max-h-[85dvh] max-w-3xl overflow-y-auto p-0">
-      <DialogHeader className="bg-sidebar p-5 text-sidebar-foreground"><DialogTitle>My day</DialogTitle></DialogHeader>
+      <DialogHeader className="flex-row items-center justify-between space-y-0 bg-sidebar p-5 pr-12 text-sidebar-foreground"><DialogTitle>My day</DialogTitle><Button size="sm" variant="secondary" onClick={() => props.onOpenChange(false)}><X className="mr-1 h-4 w-4" />Exit</Button></DialogHeader>
       <Suspense fallback={<p className="p-6 text-muted-foreground">Loading today’s sales…</p>}><DashboardBody {...props} /></Suspense>
+      <div className="sticky bottom-0 border-t bg-background p-4"><Button className="h-12 w-full text-base" onClick={() => props.onOpenChange(false)}>Exit to till</Button></div>
     </DialogContent>
   </Dialog>;
 }
