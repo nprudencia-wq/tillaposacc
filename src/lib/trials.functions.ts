@@ -44,3 +44,47 @@ export const listTrialLeads = createServerFn({ method: "GET" })
       };
     });
   });
+
+type Ctx = { supabase: any; userId: string };
+async function assertVendor({ supabase, userId }: Ctx) {
+  const [{ data: mem }, { data: roles }] = await Promise.all([
+    supabase.from("store_memberships").select("store_id").eq("user_id", userId).single(),
+    supabase.from("user_roles").select("role").eq("user_id", userId),
+  ]);
+  if (!mem?.store_id || !((roles ?? []) as { role: string }[]).some((r) => ["owner", "admin"].includes(r.role))) throw new Error("Only the Tilla vendor can do this");
+  const { data: own } = await supabase.from("stores").select("is_vendor_store").eq("id", mem.store_id).single();
+  if (!own?.is_vendor_store) throw new Error("Only the Tilla vendor can do this");
+}
+
+export type PendingSubPayment = { id: string; shop: string; invoice: string; months: number; tills: number; amount: number; method: string; reference: string; phone: string | null; submitted: string };
+
+/** Vendor-only: subscription payments from any shop awaiting confirmation. */
+export const listPendingSubPayments = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertVendor(context as unknown as Ctx);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin.from("subscription_payments")
+      .select("id, invoice_number, months, tills, amount, method, reference, payer_phone, submitted_at, store_id, stores(name)")
+      .eq("status", "pending").order("submitted_at").limit(200);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((p: any): PendingSubPayment => ({
+      id: p.id, shop: p.stores?.name ?? "—", invoice: p.invoice_number, months: p.months, tills: p.tills, amount: Number(p.amount),
+      method: p.method, reference: p.reference, phone: p.payer_phone, submitted: p.submitted_at,
+    }));
+  });
+
+/** Vendor-only: approve (extends that shop's paid-until) or reject a subscription payment. */
+export const decideSubPayment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; approve: boolean }) => {
+    if (!/^[0-9a-f-]{36}$/i.test(d.id)) throw new Error("Bad payment");
+    return { id: d.id, approve: !!d.approve };
+  })
+  .handler(async ({ context, data }) => {
+    await assertVendor(context as unknown as Ctx);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin.rpc("decide_subscription_payment", { p_payment: data.id, p_approve: data.approve, p_note: "" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

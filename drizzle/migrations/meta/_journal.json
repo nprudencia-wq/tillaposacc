@@ -533,6 +533,13 @@
       "when": 1794229493027,
       "tag": "0075_discard_unclaimed_trial_store",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1794230099528,
+      "tag": "0076_store_scoped_subscription_approval",
+      "breakpoints": true
     }
   ]
 }
