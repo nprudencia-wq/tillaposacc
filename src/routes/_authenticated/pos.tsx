@@ -103,6 +103,7 @@ function Till({ shiftId }: { shiftId: string }) {
   useEffect(() => {
     if (!randEnabled && currency === "ZAR") { setCurrency("USD"); setPayOpen(false); }
   }, [randEnabled, currency]);
+  useEffect(() => { if (me?.id) void topUpReservedNumbers(); }, [me?.id]);
   const [payOpen, setPayOpen] = useState(false);
   const [held, setHeld] = useState<Held[]>([]);
   const [heldOpen, setHeldOpen] = useState(false);
