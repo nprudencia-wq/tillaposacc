@@ -1,5 +1,5 @@
 # Roadmap
-- [ ] Till shift-close screen: cash count, review, notes and settlement using existing online/offline closure; verify without closing a live shift.
+- [x] Till shift-close screen: three-currency cash count, editable review, notes and existing online/offline settlement. Signed-in desktop/mobile count/review/edit verified without closing the live shift; offline tests passed. Not yet published.
 - [x] Till Sync button with pending count, progress and 20-second manual request allowance; slow-upload test and signed-in no-internet feedback verified. 14 focused tests passed; not yet published.
 - [x] Cashier dashboard inside till: own daily sales, local stock and pending offline uploads; signed-in desktop/mobile views verified, 13 focused tests passed. Not yet published.
 - [ ] Publish current till and verify real PIN sign-in plus real offline sale upload/readback. Publishing requested; real PIN needs cashier action, financial test needs an agreed product/quantity/payment so shop records are not fabricated.
