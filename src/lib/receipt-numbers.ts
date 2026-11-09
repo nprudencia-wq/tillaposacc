@@ -6,8 +6,8 @@ import { currentScope } from "@/lib/offline";
 // Receipt numbers reserved from the shop's TXN sequence while online, used one by one offline,
 // so offline receipts carry the same TXN-#### the shop records keep after upload.
 const POOL_KEY = "tilla-receipt-numbers";
-const LOW = 20;
-const BATCH = 50;
+const LOW = 10;
+const BATCH = 20;
 let chain: Promise<unknown> = Promise.resolve();
 const serial = <T,>(run: () => Promise<T>) => { const r = chain.then(run, run); chain = r.catch(() => {}); return r; };
 
