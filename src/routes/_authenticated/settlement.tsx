@@ -67,7 +67,7 @@ function Settlement({ storeId }: { storeId: string }) {
       });
       const pending = (await readPendingSettlements()).find((p) => p.store_id === storeId && p.day === day);
       const saved = pending ? (pending as unknown as NonNullable<typeof server.saved>) : server.saved;
-      return { rows, saved, settledBy: pending ? `${me} (waiting to upload)` : server.settledBy, saleCount: server.sales.length + local.length, localCount: local.length + reps.length, checkedAt: server.checkedAt };
+      return { rows, saved, shiftCash: server.shiftCash, shiftCount: server.shiftCount, settledBy: pending ? `${me} (waiting to upload)` : server.settledBy, saleCount: server.sales.length + local.length, localCount: local.length + reps.length, checkedAt: server.checkedAt };
     },
   });
   async function loadServer() {
@@ -112,9 +112,17 @@ function Settlement({ storeId }: { storeId: string }) {
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    setCounted(Object.fromEntries((data.saved?.lines ?? []).map((l) => [l.method, String(l.counted)])));
+    const manual = data.saved && !data.saved.auto && data.saved.lines.length > 0;
+    if (manual) setCounted(Object.fromEntries(data.saved!.lines.map((l) => [l.method, String(l.counted)])));
+    else {
+      // Filled in automatically: cash from the shift close counts, card/mobile at what the till recorded.
+      const cashRows = data.rows.filter((r) => r.group === "cash");
+      setCounted(Object.fromEntries(data.rows.filter((r) => r.group !== "account").map((r) => [r.method,
+        r.group === "cash" && cashRows.length === 1 && data.shiftCash !== null ? String(data.shiftCash) : String(r.expected)])));
+    }
     setNotes(data.saved?.notes ?? "");
-  }, [data.saved]);
+  }, [data.saved, data.rows, data.shiftCash]);
+  const autoFilled = !(data.saved && !data.saved.auto && data.saved.lines.length > 0);
 
   const totals = groupTotals(data.rows);
   const countOf = (r: MethodRow) => (counted[r.method] === undefined || counted[r.method] === "" ? null : Number(counted[r.method]));
@@ -146,7 +154,9 @@ function Settlement({ storeId }: { storeId: string }) {
           <h1 className="text-2xl font-bold">Daily settlement</h1>
           <p className="text-sm text-muted-foreground">Sales by payment type for {day} (Harare time) · {data.saleCount} sales</p>
           {data.localCount > 0 && <p className="mt-1 text-sm text-warning">Includes {data.localCount} sale(s)/payment(s) still waiting to upload from this till.</p>}
-          {data.saved && <p className="mt-1 text-sm font-medium text-primary">Settled by {data.settledBy} at {new Date(data.saved.settled_at).toLocaleString()}</p>}
+          {data.saved?.auto && <p className="mt-1 text-sm font-medium text-warning">Auto-closed at midnight — check the counts below and tap Approve settlement.</p>}
+          {autoFilled && data.rows.length > 0 && <p className="mt-1 text-sm text-muted-foreground">Counts filled in automatically{data.shiftCount ? ` from ${data.shiftCount} closed shift(s)` : ""}; change any that differ.</p>}
+          {data.saved && !data.saved.auto && <p className="mt-1 text-sm font-medium text-primary">Settled by {data.settledBy} at {new Date(data.saved.settled_at).toLocaleString()}</p>}
         </div>
         <div className="flex gap-2 print:hidden">
           <Input type="date" value={day} onChange={(e) => e.target.value && navigate({ search: { day: e.target.value } })} className="w-44" />
@@ -212,7 +222,7 @@ function Settlement({ storeId }: { storeId: string }) {
 
       <div className="space-y-3 rounded-2xl border bg-card p-4 print:hidden">
         <label className="block text-sm font-semibold">Settlement notes<Textarea className="mt-2" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Bank deposit slip, card batch number, shortages explained…" /></label>
-        <Button size="lg" disabled={busy || data.rows.length === 0} onClick={save}>{data.saved ? "Update settlement" : "Settle day"}</Button>
+        <Button size="lg" disabled={busy || data.rows.length === 0} onClick={save}>{data.saved?.auto ? "Approve settlement" : data.saved ? "Update settlement" : "Settle day"}</Button>
       </div>
       {notes && <p className="hidden text-sm print:block">Notes: {notes}</p>}
     </div>
