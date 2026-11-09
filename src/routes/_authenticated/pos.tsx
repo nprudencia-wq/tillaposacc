@@ -352,22 +352,22 @@ function Till({ shiftId }: { shiftId: string }) {
             {customer && <Button size="icon" variant="outline" className="h-8 w-8" title="Take account payment" aria-label={`Take account payment from ${customer.name}`} onClick={() => setPayCust(true)}><HandCoins className="h-4 w-4" /></Button>}
           </div>
           {me?.canDiscount !== false && <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Discount</span>
+            <span className="w-[4.5rem] shrink-0 text-sm text-muted-foreground">Discount</span>
             <Select value={discKind} onValueChange={(v) => setDiscKind(v as "percent" | "fixed")}>
               <SelectTrigger className="h-8 w-14"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="percent">%</SelectItem><SelectItem value="fixed">$</SelectItem></SelectContent>
             </Select>
             <Input type="number" min={0} value={discVal || ""} onChange={(e) => setDiscVal(Number(e.target.value))} className="h-8 w-20" placeholder="0" />
           </div>}
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Currency</span>
-            <div className="flex rounded-lg bg-muted p-0.5">
+          <div className="flex items-center gap-2">
+            <span className="w-[4.5rem] shrink-0 text-sm text-muted-foreground">Currency</span>
+            <div className="flex flex-1 justify-end rounded-lg bg-muted p-0.5">
               {(["USD", "ZiG", "ZAR"] as Currency[]).map((c) => (
                 <Button key={c} size="sm" variant={currency === c ? "default" : "ghost"} className="h-7 px-2.5 text-xs" disabled={c === "ZAR" && randRate <= 0} onClick={() => setCurrency(c)}>{c === "ZAR" ? "Rand" : c}</Button>
               ))}
             </div>
           </div>
-          <div className="tabular space-y-1 text-sm">
+          <div className="tabular space-y-1 border-t pt-2.5 text-sm">
             {discount > 0 && <div className="flex justify-between"><span>Subtotal</span><span>{show(subtotal)}</span></div>}
             {discount > 0 && <div className="flex justify-between text-destructive"><span>Discount</span><span>-{show(discount)}</span></div>}
             <div className="flex justify-between pt-1 font-display text-xl font-bold"><span>Total</span><span>{show(total)}</span></div>
