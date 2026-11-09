@@ -1661,6 +1661,7 @@ export type Database = {
       shift_cash_movements: {
         Row: {
           amount: number
+          client_ref: string | null
           created_at: string
           currency: string
           id: string
@@ -1672,6 +1673,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          client_ref?: string | null
           created_at?: string
           currency: string
           id?: string
@@ -1683,6 +1685,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          client_ref?: string | null
           created_at?: string
           currency?: string
           id?: string
@@ -2898,6 +2901,18 @@ export type Database = {
       record_count: {
         Args: { p_product: string; p_qty: number; p_stocktake: string }
         Returns: undefined
+      }
+      record_offline_cash_movement: {
+        Args: {
+          p_amount: number
+          p_at: string
+          p_client_ref: string
+          p_currency: string
+          p_reason: string
+          p_shift: string
+          p_type: string
+        }
+        Returns: string
       }
       refund_sale: {
         Args: {
