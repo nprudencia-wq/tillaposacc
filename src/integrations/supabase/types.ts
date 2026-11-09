@@ -2698,6 +2698,10 @@ export type Database = {
         Args: { p_document: string }
         Returns: string
       }
+      create_trial_store: {
+        Args: { p_email?: string; p_name: string; p_phone?: string }
+        Returns: string
+      }
       credit_note_refund: {
         Args: {
           p_client_ref: string

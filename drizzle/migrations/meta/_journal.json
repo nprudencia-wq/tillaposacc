@@ -498,6 +498,13 @@
       "when": 1794228783491,
       "tag": "0070_lock_profile_self_update",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1794228893396,
+      "tag": "0071_create_trial_store",
+      "breakpoints": true
     }
   ]
 }
