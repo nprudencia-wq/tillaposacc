@@ -21,6 +21,7 @@ import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedExpensesRouteImport } from './routes/_authenticated/expenses'
 import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated/inventory'
 import { Route as AuthenticatedManageRouteImport } from './routes/_authenticated/manage'
+import { Route as AuthenticatedMultiTillRouteImport } from './routes/_authenticated/multi-till'
 import { Route as AuthenticatedPaymentTypesRouteImport } from './routes/_authenticated/payment-types'
 import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/pos'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
@@ -90,6 +91,11 @@ const AuthenticatedInventoryRoute = AuthenticatedInventoryRouteImport.update({
 const AuthenticatedManageRoute = AuthenticatedManageRouteImport.update({
   id: '/manage',
   path: '/manage',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMultiTillRoute = AuthenticatedMultiTillRouteImport.update({
+  id: '/multi-till',
+  path: '/multi-till',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPaymentTypesRoute =
@@ -162,6 +168,7 @@ export interface FileRoutesByFullPath {
   '/expenses': typeof AuthenticatedExpensesRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/manage': typeof AuthenticatedManageRoute
+  '/multi-till': typeof AuthenticatedMultiTillRoute
   '/payment-types': typeof AuthenticatedPaymentTypesRoute
   '/pos': typeof AuthenticatedPosRoute
   '/reports': typeof AuthenticatedReportsRoute
@@ -186,6 +193,7 @@ export interface FileRoutesByTo {
   '/expenses': typeof AuthenticatedExpensesRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/manage': typeof AuthenticatedManageRoute
+  '/multi-till': typeof AuthenticatedMultiTillRoute
   '/payment-types': typeof AuthenticatedPaymentTypesRoute
   '/pos': typeof AuthenticatedPosRoute
   '/reports': typeof AuthenticatedReportsRoute
@@ -212,6 +220,7 @@ export interface FileRoutesById {
   '/_authenticated/expenses': typeof AuthenticatedExpensesRoute
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
   '/_authenticated/manage': typeof AuthenticatedManageRoute
+  '/_authenticated/multi-till': typeof AuthenticatedMultiTillRoute
   '/_authenticated/payment-types': typeof AuthenticatedPaymentTypesRoute
   '/_authenticated/pos': typeof AuthenticatedPosRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
@@ -238,6 +247,7 @@ export interface FileRouteTypes {
     | '/expenses'
     | '/inventory'
     | '/manage'
+    | '/multi-till'
     | '/payment-types'
     | '/pos'
     | '/reports'
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
     | '/expenses'
     | '/inventory'
     | '/manage'
+    | '/multi-till'
     | '/payment-types'
     | '/pos'
     | '/reports'
@@ -287,6 +298,7 @@ export interface FileRouteTypes {
     | '/_authenticated/expenses'
     | '/_authenticated/inventory'
     | '/_authenticated/manage'
+    | '/_authenticated/multi-till'
     | '/_authenticated/payment-types'
     | '/_authenticated/pos'
     | '/_authenticated/reports'
@@ -392,6 +404,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedManageRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/multi-till': {
+      id: '/_authenticated/multi-till'
+      path: '/multi-till'
+      fullPath: '/multi-till'
+      preLoaderRoute: typeof AuthenticatedMultiTillRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/payment-types': {
       id: '/_authenticated/payment-types'
       path: '/payment-types'
@@ -482,6 +501,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedExpensesRoute: typeof AuthenticatedExpensesRoute
   AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
   AuthenticatedManageRoute: typeof AuthenticatedManageRoute
+  AuthenticatedMultiTillRoute: typeof AuthenticatedMultiTillRoute
   AuthenticatedPaymentTypesRoute: typeof AuthenticatedPaymentTypesRoute
   AuthenticatedPosRoute: typeof AuthenticatedPosRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
@@ -505,6 +525,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedExpensesRoute: AuthenticatedExpensesRoute,
   AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
   AuthenticatedManageRoute: AuthenticatedManageRoute,
+  AuthenticatedMultiTillRoute: AuthenticatedMultiTillRoute,
   AuthenticatedPaymentTypesRoute: AuthenticatedPaymentTypesRoute,
   AuthenticatedPosRoute: AuthenticatedPosRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,

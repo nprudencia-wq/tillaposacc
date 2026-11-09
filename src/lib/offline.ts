@@ -195,7 +195,7 @@ function setSyncing(v: boolean) {
 // ---- Shifts opened with no internet ----
 export type LocalShift = {
   id: string; shift_number: string; status: "open"; opened_at: string; cashier_id: string;
-  opening_float_usd: number; opening_float_zig: number; opening_float_zar: number; offline: true; device_name?: string;
+  opening_float_usd: number; opening_float_zig: number; opening_float_zar: number; offline: true; device_name?: string | undefined;
 };
 const SHIFT_KEY = "tilla-offline-shift";
 
