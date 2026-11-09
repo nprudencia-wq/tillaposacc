@@ -21,7 +21,10 @@ function Index() {
     <div className="min-h-screen bg-sidebar text-sidebar-foreground">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <span className="font-display text-xl font-bold">Tilla<span className="text-sidebar-primary">POS</span></span>
-        <Button asChild variant="secondary"><Link to="/auth">Sign in</Link></Button>
+        <div className="flex gap-2">
+          <Button asChild variant="ghost"><Link to="/portal">Owner portal</Link></Button>
+          <Button asChild variant="secondary"><Link to="/auth">Sign in</Link></Button>
+        </div>
       </header>
       <main className="mx-auto max-w-6xl px-6 pb-24 pt-16">
         <p className="mb-4 text-sm font-semibold uppercase tracking-widest text-sidebar-primary">Made for Zimbabwean retail</p>

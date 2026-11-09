@@ -1,7 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { AuthPage } from "./auth";
+import { cleanLabel, setShopLabel } from "@/lib/till-pairing";
+import { setDeviceName } from "@/lib/device-name";
 
 export const Route = createFileRoute("/till")({
+  validateSearch: (s: { shop?: unknown; till?: unknown }) => {
+    const out: { shop?: string; till?: string } = {};
+    const shop = cleanLabel(s["shop"], 60), till = cleanLabel(s["till"], 40);
+    if (shop) out.shop = shop;
+    if (till) out.till = till;
+    return out;
+  },
   head: () => ({
     meta: [
       { title: "Till sign in — Tilla POS" },
@@ -12,5 +22,15 @@ export const Route = createFileRoute("/till")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: () => <AuthPage tillOnly />,
+  component: TillPage,
 });
+
+function TillPage() {
+  const { shop, till } = Route.useSearch();
+  useEffect(() => {
+    // A pairing link from the owner portal fixes this device's shop label and till name.
+    if (shop) setShopLabel(shop);
+    if (till) setDeviceName(till);
+  }, [shop, till]);
+  return <AuthPage tillOnly />;
+}
