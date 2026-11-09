@@ -13,7 +13,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { harareDay } from "@/lib/cashier-dashboard";
 
 export const Route = createFileRoute("/_authenticated/shifts")({
-  validateSearch: (search: Record<string, unknown>): { day?: string; cashier?: string } => ({ day: typeof search.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(search.day) && Number.isFinite(Date.parse(`${search.day}T00:00:00+02:00`)) ? search.day : undefined, cashier: typeof search.cashier === "string" ? search.cashier : undefined }),
+  validateSearch: (search: Record<string, unknown>): { day?: string; cashier?: string } => {
+    const result: { day?: string; cashier?: string } = {};
+    const day = search["day"];
+    if (typeof day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(day) && Number.isFinite(Date.parse(`${day}T00:00:00+02:00`))) result.day = day;
+    if (typeof search["cashier"] === "string") result.cashier = search["cashier"];
+    return result;
+  },
   head: () => ({ meta: [{ title: "Shifts & cash-up — Tilla POS" }, { name: "description", content: "Cashier shifts, cash-ups and variances." }, { property: "og:title", content: "Shifts & cash-up — Tilla POS" }, { property: "og:description", content: "Cashier shifts, cash-ups and variances." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: ShiftsPage,
 });
