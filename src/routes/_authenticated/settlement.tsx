@@ -10,6 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { money } from "@/lib/pos";
 import { harareDay } from "@/lib/cashier-dashboard";
 import { buildSettlement, groupTotals, type MethodRow } from "@/lib/settlement";
+import { cached, deviceSales, isNetworkError } from "@/lib/offline";
+import { readRepayments } from "@/lib/offline-credit";
+import { queueSettlement, readPendingSettlements, uploadSettlement } from "@/lib/settlement-queue";
+import { internetAvailable } from "@/lib/connectivity";
 
 export const Route = createFileRoute("/_authenticated/settlement")({
   validateSearch: (search: Record<string, unknown>): { day?: string } =>
@@ -47,6 +51,26 @@ function Settlement({ storeId }: { storeId: string }) {
   const { data } = useSuspenseQuery({
     queryKey: ["settlement", storeId, day],
     queryFn: async () => {
+      const server = await cached(`settlement:${storeId}:${day}`, () => loadServer());
+      // Add this device's sales and debt payments that haven't uploaded yet, so the day can be settled offline.
+      const saleRefs = new Set(server.saleRefs); const payRefs = new Set(server.payRefs);
+      const inDay = (at: string) => at >= start && at < end;
+      const local = (await deviceSales()).filter((s) => s.store_id === storeId && inDay(s.sold_at) && !saleRefs.has(s.client_ref));
+      const reps = (await readRepayments()).filter((r) => inDay(r.paid_at) && !payRefs.has(r.client_ref));
+      const me = server.me;
+      const rows = buildSettlement({
+        types: server.types,
+        sales: [...server.sales, ...local.map((s) => ({ id: s.client_ref, sale_number: s.receipt?.sale_number ?? s.client_ref, created_at: s.sold_at, cashier: `${s.receipt?.cashier || me} (on this till)`, change_given: Number(s.receipt?.change ?? 0), payments: s.payments.map((p) => ({ method: p.method, amount: p.amount, exchange_rate: p.exchange_rate ?? 1 })) }))],
+        refunds: server.refunds,
+        repayments: [...server.repayments, ...reps.map((r) => ({ payment_number: `${r.customer_name} (on this till)`, created_at: r.paid_at, cashier: me, method: r.method, amount: r.usd }))],
+        movements: server.movements,
+      });
+      const pending = (await readPendingSettlements()).find((p) => p.store_id === storeId && p.day === day);
+      const saved = pending ? { ...pending, offline: true } : server.saved;
+      return { rows, saved, settledBy: pending ? `${me} (waiting to upload)` : server.settledBy, saleCount: server.sales.length + local.length, localCount: local.length + reps.length, checkedAt: server.checkedAt };
+    },
+  });
+  async function loadServer() {
       const [types, profiles, settings, saved] = await Promise.all([
         supabase.from("payment_types").select("code, name, is_cash, is_account").eq("store_id", storeId),
         supabase.from("profiles").select("id, full_name"),
@@ -56,22 +80,25 @@ function Settlement({ storeId }: { storeId: string }) {
       const names = new Map((profiles.data ?? []).map((p) => [p.id, p.full_name]));
       const who = (id?: string | null) => (id && names.get(id)) || "Staff";
       const [sales, refunds, repayments, moves] = await Promise.all([
-        all<any>(() => supabase.from("sales").select("id, sale_number, created_at, cashier_id, change_given, status, sale_payments(method, amount, exchange_rate)").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
+        all<any>(() => supabase.from("sales").select("id, sale_number, created_at, cashier_id, change_given, status, client_ref, sale_payments(method, amount, exchange_rate)").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
         all<any>(() => supabase.from("refunds").select("id, created_at, refunded_by, method, amount").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
-        all<any>(() => supabase.from("customer_payments").select("payment_number, created_at, received_by, method, amount").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
+        all<any>(() => supabase.from("customer_payments").select("payment_number, created_at, received_by, method, amount, client_ref").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
         all<any>(() => supabase.from("shift_cash_movements").select("id, created_at, user_id, type, currency, amount").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
       ]);
       const rate = (c: string) => (c === "ZiG" || c === "ZIG" ? Number(settings.data?.zig_rate) : c === "ZAR" ? Number(settings.data?.rand_rate) : 1) || 1;
-      const rows = buildSettlement({
+      const { data: auth } = await supabase.auth.getSession();
+      return {
         types: types.data ?? [],
         sales: sales.map((s) => ({ ...s, cashier: who(s.cashier_id), payments: s.sale_payments ?? [] })),
         refunds: refunds.map((r) => ({ ...r, cashier: who(r.refunded_by) })),
         repayments: repayments.map((p) => ({ ...p, cashier: who(p.received_by) })),
         movements: moves.map((m) => ({ ...m, cashier: who(m.user_id), usd: Number(m.amount) / rate(m.currency) })),
-      });
-      return { rows, saved: saved.data as null | { lines: { method: string; counted: number }[]; notes: string; settled_at: string; settled_by: string }, settledBy: who(saved.data?.settled_by), saleCount: sales.length };
-    },
-  });
+        saleRefs: sales.map((s) => s.client_ref).filter(Boolean) as string[],
+        payRefs: repayments.map((p) => p.client_ref).filter(Boolean) as string[],
+        saved: saved.data as null | { lines: { method: string; counted: number }[]; notes: string; settled_at: string; settled_by: string },
+        settledBy: who(saved.data?.settled_by), me: who(auth.session?.user.id), checkedAt: new Date().toISOString(),
+      };
+  }
 
   const [counted, setCounted] = useState<Record<string, string>>({});
   const [notes, setNotes] = useState("");
@@ -91,11 +118,17 @@ function Settlement({ storeId }: { storeId: string }) {
     if (bad) { toast.error(`Enter the counted amount for ${bad.label}.`); return; }
     setBusy(true);
     const lines = data.rows.map((r) => ({ method: r.method, label: r.label, group: r.group, expected: r.expected, counted: r.group === "account" ? r.expected : countOf(r), difference: r.group === "account" ? 0 : Math.round((countOf(r)! - r.expected) * 100) / 100 }));
-    const { data: u } = await supabase.auth.getUser();
-    const { error } = await db.from("daily_settlements").upsert({ store_id: storeId, day, lines, notes, settled_by: u.user?.id, settled_at: new Date().toISOString() }, { onConflict: "store_id,day" });
+    const { data: u } = await supabase.auth.getSession();
+    const record = { store_id: storeId, day, lines, notes, settled_by: u.session?.user.id ?? "", settled_at: new Date().toISOString() };
+    let offline = !internetAvailable();
+    if (!offline) {
+      const { error } = await uploadSettlement(record).catch((e) => ({ error: e as { message: string } }));
+      if (error && !isNetworkError(error)) { setBusy(false); toast.error(error.message); return; }
+      offline = !!error;
+    }
+    if (offline) await queueSettlement(record);
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Day settled");
+    toast.success(offline ? "Day settled on this device — it uploads when the internet is back" : "Day settled");
     qc.invalidateQueries({ queryKey: ["settlement", storeId, day] });
   }
 
@@ -105,6 +138,7 @@ function Settlement({ storeId }: { storeId: string }) {
         <div>
           <h1 className="text-2xl font-bold">Daily settlement</h1>
           <p className="text-sm text-muted-foreground">Sales by payment type for {day} (Harare time) · {data.saleCount} sales</p>
+          {data.localCount > 0 && <p className="mt-1 text-sm text-warning">Includes {data.localCount} sale(s)/payment(s) still waiting to upload from this till.</p>}
           {data.saved && <p className="mt-1 text-sm font-medium text-primary">Settled by {data.settledBy} at {new Date(data.saved.settled_at).toLocaleString()}</p>}
         </div>
         <div className="flex gap-2 print:hidden">
