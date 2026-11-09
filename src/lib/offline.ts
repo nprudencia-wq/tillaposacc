@@ -265,8 +265,10 @@ async function syncPendingClose(scope: StoreScope): Promise<boolean> {
     if (error) window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "sale", network: isNetworkError(error) });
     if (error && isNetworkError(error)) return false;
     await updateUploadedSale(scope, s, error?.message);
-    if (error) return false;
   }
+  // Rejected sales remain durable for retry, but must not block later sales.
+  // Never close the shift until every sale belonging to it has uploaded.
+  if (!sameScope(scope) || readQueue().some((s) => s.shift_id === p.shift_id)) return false;
   const { error } = await networkRead(() => supabase.rpc("close_offline_shift", {
     p_id: p.shift_id, p_closed_at: p.closed_at, p_actual_usd: p.usd, p_actual_zig: p.zig, p_actual_zar: p.zar, p_notes: p.notes,
   }));
@@ -306,7 +308,7 @@ export async function syncQueue(): Promise<{ synced: number; failed: number }> {
       if (error) window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "sale", network: isNetworkError(error) });
       if (error && isNetworkError(error)) { setInternetAvailable(false); complete = false; break; }
       await updateUploadedSale(scope, s, error?.message);
-      if (error) { failed++; complete = false; break; }
+      if (error) { failed++; complete = false; continue; }
       synced++;
     }
   } catch (e) {

@@ -55,6 +55,45 @@ describe("Durable disconnected sales", () => {
     await syncQueue(); expect(readQueue()).toHaveLength(0);
     expect(mocks.rpc.mock.calls.map((c) => c[1].p_client_ref)).toEqual(["sale-1", "sale-1"]);
   });
+  it("uploads later sales despite a rejected sale and retains the rejection across reload", async () => {
+    setOfflineScope(scope);
+    await enqueueSale(sale);
+    await enqueueSale({ ...sale, client_ref: "sale-2" });
+    mocks.rpc.mockResolvedValueOnce({ error: { message: "Product not found" } }).mockResolvedValueOnce({ error: null });
+    expect(await syncQueue()).toEqual({ synced: 1, failed: 1 });
+    expect(mocks.rpc.mock.calls.map((c) => c[1].p_client_ref)).toEqual(["sale-1", "sale-2"]);
+    setOfflineScope(null); setOfflineScope(scope);
+    await enqueueSale({ ...sale, client_ref: "sale-3" });
+    expect(readQueue().map((s) => [s.client_ref, s.error])).toEqual([["sale-1", "Product not found"], ["sale-3", undefined]]);
+    mocks.rpc.mockResolvedValueOnce({ error: { message: "Product not found" } }).mockResolvedValueOnce({ error: null });
+    expect(await syncQueue()).toEqual({ synced: 1, failed: 1 });
+    expect(readQueue().map((s) => s.client_ref)).toEqual(["sale-1"]);
+  });
+  it("stops on network failure without removing or attempting later sales", async () => {
+    setOfflineScope(scope);
+    await enqueueSale(sale);
+    await enqueueSale({ ...sale, client_ref: "sale-2" });
+    mocks.rpc.mockResolvedValueOnce({ error: { message: "Failed to fetch" } });
+    expect(await syncQueue()).toEqual({ synced: 0, failed: 0 });
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    expect(readQueue().map((s) => s.client_ref)).toEqual(["sale-1", "sale-2"]);
+  });
+  it("uploads later closed-shift sales but holds the closing count until the rejected sale succeeds", async () => {
+    setOfflineScope(scope);
+    await enqueueSale(sale);
+    await enqueueSale({ ...sale, client_ref: "sale-2" });
+    await closeShiftOffline(sale.shift_id, { usd: 4, zig: 0, zar: 0, notes: "" });
+    mocks.rpc.mockResolvedValueOnce({ error: { message: "Product not found" } }).mockResolvedValueOnce({ error: null });
+    await syncQueue();
+    expect(mocks.rpc.mock.calls.map((c) => c[1].p_client_ref)).toEqual(["sale-1", "sale-2"]);
+    expect(readQueue().map((s) => s.client_ref)).toEqual(["sale-1"]);
+    expect(await readPendingClose()).not.toBeNull();
+    mocks.rpc.mockReset(); mocks.rpc.mockResolvedValue({ error: null });
+    await syncQueue();
+    expect(mocks.rpc.mock.calls.map((c) => c[0])).toEqual(["complete_offline_sale", "close_offline_shift"]);
+    expect(readQueue()).toHaveLength(0);
+    expect(await readPendingClose()).toBeNull();
+  });
   it("uploads an offline shift opening, sales and closing count in that order", async () => {
     setOfflineScope(scope);
     const shift = await openLocalShift({ usd: 10, zig: 0, zar: 20 });
