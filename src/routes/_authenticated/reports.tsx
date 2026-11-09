@@ -70,6 +70,7 @@ function Reports() {
         supabase.from("stock_movements").select("*, products(name)").gte("created_at", start).lte("created_at", end).order("created_at", { ascending: false }).limit(1000),
         supabase.from("expenses").select("*").gte("expense_date", from).lte("expense_date", to),
       ]);
+      const { data: adjustments } = await supabase.from("customer_adjustments").select("kind, amount").eq("kind", "interest").gte("created_at", start).lte("created_at", end);
       // Stock as at the end date: rewind today's stock using movements made after it.
       let list = products ?? [];
       if (to < iso(new Date())) {
@@ -78,7 +79,7 @@ function Reports() {
         (later ?? []).forEach((m) => { delta[m.product_id] = (delta[m.product_id] ?? 0) + Number(m.quantity); });
         list = list.map((p) => ({ ...p, stock: Number(p.stock) - (delta[p.id] ?? 0) }));
       }
-      return { sales: sales ?? [], items: items ?? [], pays: pays ?? [], refunds: refunds ?? [], products: list, profiles: profiles ?? [], movements: movements ?? [], expenses: expenses ?? [] };
+      return { sales: sales ?? [], items: items ?? [], pays: pays ?? [], refunds: refunds ?? [], products: list, profiles: profiles ?? [], movements: movements ?? [], expenses: expenses ?? [], interest: adjustments ?? [] };
     },
   });
 
@@ -93,7 +94,8 @@ function Reports() {
     const expByCat = group(data.expenses, (e) => e.category, (e) => ({ total: Number(e.amount) }));
     const expenses = data.expenses.reduce((a, e) => a + Number(e.amount), 0);
     const gross = net - cogs;
-    const netProfit = gross - expenses;
+    const otherIncome = data.interest.reduce((a, x) => a + Number(x.amount), 0);
+    const netProfit = gross + otherIncome - expenses;
     const moneyCols = (first: string): Col[] => [{ key: "name", label: first }, { key: "qty", label: "Qty" }, { key: "total", label: "Sales (USD)", money: true }, { key: "profit", label: "Gross profit", money: true }];
     const soldBySold = (g: ReturnType<typeof group>) => g.map((x) => ({ name: x.name, qty: r2(x.qty), total: r2(x.total), profit: r2(x.total - x.cost) }));
 
@@ -103,18 +105,18 @@ function Reports() {
 
     return [
       {
-        id: "pl", label: "Profit & loss",
+        id: "pl", label: "Income statement",
         cols: [{ key: "name", label: "Line" }, { key: "total", label: "USD", money: true }],
         rows: [
-          { name: "Gross sales", total: r2(revenue) },
-          { name: "Less: discounts", total: r2(-discounts) },
-          { name: "Less: refunds", total: r2(-refunds) },
-          { name: "Net sales", total: r2(net) },
-          { name: "Cost of goods sold", total: r2(-cogs) },
+          { name: "Sales", total: r2(revenue - discounts) },
+          { name: "Less: returns", total: r2(-refunds) },
+          { name: "Turnover", total: r2(net) },
+          { name: "Less: cost of goods sold", total: r2(-cogs) },
           { name: "Gross profit", total: r2(gross) },
           { name: "Gross margin %", total: net ? r2((gross / net) * 100) : 0 },
+          { name: "Add: other income (debtor interest)", total: r2(otherIncome) },
           ...expByCat.map((e) => ({ name: `Less expense: ${e.name}`, total: r2(-e.total) })),
-          { name: "Total operating expenses", total: r2(-expenses) },
+          { name: "Total expenses", total: r2(-expenses) },
           { name: "Net profit", total: r2(netProfit) },
           { name: "Net margin %", total: net ? r2((netProfit / net) * 100) : 0 },
         ],
