@@ -103,7 +103,13 @@ function Till({ shiftId }: { shiftId: string }) {
   useEffect(() => {
     if (!randEnabled && currency === "ZAR") { setCurrency("USD"); setPayOpen(false); }
   }, [randEnabled, currency]);
-  useEffect(() => { if (me?.id) void topUpReservedNumbers(); }, [me?.id]);
+  useEffect(() => {
+    if (!me?.id) return;
+    const top = () => void topUpReservedNumbers();
+    top();
+    window.addEventListener("online", top); window.addEventListener("tilla-sync", top);
+    return () => { window.removeEventListener("online", top); window.removeEventListener("tilla-sync", top); };
+  }, [me?.id]);
   const [payOpen, setPayOpen] = useState(false);
   const [held, setHeld] = useState<Held[]>([]);
   const [heldOpen, setHeldOpen] = useState(false);

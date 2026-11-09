@@ -340,7 +340,6 @@ export async function syncQueue(timeout = 5000): Promise<{ synced: number; faile
     // Every reconnect downloads fresh balances: they include this till's uploads and every other till's
     // sales/payments, and the snapshot's refs stop this device counting its own uploads twice.
     await creditSnapshot().catch(() => {});
-    await import("@/lib/receipt-numbers").then((m) => m.topUpReservedNumbers()).catch(() => {});
   } catch (e) {
     if (isNetworkError(e)) setInternetAvailable(false);
     else failed++;
