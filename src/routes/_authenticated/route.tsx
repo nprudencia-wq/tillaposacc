@@ -1,6 +1,6 @@
 import { BackBar } from "@/components/BackBar";
 import { createFileRoute, Outlet, redirect, Link, useNavigate, Navigate, useRouterState } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut, BarChart3, Users, Wallet, Clock, CreditCard, Contact, ClipboardList, Store, BookOpen, Pencil, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaff } from "@/hooks/use-staff";
@@ -56,6 +56,7 @@ const navGroups = [
     { to: "/payment-types", label: "Payment types" },
     { to: "/currencies", label: "Currency settings" },
     { to: "/billing", label: "Billing" },
+    { to: "/trials", label: "Trial leads" },
   ] },
 ] as const;
 const inGroup = (path: string, to: string) => path === to || path.startsWith(to + "/");
@@ -70,6 +71,11 @@ function AppLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useShopUpdates(me?.storeId, me?.id);
+  const { data: vendorStore } = useQuery({
+    queryKey: ["vendor-store", me?.storeId],
+    enabled: !!me?.storeId && !!me?.isOwner,
+    queryFn: async () => (await supabase.from("stores").select("is_vendor_store").eq("id", me!.storeId).maybeSingle()).data?.is_vendor_store ?? false,
+  });
 
   async function signOut() {
     await supabase.rpc("log_event", { p_action: "logout" }).then(() => {}, () => {});
@@ -111,7 +117,7 @@ function AppLayout() {
     );
   }
 
-  const allowed = (path: string) => { const p = moduleFor(path); return !p || !me || (p === "view_reports" ? me.canViewReports : me.perms?.[p] !== false); };
+  const allowed = (path: string) => { if (path === "/trials") return !me || (me.isOwner && vendorStore !== false); const p = moduleFor(path); return !p || !me || (p === "view_reports" ? me.canViewReports : me.perms?.[p] !== false); };
   if (me && !allowed(pathname)) return <Navigate to="/pos" replace />;
 
   const visibleGroups = navGroups.map((g) => ({ ...g, items: g.items.filter((n) => allowed(n.to)) })).filter((g) => g.items.length);

@@ -11,6 +11,7 @@ import { money, type Currency, type PayMethod } from "@/lib/pos";
 import { methodLabel } from "@/lib/payment-types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
+import { WelcomeTour } from "@/components/WelcomeTour";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Tilla POS" }, { name: "description", content: "Sales and stock at a glance." }, { property: "og:title", content: "Dashboard — Tilla POS" }, { property: "og:description", content: "Sales and stock at a glance." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -129,6 +130,7 @@ function Dashboard() {
 
   return (
     <div className="mx-auto max-w-7xl p-4 lg:p-8">
+      {me && <WelcomeTour userId={me.id} storeId={me.storeId} isOwner={me.isOwner} />}
       <h1 className="text-3xl font-bold">Sales and stock dashboard</h1>
       <p className="text-muted-foreground">Good day{me ? `, ${me.name.split(" ")[0]}` : ""} · {settings?.business_name} · ZiG {settings?.zig_rate} = $1</p>
 
