@@ -70,6 +70,8 @@ function Reports() {
         supabase.from("stock_movements").select("*, products(name)").gte("created_at", start).lte("created_at", end).order("created_at", { ascending: false }).limit(1000),
         supabase.from("expenses").select("*").gte("expense_date", from).lte("expense_date", to),
       ]);
+      const { data: grnRows } = await supabase.from("grns").select("total").gte("created_at", start).lte("created_at", end);
+      const purchases = (grnRows ?? []).reduce((a, g) => a + Number(g.total), 0);
       const { data: adjustments } = await supabase.from("customer_adjustments").select("kind, amount").eq("kind", "interest").gte("created_at", start).lte("created_at", end);
       // Stock as at the end date: rewind today's stock using movements made after it.
       let list = products ?? [];
@@ -85,7 +87,7 @@ function Reports() {
       (sinceStart ?? []).forEach((m) => { dStart[m.product_id] = (dStart[m.product_id] ?? 0) + Number(m.quantity); });
       const openingValue = (products ?? []).reduce((a, p) => a + Math.max(0, Number(p.stock) - (dStart[p.id] ?? 0)) * Number(p.cost_price ?? 0), 0);
       const closingValue = list.reduce((a, p) => a + Math.max(0, Number(p.stock)) * Number(p.cost_price ?? 0), 0);
-      return { openingValue, closingValue, sales: sales ?? [], items: items ?? [], pays: pays ?? [], refunds: refunds ?? [], products: list, profiles: profiles ?? [], movements: movements ?? [], expenses: expenses ?? [], interest: adjustments ?? [] };
+      return { purchases, openingValue, closingValue, sales: sales ?? [], items: items ?? [], pays: pays ?? [], refunds: refunds ?? [], products: list, profiles: profiles ?? [], movements: movements ?? [], expenses: expenses ?? [], interest: adjustments ?? [] };
     },
   });
 
@@ -118,7 +120,8 @@ function Reports() {
           { name: "Less: returns", total: r2(-refunds) },
           { name: "Turnover", total: r2(net) },
           { name: "Opening stock (at cost)", total: r2(data.openingValue) },
-          { name: "Add: purchases & stock adjustments", total: r2(data.closingValue + cogs - data.openingValue) },
+          { name: "Add: purchases (goods received)", total: r2(data.purchases) },
+          { name: "Add/less: stock adjustments & write-offs", total: r2(data.closingValue + cogs - data.openingValue - data.purchases) },
           { name: "Less: closing stock (at cost)", total: r2(-data.closingValue) },
           { name: "Less: cost of goods sold", total: r2(-cogs) },
           { name: "Gross profit", total: r2(gross) },

@@ -223,7 +223,7 @@ function DeleteSupplier({ supplier, onClose }: { supplier: Supplier; onClose: ()
 }
 
 type GrnForm = { supplier: string; invoice: string; currency: InvoiceCurrency; rate: string; paid: string; note: string; method: string; lines: ReceivingLine[] };
-function ReceiveGoods({ suppliers, onClose, draft }: { suppliers: { id: string; name: string }[]; onClose: () => void; draft: GrnDraft | null }) {
+export function ReceiveGoods({ suppliers, onClose, draft }: { suppliers: { id: string; name: string }[]; onClose: () => void; draft: GrnDraft | null }) {
   const initial = draft?.payload as unknown as GrnForm | undefined;
   const [savedDraft, setSavedDraft] = useState<GrnDraft | null>(draft);
   const [review, setReview] = useState(false);
@@ -303,7 +303,7 @@ function ReceiveGoods({ suppliers, onClose, draft }: { suppliers: { id: string; 
       const { data, error } = await supabase.rpc("post_grn_draft", { p_id: d.id, p_version: d.version });
       if (error) throw error;
       window.__lovableEvents?.track?.("project.grn_inventory_posted", { currency, line_count: entered.length });
-      await Promise.all(["grn-drafts", "suppliers", "products", "movements", "gl-lines", "branch_stock", "activity"].map((key) => qc.invalidateQueries({ queryKey: [key] })));
+      await Promise.all(["grn-drafts", "goods-received", "reports", "suppliers", "products", "movements", "gl-lines", "branch_stock", "activity"].map((key) => qc.invalidateQueries({ queryKey: [key] })));
       toast.success(`${(data as { grn_number: string }).grn_number} received — stock updated`);
       onClose();
     } catch (error) { toast.error((error as { message?: string }).message ?? "Receive goods failed"); }

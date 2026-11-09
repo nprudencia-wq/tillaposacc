@@ -19,6 +19,7 @@ import { Route as AuthenticatedCustomersRouteImport } from './routes/_authentica
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedDocumentsRouteImport } from './routes/_authenticated/documents'
 import { Route as AuthenticatedExpensesRouteImport } from './routes/_authenticated/expenses'
+import { Route as AuthenticatedGoodsReceivedRouteImport } from './routes/_authenticated/goods-received'
 import { Route as AuthenticatedInventoryRouteImport } from './routes/_authenticated/inventory'
 import { Route as AuthenticatedManageRouteImport } from './routes/_authenticated/manage'
 import { Route as AuthenticatedMultiTillRouteImport } from './routes/_authenticated/multi-till'
@@ -83,6 +84,12 @@ const AuthenticatedExpensesRoute = AuthenticatedExpensesRouteImport.update({
   path: '/expenses',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedGoodsReceivedRoute =
+  AuthenticatedGoodsReceivedRouteImport.update({
+    id: '/goods-received',
+    path: '/goods-received',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedInventoryRoute = AuthenticatedInventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
@@ -166,6 +173,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
   '/expenses': typeof AuthenticatedExpensesRoute
+  '/goods-received': typeof AuthenticatedGoodsReceivedRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/manage': typeof AuthenticatedManageRoute
   '/multi-till': typeof AuthenticatedMultiTillRoute
@@ -191,6 +199,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/documents': typeof AuthenticatedDocumentsRoute
   '/expenses': typeof AuthenticatedExpensesRoute
+  '/goods-received': typeof AuthenticatedGoodsReceivedRoute
   '/inventory': typeof AuthenticatedInventoryRoute
   '/manage': typeof AuthenticatedManageRoute
   '/multi-till': typeof AuthenticatedMultiTillRoute
@@ -218,6 +227,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/documents': typeof AuthenticatedDocumentsRoute
   '/_authenticated/expenses': typeof AuthenticatedExpensesRoute
+  '/_authenticated/goods-received': typeof AuthenticatedGoodsReceivedRoute
   '/_authenticated/inventory': typeof AuthenticatedInventoryRoute
   '/_authenticated/manage': typeof AuthenticatedManageRoute
   '/_authenticated/multi-till': typeof AuthenticatedMultiTillRoute
@@ -245,6 +255,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/documents'
     | '/expenses'
+    | '/goods-received'
     | '/inventory'
     | '/manage'
     | '/multi-till'
@@ -270,6 +281,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/documents'
     | '/expenses'
+    | '/goods-received'
     | '/inventory'
     | '/manage'
     | '/multi-till'
@@ -296,6 +308,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/documents'
     | '/_authenticated/expenses'
+    | '/_authenticated/goods-received'
     | '/_authenticated/inventory'
     | '/_authenticated/manage'
     | '/_authenticated/multi-till'
@@ -388,6 +401,13 @@ declare module '@tanstack/react-router' {
       path: '/expenses'
       fullPath: '/expenses'
       preLoaderRoute: typeof AuthenticatedExpensesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/goods-received': {
+      id: '/_authenticated/goods-received'
+      path: '/goods-received'
+      fullPath: '/goods-received'
+      preLoaderRoute: typeof AuthenticatedGoodsReceivedRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/inventory': {
@@ -499,6 +519,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDocumentsRoute: typeof AuthenticatedDocumentsRoute
   AuthenticatedExpensesRoute: typeof AuthenticatedExpensesRoute
+  AuthenticatedGoodsReceivedRoute: typeof AuthenticatedGoodsReceivedRoute
   AuthenticatedInventoryRoute: typeof AuthenticatedInventoryRoute
   AuthenticatedManageRoute: typeof AuthenticatedManageRoute
   AuthenticatedMultiTillRoute: typeof AuthenticatedMultiTillRoute
@@ -523,6 +544,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDocumentsRoute: AuthenticatedDocumentsRoute,
   AuthenticatedExpensesRoute: AuthenticatedExpensesRoute,
+  AuthenticatedGoodsReceivedRoute: AuthenticatedGoodsReceivedRoute,
   AuthenticatedInventoryRoute: AuthenticatedInventoryRoute,
   AuthenticatedManageRoute: AuthenticatedManageRoute,
   AuthenticatedMultiTillRoute: AuthenticatedMultiTillRoute,
