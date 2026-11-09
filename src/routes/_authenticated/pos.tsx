@@ -116,6 +116,7 @@ function Till({ shiftId }: { shiftId: string }) {
   const [heldOpen, setHeldOpen] = useState(false);
   const [reprintOpen, setReprintOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [hwOpen, setHwOpen] = useState(false);
   const [dashboardOpen, setDashboardOpen] = useState(false);
   const [lastReceipt, setLastReceipt] = useState<ReceiptData | null>(null);
