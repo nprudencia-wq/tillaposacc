@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, List, LayoutGrid, ReceiptText, Printer, Archive, Settings2 } from "lucide-react";
+import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, List, LayoutGrid, ReceiptText, Printer, Archive, Settings2, HandCoins } from "lucide-react";
 import { openDrawer } from "@/lib/hardware";
 import { RecentReceipts } from "@/components/RecentReceipts";
 import { ProductImage } from "@/components/ProductImage";
@@ -115,6 +115,9 @@ function Till({ shiftId }: { shiftId: string }) {
   const { data: customers = [] } = useCustomers();
   const [customerId, setCustomerId] = useState<string>("none");
   const [addCust, setAddCust] = useState(false);
+  const [payCust, setPayCust] = useState(false);
+  // Keep customer balances on the device so credit limits are checked offline too.
+  useEffect(() => { void creditSnapshot().catch(() => {}); }, []);
   const customer = customers.find((c) => c.id === customerId);
 
   useEffect(() => {
@@ -371,6 +374,7 @@ function Till({ shiftId }: { shiftId: string }) {
               </SelectContent>
             </Select>
             <Button size="icon" variant="outline" className="h-9 w-9" aria-label="Add a new customer" onClick={() => setAddCust(true)}><Plus className="h-4 w-4" /></Button>
+            {customer && <Button size="icon" variant="outline" className="h-9 w-9" title="Take account payment" aria-label={`Take account payment from ${customer.name}`} onClick={() => setPayCust(true)}><HandCoins className="h-4 w-4" /></Button>}
           </div>
           {me?.canDiscount !== false && <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Discount</span>
@@ -398,6 +402,7 @@ function Till({ shiftId }: { shiftId: string }) {
         </div>
       </aside>
 
+      {payCust && customer && <AccountPaymentDialog customer={customer} shiftId={shiftId} zigRate={rate} randRate={randRate} randEnabled={randEnabled} onClose={() => setPayCust(false)} />}
       {addCust && <CustomerDialog customer={null} onClose={() => setAddCust(false)} onSaved={(c) => { qc.invalidateQueries({ queryKey: ["customers"] }); setCustomerId(c.id); }} />}
       {payOpen && <PayDialog total={total} currency={currency} rate={rate} randRate={randRate} onClose={() => setPayOpen(false)} onPay={complete} />}
 
