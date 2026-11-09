@@ -81,7 +81,7 @@ export function receiptBytes(r: ReceiptData, store: StoreInfo | undefined, c: Re
     p.line(row(`VAT ${rate}% (incl.)`, fmt(vat, r.currency), cols));
   }
   p.line(dash);
-  for (const pay of r.payments) p.line(row(`${pay.method} (${pay.currency})`, fmt(pay.amount, pay.currency), cols));
+  for (const pay of r.payments) { p.line(row(`${pay.method} (${pay.currency})`, fmt(pay.amount, pay.currency), cols)); if (pay.reference) p.line(`  Ref: ${pay.reference}`.slice(0, cols)); }
   p.bold(true).line(row("Change", fmt(cv(r.change), r.currency), cols)).bold(false);
   if (c.return_policy) p.line(dash).align("center").line(c.return_policy);
   p.align("center").line("").line(store?.receipt_footer || "Thank you for shopping with us!").feed(4);

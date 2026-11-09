@@ -1311,6 +1311,7 @@ export type Database = {
           exchange_rate: number
           id: string
           method: string
+          reference: string | null
           sale_id: string
           store_id: string | null
           verified: boolean
@@ -1321,6 +1322,7 @@ export type Database = {
           exchange_rate?: number
           id?: string
           method: string
+          reference?: string | null
           sale_id: string
           store_id?: string | null
           verified?: boolean
@@ -1331,6 +1333,7 @@ export type Database = {
           exchange_rate?: number
           id?: string
           method?: string
+          reference?: string | null
           sale_id?: string
           store_id?: string | null
           verified?: boolean
@@ -3015,6 +3018,10 @@ export type Database = {
         Returns: undefined
       }
       save_zimra_config: { Args: { p: Json }; Returns: undefined }
+      set_sale_payment_references: {
+        Args: { p_refs: Json; p_sale_number: string }
+        Returns: number
+      }
       set_shift_device: {
         Args: { p_name: string; p_shift: string }
         Returns: undefined

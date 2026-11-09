@@ -23,7 +23,7 @@ export interface ReceiptData {
   discount: number;
   total: number;
   change: number;
-  payments: { method: PayMethod; currency: Currency; amount: number }[];
+  payments: { method: PayMethod; currency: Currency; amount: number; reference?: string }[];
 }
 
 export type StoreLike = {
@@ -89,7 +89,7 @@ export function Receipt({ r, store, config }: { r: ReceiptData; store?: StoreLik
         return (<><Line /><Row l="Excl. VAT" r={money(b.net, r.currency)} /><Row l={`VAT ${Number(st.vat_rate)}% (incl.)`} r={money(b.vat, r.currency)} /></>);
       })()}
       <Line />
-      {r.payments.map((p, k) => <Row key={k} l={`${methodLabel(p.method)} (${p.currency})`} r={money(p.amount, p.currency)} />)}
+      {r.payments.map((p, k) => <div key={k}><Row l={`${methodLabel(p.method)} (${p.currency})`} r={money(p.amount, p.currency)} />{p.reference && <div className="pl-2">Ref: {p.reference}</div>}</div>)}
       <Row b l="Change" r={money(cv(r.change), r.currency)} />
       {c.show_barcode && (
         <><Line /><div className="flex flex-col items-center gap-0.5"><QRCodeSVG value={r.sale_number} size={narrow ? 64 : 80} /><div>{r.sale_number}</div></div></>
