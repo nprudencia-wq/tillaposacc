@@ -35,7 +35,7 @@ export function RecentReceipts({ open, onOpenChange }: { open: boolean; onOpenCh
     enabled: open,
     // Whole receipts (lines, payments, cashier name) are downloaded and kept on the till, so they open offline.
     queryFn: () => cached(`till-receipts:${day}:${mine ? me?.id : "all"}:${q.trim().toLowerCase()}`, async () => {
-      let query = supabase.from("sales").select("id, sale_number, created_at, cashier_id, currency, exchange_rate, subtotal, discount, total, change_given, sale_payments(method, currency, amount), sale_items(name, quantity, unit_price, line_total, refunded_qty)").order("created_at", { ascending: false }).limit(200);
+      let query = supabase.from("sales").select("id, sale_number, created_at, cashier_id, currency, exchange_rate, subtotal, discount, total, change_given, sale_payments(method, currency, amount, reference), sale_items(name, quantity, unit_price, line_total, refunded_qty)").order("created_at", { ascending: false }).limit(200);
       const term = q.trim();
       if (term) query = query.ilike("sale_number", `%${term}%`);
       else if (day) query = query.gte("created_at", new Date(day + "T00:00:00").toISOString()).lte("created_at", new Date(day + "T23:59:59.999").toISOString());
