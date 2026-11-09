@@ -540,6 +540,13 @@
       "when": 1794230099528,
       "tag": "0076_store_scoped_subscription_approval",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1794230382914,
+      "tag": "0077_sale_payment_references",
+      "breakpoints": true
     }
   ]
 }
