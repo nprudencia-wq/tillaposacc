@@ -11,7 +11,9 @@ import { money } from "@/lib/pos";
 import { harareDay } from "@/lib/cashier-dashboard";
 import { buildSettlement, groupTotals, type MethodRow } from "@/lib/settlement";
 import { cached, deviceSales, isNetworkError } from "@/lib/offline";
-import { readRepayments } from "@/lib/offline-credit";
+import { readRepayments, creditSnapshot, owedNow } from "@/lib/offline-credit";
+import { useQuery } from "@tanstack/react-query";
+import { isAccountMethod } from "@/lib/payment-types";
 import { queueSettlement, readPendingSettlements, uploadSettlement } from "@/lib/settlement-queue";
 import { internetAvailable } from "@/lib/connectivity";
 
@@ -123,6 +125,18 @@ function Settlement({ storeId }: { storeId: string }) {
     setNotes(data.saved?.notes ?? "");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.saved, data.rows.length, data.shiftCash]);
+  const savedOwed = (data.saved?.lines as { method: string; expected?: number }[] | undefined)?.find((l) => l.method === "_owed");
+  const liveOwed = useQuery({
+    queryKey: ["settlement-owed", storeId],
+    enabled: !savedOwed,
+    queryFn: async () => {
+      const [snap, sales, reps] = await Promise.all([creditSnapshot().catch(() => undefined), deviceSales(), readRepayments()]);
+      const ids = new Set<string>([...Object.keys(snap?.balances ?? {}), ...sales.map((x) => x.customer_id).filter(Boolean) as string[], ...reps.map((r) => r.customer_id)]);
+      let t = 0; for (const id of ids) t += Math.max(0, owedNow(id, snap, sales, reps, isAccountMethod));
+      return Math.round(t * 100) / 100;
+    },
+  });
+  const owedTotal = savedOwed ? Number(savedOwed.expected ?? 0) : liveOwed.data;
   const autoFilled = !(data.saved && !data.saved.auto && data.saved.lines.length > 0);
 
   const totals = groupTotals(data.rows);
@@ -136,6 +150,7 @@ function Settlement({ storeId }: { storeId: string }) {
     const lines = data.rows.map((r) => ({ method: r.method, label: r.label, group: r.group, expected: r.expected, counted: r.group === "account" ? r.expected : countOf(r), difference: r.group === "account" ? 0 : Math.round((countOf(r)! - r.expected) * 100) / 100 }));
     const owedLine = (data.saved?.lines as { method: string }[] | undefined)?.find((l) => l.method === "_owed");
     if (owedLine) (lines as unknown[]).push(owedLine);
+    else if (owedTotal !== undefined) (lines as unknown[]).push({ method: "_owed", label: "Total owed by customers", group: "owed", expected: owedTotal, counted: owedTotal, difference: 0 });
     const { data: u } = await supabase.auth.getSession();
     const approving = !!data.saved?.auto;
     const record = { store_id: storeId, day, lines, notes, settled_by: u.session?.user.id ?? "", settled_at: new Date().toISOString(), auto: false,
@@ -160,7 +175,6 @@ function Settlement({ storeId }: { storeId: string }) {
           <p className="text-sm text-muted-foreground">Sales by payment type for {day} (Harare time) · {data.saleCount} sales</p>
           {data.localCount > 0 && <p className="mt-1 text-sm text-warning">Includes {data.localCount} sale(s)/payment(s) still waiting to upload from this till.</p>}
           {data.saved?.auto && <p className="mt-1 text-sm font-medium text-warning">Auto-settled at midnight — check the counts below and tap Approve settlement.</p>}
-          {(() => { const o = (data.saved?.lines as { method: string; expected?: number }[] | undefined)?.find((l) => l.method === "_owed"); return o ? <p className="mt-1 text-sm">Total owed by customers at close: <span className="font-semibold">{money(Number(o.expected))}</span></p> : null; })()}
           {autoFilled && data.rows.length > 0 && <p className="mt-1 text-sm text-muted-foreground">Counts filled in automatically{data.shiftCount ? ` from ${data.shiftCount} closed shift(s)` : ""}; change any that differ.</p>}
           {data.saved && !data.saved.auto && <p className="mt-1 text-sm font-medium text-primary">Settled by {data.settledBy} at {new Date(data.saved.settled_at).toLocaleString()}</p>}
         </div>
@@ -221,6 +235,15 @@ function Settlement({ storeId }: { storeId: string }) {
                 </Fragment>
               );
             })}
+            {owedTotal !== undefined && (
+              <tr className="border-t-2 bg-muted/30">
+                <td className="p-3"><div className="font-semibold">Total owed by customers</div><div className="text-xs text-muted-foreground">{savedOwed ? "All customer balances at close" : "All customer balances right now"}</div></td>
+                <td colSpan={4} className="p-3 text-xs text-muted-foreground">Includes this day's credit sales{totals.account ? ` (${money(totals.account)})` : ""} and earlier unpaid debt, less repayments.</td>
+                <td className="p-3 text-right font-semibold">{money(owedTotal)}</td>
+                <td className="p-3 text-right text-muted-foreground">On accounts</td>
+                <td className="p-3 text-right">—</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
