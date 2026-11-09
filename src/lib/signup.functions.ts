@@ -11,6 +11,7 @@ export const signupStore = createServerFn({ method: "POST" })
     const { data: storeId, error: storeError } = await supabaseAdmin.rpc("create_trial_store", {
       p_name: data.shopName.trim(), p_phone: data.phone.trim(), p_email: email,
     });
+    if (storeError) console.error("create_trial_store failed", storeError.message);
     if (storeError || !storeId) throw new Error("Could not create your shop. Please try again.");
     const { error } = await supabaseAdmin.auth.admin.createUser({
       email, password: data.password, email_confirm: true,
