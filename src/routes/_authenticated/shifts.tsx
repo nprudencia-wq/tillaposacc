@@ -11,6 +11,8 @@ import { useStaff } from "@/hooks/use-staff";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { harareDay } from "@/lib/cashier-dashboard";
+import { cached } from "@/lib/offline";
+import { internetAvailable } from "@/lib/connectivity";
 
 export const Route = createFileRoute("/_authenticated/shifts")({
   validateSearch: (search: Record<string, unknown>): { day?: string; cashier?: string } => {
@@ -41,7 +43,7 @@ function ShiftClosePage({ storeId }: { storeId: string }) {
   const [handover, setHandover] = useState<(typeof shifts)[number] | null>(null);
   const { data } = useSuspenseQuery({
     queryKey: ["shifts", "settlement", storeId, day],
-    queryFn: async () => {
+    queryFn: () => cached(`shift-settlement:${day}`, async () => {
       const [shiftResult, profileResult] = await Promise.all([
         supabase.from("cashier_shifts").select("*").eq("store_id", storeId).lt("opened_at", end).or(`closed_at.gte.${start},status.eq.open`).order("opened_at", { ascending: false }),
         supabase.from("profiles").select("id, full_name"),
@@ -56,8 +58,8 @@ function ShiftClosePage({ storeId }: { storeId: string }) {
         if ((result.data?.length ?? 0) < 500) break;
       }
       const names = new Map((profileResult.data ?? []).map((p) => [p.id, p.full_name]));
-      return { shifts: (shiftResult.data ?? []).map((s) => ({ ...s, cashier: names.get(s.cashier_id) || "Staff" })), sales, names: [...names.entries()] };
-    },
+      return { shifts: (shiftResult.data ?? []).map((s) => ({ ...s, cashier: names.get(s.cashier_id) || "Staff" })), sales, names: [...names.entries()], checkedAt: new Date().toISOString() };
+    }),
   });
   const shifts = data.shifts.filter((s) => cashier === "all" || s.cashier_id === cashier);
   const sales = data.sales.filter((s) => cashier === "all" || s.cashier_id === cashier);
@@ -79,6 +81,7 @@ function ShiftClosePage({ storeId }: { storeId: string }) {
       <div className="my-5 flex flex-wrap items-end gap-3"><label className="text-sm font-semibold">Day (Harare)<Input type="date" value={day} onChange={(e) => e.target.value && void navigate({ search: { ...search, day: e.target.value } })} className="mt-1 w-44" /></label><div className="w-56"><p className="mb-1 text-sm font-semibold">Cashier</p><Select value={cashier} onValueChange={(value) => void navigate({ search: { ...search, cashier: value } })}><SelectTrigger aria-label="Cashier"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All cashiers</SelectItem>{cashiers.map(([id, name]) => <SelectItem key={id} value={id}>{name || "Staff"}</SelectItem>)}</SelectContent></Select></div></div>
       <div className="grid gap-4 border-y py-5 sm:grid-cols-3"><div><p className="text-sm text-muted-foreground">Daily sales · USD</p><p className="text-2xl font-bold">{money(sales.reduce((n, s) => n + Number(s.total), 0))}</p><p className="text-xs text-muted-foreground">{sales.length} uploaded sales</p></div><div><p className="text-sm text-muted-foreground">Shifts settled</p><p className="text-2xl font-bold">{closed.length}</p><p className="text-xs text-muted-foreground">{shifts.length - closed.length} still open</p></div><div><p className="text-sm text-muted-foreground">Cash counted · settled shifts</p><div className="space-y-1 text-sm font-semibold">{(["usd", "zig", "zar"] as const).map((c) => <div key={c}>{money(closed.reduce((n, s) => n + Number(s[`actual_cash_${c}`] ?? 0), 0), c === "usd" ? "USD" : c === "zig" ? "ZiG" : "ZAR")}</div>)}</div></div></div>
       <p className="mt-3 text-xs text-muted-foreground">Cash counts cover shifts settled on this day. Sales cover this calendar day. Offline records appear after upload; My day on each till also includes its unsent sales.</p>
+      {!internetAvailable() && <p className="mt-2 text-sm text-warning">Saved figures · last checked {new Date(data.checkedAt).toLocaleString()} · reconnect for other tills’ latest sales.</p>}
       <div className="mt-6 overflow-x-auto border bg-card">
         <table className="w-full text-sm">
           <thead className="bg-muted text-left"><tr>

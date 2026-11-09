@@ -9,10 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { money, type Currency, type PayMethod } from "@/lib/pos";
+import { money, type Currency } from "@/lib/pos";
 import { isCashMethod, methodLabel } from "@/lib/payment-types";
 import { mergeShiftReport, type ShiftSnapshot } from "@/lib/shift-report";
-import { summarizeItemsSold, type SoldSummary } from "@/lib/items-sold";
+import { type SoldSummary } from "@/lib/items-sold";
 import { useStaff } from "@/hooks/use-staff";
 import { deviceSession } from "@/lib/offline-session";
 import { internetAvailable } from "@/lib/connectivity";
@@ -92,7 +92,9 @@ export async function fetchShiftSummary(id: string) {
       sales.push(...(result.data ?? []));
       if ((result.data?.length ?? 0) < 500) break;
     }
-    return { summary: data as unknown as ShiftSummary, refs: sales.flatMap((s) => s.client_ref ? [s.client_ref] : []), lines: sales.flatMap((s) => s.sale_items), checkedAt: new Date().toISOString() };
+    const summary = data as unknown as ShiftSummary;
+    if (Number(summary.sales_count) !== sales.length) throw new Error("Shift changed while loading. Open the report again.");
+    return { summary, refs: sales.flatMap((s) => s.client_ref ? [s.client_ref] : []), lines: sales.flatMap((s) => s.sale_items), checkedAt: new Date().toISOString() };
   });
   const result = mergeShiftReport(snapshot, await deviceSales(), isCashMethod);
   const summary = { ...result.summary, items: result.items, local: !internetAvailable() || local?.id === id, checkedAt: snapshot.checkedAt };
@@ -100,7 +102,7 @@ export async function fetchShiftSummary(id: string) {
     summary.shift = { ...summary.shift, status: "closed", closed_at: pending.closed_at, notes: pending.notes,
       actual_cash_usd: pending.usd, actual_cash_zig: pending.zig, actual_cash_zar: pending.zar,
       variance_usd: pending.usd - summary.expected_usd, variance_zig: pending.zig - summary.expected_zig,
-      variance_zar: pending.zar - Number((summary as unknown as Record<string, number>).expected_zar ?? 0) };
+      variance_zar: pending.zar - Number((summary as unknown as Record<string, number>)["expected_zar"] ?? 0) };
     summary.local = true;
   }
   return summary;

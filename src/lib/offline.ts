@@ -121,8 +121,10 @@ export function readQueue(): QueuedSale[] {
 /** Device history bridges the time between an upload and the next report download. */
 export async function deviceSales(): Promise<QueuedSale[]> {
   await queueReady;
-  if (!activeScope) return [];
-  return mergeQueues((await idbGet<QueuedSale[]>(deviceStorageKey(UPLOADED_KEY))) ?? [], readQueue());
+  const scope = activeScope;
+  if (!scope) return [];
+  const history = (await idbGet<QueuedSale[]>(scopedStorageKey(UPLOADED_KEY, scope))) ?? [];
+  return sameScope(scope) ? mergeQueues(history, readQueue()) : [];
 }
 async function writeQueue(q: QueuedSale[]) {
   const key = deviceStorageKey(QUEUE_KEY);

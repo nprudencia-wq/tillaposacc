@@ -26,6 +26,6 @@ describe("offline shift reports", () => {
   it("uses historical Rand exchange rate and gives change in sale currency", () => {
     const result = mergeShiftReport(snapshot, [{ ...sale, currency: "ZAR", rand_rate: 20, payments: [{ method: "drawer", currency: "ZAR", amount: 80, exchange_rate: 20 }] }], () => true);
     const fields = result.summary as unknown as Record<string, number>;
-    expect(fields.cash_in_zar).toBe(80); expect(fields.change_zar).toBe(20); expect(fields.expected_zar).toBe(60);
+    expect(fields["cash_in_zar"]).toBe(80); expect(fields["change_zar"]).toBe(20); expect(fields["expected_zar"]).toBe(60);
   });
 });
