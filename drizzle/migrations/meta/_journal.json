@@ -428,6 +428,13 @@
       "when": 1794212167903,
       "tag": "0060_auto_close_daily_settlements",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1794212441010,
+      "tag": "0061_auto_settle_daily_lines",
+      "breakpoints": true
     }
   ]
 }
