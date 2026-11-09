@@ -5,10 +5,13 @@ import { cleanLabel, setShopLabel } from "@/lib/till-pairing";
 import { setDeviceName } from "@/lib/device-name";
 
 export const Route = createFileRoute("/till")({
-  validateSearch: (s: { shop?: unknown; till?: unknown }): { shop?: string | undefined; till?: string | undefined } => ({
-    shop: cleanLabel(s["shop"], 60) || undefined,
-    till: cleanLabel(s["till"], 40) || undefined,
-  }),
+  validateSearch: (s: { shop?: unknown; till?: unknown }) => {
+    const out: { shop?: string; till?: string } = {};
+    const shop = cleanLabel(s["shop"], 60), till = cleanLabel(s["till"], 40);
+    if (shop) out.shop = shop;
+    if (till) out.till = till;
+    return out;
+  },
   head: () => ({
     meta: [
       { title: "Till sign in — Tilla POS" },
