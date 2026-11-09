@@ -28,10 +28,10 @@ export const Route = createFileRoute("/auth")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: AuthPage,
+  component: () => <AuthPage />,
 });
 
-function AuthPage() {
+export function AuthPage({ tillOnly = false }: { tillOnly?: boolean } = {}) {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"in" | "pin">("pin");
   const [email, setEmail] = useState("");
@@ -228,7 +228,7 @@ function AuthPage() {
             </form>
           )}
         </div>
-        {mode === "pin" && !activation && (
+        {mode === "pin" && !activation && !tillOnly && (
           <button type="button" onClick={() => setMode("in")} className="mt-6 text-sm underline opacity-80">Manager / Back Office login</button>
         )}
         <p className="mt-3 text-xs opacity-60">Staff accounts are created by your store owner.</p>
