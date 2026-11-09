@@ -17,6 +17,7 @@ import { type SoldSummary } from "@/lib/items-sold";
 import { useStaff } from "@/hooks/use-staff";
 import { deviceSession } from "@/lib/offline-session";
 import { internetAvailable } from "@/lib/connectivity";
+import { enqueueCashMovement, mergeCashMovements, movementsMissingFrom, readCashMovements } from "@/lib/offline-cash";
 
 export type ShiftSummary = {
   local?: boolean; checkedAt?: string; items?: SoldSummary[];
@@ -98,7 +99,8 @@ export async function fetchShiftSummary(id: string) {
     return { summary, refs: sales.flatMap((s) => s.client_ref ? [s.client_ref] : []), lines: sales.flatMap((s) => s.sale_items), checkedAt: new Date().toISOString() };
   });
   const result = mergeShiftReport(snapshot, await deviceSales(), isCashMethod);
-  const summary = { ...result.summary, items: result.items, local: !internetAvailable() || local?.id === id, checkedAt: snapshot.checkedAt };
+  const merged = mergeCashMovements(result.summary, movementsMissingFrom(await readCashMovements(), id, local?.id === id ? null : snapshot.checkedAt));
+  const summary = { ...merged, items: result.items, local: !internetAvailable() || local?.id === id, checkedAt: snapshot.checkedAt };
   if (pending?.shift_id === id) {
     summary.shift = { ...summary.shift, status: "closed", closed_at: pending.closed_at, notes: pending.notes,
       actual_cash_usd: pending.usd, actual_cash_zig: pending.zig, actual_cash_zar: pending.zar,
@@ -180,18 +182,18 @@ export function ShiftBar({ shift, canReadX }: { shift: { id: string; shift_numbe
       <span className="font-semibold">{shift.shift_number}</span>
       <span className="text-muted-foreground">opened {new Date(shift.opened_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
       <div className="ml-auto flex flex-wrap gap-1">
-        <Button size="sm" variant="outline" onClick={() => internetAvailable() ? setMoveOpen(true) : toast.error("Cash drops and payouts need internet to record the drawer audit.")}>Cash drop / payout</Button>
+        <Button size="sm" variant="outline" onClick={() => setMoveOpen(true)}>Cash drop / payout</Button>
         {canReadX && <Button size="sm" variant="outline" onClick={xReport}>X-report</Button>}
         <Button size="sm" onClick={() => setCloseOpen(true)}><LockKeyhole className="h-4 w-4" />Close shift</Button>
       </div>
-      {moveOpen && <MovementDialog onClose={() => setMoveOpen(false)} />}
+      {moveOpen && <MovementDialog shiftId={shift.id} onClose={() => setMoveOpen(false)} />}
       {closeOpen && <CloseDialog shiftId={shift.id} onClose={() => { setCloseOpen(false); qc.invalidateQueries({ queryKey: ["open-shift"] }); }} onClosed={(s) => { setCloseOpen(false); setReport({ title: "Z-report (shift closed)", s }); }} />}
       {report && <ShiftReportDialog title={report.title} s={report.s} onClose={() => { const closed = report.s.shift.status === "closed"; setReport(null); if (closed) qc.invalidateQueries({ queryKey: ["open-shift"] }); }} />}
     </div>
   );
 }
 
-function MovementDialog({ onClose }: { onClose: () => void }) {
+function MovementDialog({ shiftId, onClose }: { shiftId: string; onClose: () => void }) {
   const [type, setType] = useState("cash_drop");
   const [currency, setCurrency] = useState<Currency>("USD");
   const [amount, setAmount] = useState("");
@@ -199,10 +201,12 @@ function MovementDialog({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   async function save() {
     setBusy(true);
-    const { error } = await supabase.rpc("record_cash_movement", { p_type: type, p_currency: currency, p_amount: Number(amount), p_reason: reason });
+    // Always saved on the till first (idempotent upload), so it works with or without internet.
+    try { await enqueueCashMovement({ shift_id: shiftId, type: type as "cash_drop", currency, amount: Number(amount), reason }); }
+    catch (e) { setBusy(false); toast.error((e as Error).message); return; }
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success(`${moveLabels[type]} recorded`);
+    toast.success(internetAvailable() ? `${moveLabels[type]} recorded` : `${moveLabels[type]} saved on till — uploads when internet is back`);
+    if (navigator.onLine) void syncQueue();
     onClose();
   }
   return (

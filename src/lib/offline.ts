@@ -6,6 +6,7 @@ import { mergeQueues } from "@/lib/queue-merge";
 import { internetAvailable, networkRead, setInternetAvailable } from "@/lib/connectivity";
 import type { ReceiptData } from "@/components/Receipt";
 import { creditSnapshot, pendingRepayments, syncRepayments } from "@/lib/offline-credit";
+import { pendingCashMovements, syncCashMovements } from "@/lib/offline-cash";
 import { getDeviceName } from "@/lib/device-name";
 import { readPendingSettlements, syncSettlements } from "@/lib/settlement-queue";
 
@@ -167,7 +168,7 @@ export function stockAfterQueue<T extends { id: string; stock: number | string }
 }
 export async function hasPendingUploads() {
   await queueReady;
-  return readQueue().length > 0 || !!(await readLocalShift()) || !!(await readPendingClose()) || (await pendingRepayments()).length > 0 || (await readPendingSettlements()).length > 0;
+  return readQueue().length > 0 || !!(await readLocalShift()) || !!(await readPendingClose()) || (await pendingRepayments()).length > 0 || (await pendingCashMovements()).length > 0 || (await readPendingSettlements()).length > 0;
 }
 async function updateUploadedSale(scope: StoreScope, s: QueuedSale, error?: string) {
   await serialized(async () => {
@@ -301,6 +302,7 @@ async function syncPendingClose(scope: StoreScope, timeout: number): Promise<boo
   if (!sameScope(scope) || readQueue().some((s) => s.shift_id === p.shift_id)) return false;
   // Cash debt payments belong in this drawer's expected cash, so they upload before the count.
   if (!(await syncRepayments(scope, timeout, p.shift_id))) return false;
+  if (!(await syncCashMovements(scope, timeout, p.shift_id))) return false;
   const { error } = await networkRead(() => supabase.rpc("close_offline_shift", {
     p_id: p.shift_id, p_closed_at: p.closed_at, p_actual_usd: p.usd, p_actual_zig: p.zig, p_actual_zar: p.zar, p_notes: p.notes,
   }), timeout);
@@ -332,6 +334,7 @@ export async function syncQueue(timeout = 5000): Promise<{ synced: number; faile
     // Sales need their shift on the server first.
     if (!(await syncLocalShift(scope, timeout))) return { synced, failed };
     if (!(await syncRepayments(scope, timeout))) return { synced, failed };
+    if (!(await syncCashMovements(scope, timeout))) return { synced, failed };
     complete = true;
     for (const s of readQueue()) {
       if (activeScope?.storeId !== scope.storeId || activeScope?.userId !== scope.userId) break;

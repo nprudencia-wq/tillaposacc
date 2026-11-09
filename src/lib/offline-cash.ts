@@ -59,3 +59,21 @@ export async function syncCashMovements(scope: StoreScope, timeout: number, shif
   if (changed) await write(scope, list);
   return ok;
 }
+
+const SUFFIX: Record<string, string> = { USD: "usd", ZiG: "zig", ZAR: "zar" };
+
+/** Add this till's not-yet-downloaded movements to a shift report; drops and payouts both leave the drawer. */
+export function mergeCashMovements<T extends { movements: { type: string; currency: string; amount: number; reason: string; created_at: string }[] }>(summary: T, extra: QueuedCashMovement[]): T {
+  if (!extra.length) return summary;
+  const out: Record<string, unknown> & { movements: T["movements"] } = { ...summary, movements: [...summary.movements] };
+  for (const m of extra) {
+    const sfx = SUFFIX[m.currency];
+    if (!sfx) continue;
+    const r2 = (n: number) => Math.round(n * 100) / 100;
+    const field = m.type === "paid_in" ? `paid_in_${sfx}` : `paid_out_${sfx}`;
+    out[field] = r2(Number(out[field] ?? 0) + m.amount);
+    out[`expected_${sfx}`] = r2(Number(out[`expected_${sfx}`] ?? 0) + (m.type === "paid_in" ? m.amount : -m.amount));
+    out.movements.push({ type: m.type, currency: m.currency, amount: m.amount, reason: m.uploaded ? m.reason : `${m.reason} (pending upload)`, created_at: m.at });
+  }
+  return out as unknown as T;
+}
