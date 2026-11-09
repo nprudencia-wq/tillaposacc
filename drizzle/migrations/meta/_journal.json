@@ -512,6 +512,13 @@
       "when": 1794228913601,
       "tag": "0072_trial_store_opening_stock",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1794229326929,
+      "tag": "0073_branches_one_main_per_store",
+      "breakpoints": true
     }
   ]
 }
