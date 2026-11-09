@@ -1,7 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Suspense, useMemo, useState } from "react";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { listTrialLeads, type TrialLead } from "@/lib/trials.functions";
+import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { listTrialLeads, listPendingSubPayments, decideSubPayment, type TrialLead } from "@/lib/trials.functions";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/_authenticated/trials")({
@@ -31,6 +34,7 @@ function Leads() {
           <div key={l} className="rounded-2xl border bg-card p-4"><div className="text-sm text-muted-foreground">{l}</div><div className="text-2xl font-bold">{v}</div></div>
         ))}
       </div>
+      <Suspense fallback={null}><Pending /></Suspense>
       <div className="flex flex-wrap gap-2">
         <Input placeholder="Search shop, email or phone" value={q} onChange={(e) => setQ(e.target.value)} className="max-w-xs" />
         {(["all", "active", "expired", "paid"] as const).map((f) => (
@@ -58,6 +62,33 @@ function Leads() {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function Pending() {
+  const { data } = useSuspenseQuery({ queryKey: ["sub-pending-all"], queryFn: () => listPendingSubPayments() });
+  const decide = useServerFn(decideSubPayment);
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState("");
+  async function act(id: string, approve: boolean) {
+    setBusy(id);
+    try { await decide({ data: { id, approve } }); toast.success(approve ? "Approved — shop is now paid up" : "Payment rejected"); }
+    catch (e) { toast.error((e as Error).message); }
+    setBusy("");
+    qc.invalidateQueries({ queryKey: ["sub-pending-all"] }); qc.invalidateQueries({ queryKey: ["trial-leads"] });
+  }
+  return (
+    <div className="rounded-2xl border bg-card p-4">
+      <h2 className="font-semibold">Subscription payments to confirm</h2>
+      <p className="text-sm text-muted-foreground">$10 per till per month. Approving extends that shop from the end of its trial or last paid month.</p>
+      {data.length === 0 && <p className="mt-2 text-sm text-muted-foreground">Nothing waiting.</p>}
+      {data.map((p) => (
+        <div key={p.id} className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted p-3 text-sm">
+          <span><b>{p.shop}</b> · {p.invoice} · ${p.amount.toFixed(2)} · {p.tills} till{p.tills > 1 ? "s" : ""} × {p.months} mo · {p.method} {p.reference}{p.phone ? ` · ${p.phone}` : ""}</span>
+          <span className="flex gap-2"><Button size="sm" disabled={busy === p.id} onClick={() => act(p.id, true)}>Approve</Button><Button size="sm" variant="outline" disabled={busy === p.id} onClick={() => act(p.id, false)}>Reject</Button></span>
+        </div>
+      ))}
     </div>
   );
 }
