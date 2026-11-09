@@ -361,9 +361,9 @@ function Till({ shiftId }: { shiftId: string }) {
           </div>}
           <div className="flex items-center gap-2">
             <span className="w-[4.5rem] shrink-0 text-sm text-muted-foreground">Currency</span>
-            <div className="flex flex-1 justify-end rounded-lg bg-muted p-0.5">
+            <div className="flex flex-1 rounded-lg bg-muted p-0.5">
               {(["USD", "ZiG", "ZAR"] as Currency[]).map((c) => (
-                <Button key={c} size="sm" variant={currency === c ? "default" : "ghost"} className="h-7 px-2.5 text-xs" disabled={c === "ZAR" && randRate <= 0} onClick={() => setCurrency(c)}>{c === "ZAR" ? "Rand" : c}</Button>
+                <Button key={c} size="sm" variant={currency === c ? "default" : "ghost"} className="h-7 flex-1 px-2 text-xs" disabled={c === "ZAR" && randRate <= 0} onClick={() => setCurrency(c)}>{c === "ZAR" ? "Rand" : c}</Button>
               ))}
             </div>
           </div>
