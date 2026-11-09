@@ -256,6 +256,7 @@ function Till({ shiftId }: { shiftId: string }) {
     qc.invalidateQueries({ queryKey: ["products"] });
     qc.invalidateQueries({ queryKey: ["sales"] });
     qc.invalidateQueries({ queryKey: ["customer-ledger"] });
+    window.dispatchEvent(new Event("tilla-sale"));
     toast.success(`Sale ${res.sale_number} completed`);
   }
 

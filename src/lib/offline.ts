@@ -17,6 +17,7 @@ let queueKeyLoaded: string | null = null;
 let queueReady: Promise<void> = Promise.resolve();
 let writes: Promise<unknown> = Promise.resolve();
 const RECEIPTS_KEY = "tilla-local-receipts";
+const UPLOADED_KEY = "tilla-uploaded-sales";
 function sameScope(scope: StoreScope) { return activeScope?.storeId === scope.storeId && activeScope?.userId === scope.userId; }
 function serialized<T>(run: () => Promise<T>): Promise<T> {
   const result = writes.then(run, run);
@@ -117,6 +118,14 @@ export function readQueue(): QueuedSale[] {
   if (!activeScope) return [];
   return queueMem;
 }
+/** Device history bridges the time between an upload and the next report download. */
+export async function deviceSales(): Promise<QueuedSale[]> {
+  await queueReady;
+  const scope = activeScope;
+  if (!scope) return [];
+  const history = (await idbGet<QueuedSale[]>(scopedStorageKey(UPLOADED_KEY, scope))) ?? [];
+  return sameScope(scope) ? mergeQueues(history, readQueue()) : [];
+}
 async function writeQueue(q: QueuedSale[]) {
   const key = deviceStorageKey(QUEUE_KEY);
   await idbSet(key, q);
@@ -157,7 +166,14 @@ export async function hasPendingUploads() {
 async function updateUploadedSale(scope: StoreScope, s: QueuedSale, error?: string) {
   await serialized(async () => {
     if (!sameScope(scope)) return;
-    await writeQueue(error ? readQueue().map((x) => x.client_ref === s.client_ref ? { ...x, error } : x) : readQueue().filter((x) => x.client_ref !== s.client_ref));
+    if (error) { await writeQueue(readQueue().map((x) => x.client_ref === s.client_ref ? { ...x, error } : x)); return; }
+    const key = scopedStorageKey(UPLOADED_KEY, scope);
+    const history = (await idbGet<QueuedSale[]>(key)) ?? [];
+    const q = readQueue().filter((x) => x.client_ref !== s.client_ref);
+    await idbSetMany([[key, mergeQueues(history, [s])], [scopedStorageKey(QUEUE_KEY, scope), q]]);
+    if (!sameScope(scope)) return;
+    queueMem = q;
+    window.dispatchEvent(new Event("tilla-queue"));
   });
 }
 
