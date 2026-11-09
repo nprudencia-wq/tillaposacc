@@ -10,12 +10,21 @@ import { receiptConfig } from "@/lib/receipt-config";
 import { receiptBytes, type StoreInfo } from "@/lib/escpos";
 import { loadHardware, openDrawer, saveHardware, sendToPrinter } from "@/lib/hardware";
 import { toast } from "sonner";
+import { receiptLogoRaster } from "@/lib/receipt-logo";
 
 export async function printReceipt(receipt: ReceiptData, settings: unknown) {
   const hw = loadHardware();
   if (hw.printer === "none") { window.print(); return; }
-  const st = settings as (StoreInfo & { receipt_config?: unknown }) | undefined;
-  try { await sendToPrinter(receiptBytes(receipt, st, receiptConfig(st?.receipt_config)), hw); toast.success("Receipt printed"); }
+  const st = settings as (StoreInfo & { receipt_config?: unknown; logo_url?: string }) | undefined;
+  const config = receiptConfig(st?.receipt_config);
+  try {
+    let logo: Uint8Array | undefined;
+    if (config.show_logo && st?.logo_url) {
+      try { logo = await receiptLogoRaster(st.logo_url, config.paper_width); }
+      catch { toast.warning("Logo unavailable; printing receipt details only"); }
+    }
+    await sendToPrinter(receiptBytes(receipt, st, config, logo ? { logo } : {}), hw); toast.success("Receipt printed");
+  }
   catch (e) { toast.error(`Printer: ${e instanceof Error ? e.message : "failed"}`); }
 }
 

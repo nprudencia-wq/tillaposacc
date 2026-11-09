@@ -8,6 +8,7 @@ import { useSettings } from "@/hooks/use-staff";
 import { vatBreakdown } from "@/lib/vat";
 import { receiptConfig, type ReceiptConfig } from "@/lib/receipt-config";
 import { ZimraReceiptBlock } from "@/components/ZimraSettings";
+import { ReceiptLogo } from "@/components/ReceiptLogo";
 
 export interface ReceiptData {
   sale_number: string;
@@ -25,7 +26,7 @@ export interface ReceiptData {
   payments: { method: PayMethod; currency: Currency; amount: number }[];
 }
 
-type StoreLike = {
+export type StoreLike = {
   business_name?: string | null; address?: string | null; phone?: string | null; email?: string | null;
   tax_number?: string | null; logo_url?: string | null; receipt_footer?: string | null;
   vat_enabled?: boolean | null; vat_rate?: number | null; zig_rate?: number | null; rand_rate?: number | null;
@@ -48,7 +49,7 @@ export function Receipt({ r, store, config }: { r: ReceiptData; store?: StoreLik
     <div id="receipt-print" data-paper={c.paper_width}
       className={`mx-auto w-full bg-card p-3 font-mono text-card-foreground ${narrow ? "max-w-[230px] text-[10px] leading-snug" : "max-w-[320px] text-xs"}`}>
       <div className="text-center">
-        {c.show_logo && st?.logo_url && <img src={st.logo_url} alt="" className="mx-auto mb-1 max-h-14 grayscale" />}
+        {c.show_logo && st?.logo_url && <ReceiptLogo src={st.logo_url} className="mx-auto mb-1 max-h-14 max-w-full object-contain grayscale" />}
         <div className={`font-bold uppercase ${narrow ? "text-xs" : "text-sm"}`}>{st?.business_name || r.business}</div>
         {c.show_address && st?.address && <div>{st.address}</div>}
         {c.show_phone && st?.phone && <div>Tel: {st.phone}</div>}

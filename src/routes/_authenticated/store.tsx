@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ZimraSettings } from "@/components/ZimraSettings";
 import { ReceiptDesigner } from "@/components/ReceiptDesigner";
+import { Upload, Trash2 } from "lucide-react";
+import { ReceiptLogo } from "@/components/ReceiptLogo";
+import { prepareReceiptLogo, receiptLogoSource } from "@/lib/receipt-logo";
 
 export const Route = createFileRoute("/_authenticated/store")({
   head: () => ({
@@ -31,10 +34,9 @@ const FIELDS = [
   ["phone", "Phone"],
   ["email", "Email"],
   ["tax_number", "VAT / TIN number"],
-  ["logo_url", "Logo web link (optional)"],
 ] as const;
 
-type Form = Record<(typeof FIELDS)[number][0] | "receipt_footer" | "vat_rate", string> & { vat_enabled: boolean };
+type Form = Record<(typeof FIELDS)[number][0] | "logo_url" | "receipt_footer" | "vat_rate", string> & { vat_enabled: boolean };
 
 function StorePage() {
   const { data: st } = useSettings();
@@ -42,6 +44,8 @@ function StorePage() {
   const qc = useQueryClient();
   const [f, setF] = useState<Form | null>(null);
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const logoInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (st && !f) setF({
@@ -53,9 +57,24 @@ function StorePage() {
 
   const canEdit = !!me?.canManageStock;
 
+  async function uploadLogo(file: File) {
+    if (!f || !me?.storeId || !canEdit) return;
+    setUploading(true);
+    try {
+      const image = await prepareReceiptLogo(file);
+      const path = `${me.storeId}/receipt-logos/${crypto.randomUUID()}.png`;
+      const { error } = await supabase.storage.from("product-images").upload(path, image, { contentType: "image/png" });
+      if (error) throw error;
+      await receiptLogoSource(path);
+      setF((current) => current ? { ...current, logo_url: path } : current);
+      toast.success("Logo uploaded. Save to apply it to receipts.");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Could not upload logo"); }
+    finally { setUploading(false); if (logoInput.current) logoInput.current.value = ""; }
+  }
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    if (!f) return;
+    if (!f || !canEdit || uploading || busy) return;
     if (!f.business_name.trim()) { toast.error("Trading name is required"); return; }
     const rate = Number(f.vat_rate);
     if (!Number.isFinite(rate) || rate < 0 || rate > 100) { toast.error("VAT rate must be between 0 and 100%"); return; }
@@ -73,6 +92,15 @@ function StorePage() {
       <h1 className="font-display text-2xl font-bold">Store profile</h1>
       <p className="mt-1 text-sm text-muted-foreground">These details print on every receipt. Set them up when you start with a new shop.</p>
       <form onSubmit={save} className="mt-6 space-y-4 rounded-2xl bg-card p-6 shadow-soft">
+        <div className="space-y-2">
+          <Label>Receipt logo</Label>
+          {f.logo_url && <div className="flex h-24 items-center justify-center border bg-background p-2"><ReceiptLogo src={f.logo_url} className="max-h-full max-w-full object-contain" /></div>}
+          <input ref={logoInput} type="file" accept="image/png,image/jpeg,image/webp" aria-label="Choose receipt logo" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) void uploadLogo(file); }} />
+          {canEdit && <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" disabled={uploading || busy} onClick={() => logoInput.current?.click()}><Upload className="h-4 w-4" />{uploading ? "Uploading…" : f.logo_url ? "Replace logo" : "Upload logo"}</Button>
+            {f.logo_url && <Button type="button" variant="ghost" disabled={uploading || busy} onClick={() => setF({ ...f, logo_url: "" })}><Trash2 className="h-4 w-4" />Remove logo</Button>}
+          </div>}
+        </div>
         {FIELDS.map(([k, label]) => (
           <div key={k} className="space-y-1.5">
             <Label htmlFor={k}>{label}</Label>
@@ -95,9 +123,9 @@ function StorePage() {
           <p className="text-xs text-muted-foreground">Your shelf prices already include VAT. Receipts show the amount before VAT and the VAT portion; what customers pay does not change.</p>
         </div>
         <Link to="/currencies" className="text-sm font-medium text-primary underline">Currency settings →</Link>
-        {canEdit ? <Button type="submit" disabled={busy}>Save</Button> : <p className="text-sm text-muted-foreground">Only managers and owners can change these.</p>}
+        {canEdit ? <Button type="submit" disabled={busy || uploading}>{busy ? "Saving…" : "Save receipt details"}</Button> : <p className="text-sm text-muted-foreground">Only managers and owners can change these.</p>}
       </form>
-      <div className="mt-6 rounded-2xl bg-card p-6 shadow-soft"><ReceiptDesigner /></div>
+      <div className="mt-6 rounded-2xl bg-card p-6 shadow-soft"><ReceiptDesigner store={{ ...st, ...f, vat_rate: Number(f.vat_rate) }} /></div>
       <div className="mt-6 rounded-2xl bg-card p-6 shadow-soft"><ZimraSettings canEdit={!!me?.isOwner} /></div>
     </div>
   );

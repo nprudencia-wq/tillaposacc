@@ -1,4 +1,5 @@
 - Till hardware config is device-local (src/lib/hardware.ts, ESC/POS in escpos.ts); network printers need an HTTP print address. Why: browsers lack raw TCP.
+- Receipt logos use private store-prefixed files in the existing image bucket; cache downloaded image data per staff/store for offline preview and raster printing. Why: public links and expired signed URLs must not expose shop assets or break offline receipts.
 - Checkout shares one client reference across online and offline retries; queue and receipt commit atomically, and local stock subtracts durable queued quantities. Why: lost responses and reloads must not double-sell or lose sales.
 - Cashier dashboard reads filter by store, cashier and Harare day; combine cached cloud totals with queued sales deduplicated by client reference. Why: offline totals must remain personal and never double-count upload retries.
 - Shift X/Z reports use scoped downloaded summaries and item lines plus device sales missing from server references; uploads atomically retain device history before removing queued sales. Why: disconnected reports must keep totals across upload/reload and never count a sale twice.
