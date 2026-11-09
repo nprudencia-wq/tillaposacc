@@ -300,7 +300,7 @@ function Till({ shiftId }: { shiftId: string }) {
   return (
     <div className="flex h-full min-w-0 flex-col overflow-hidden md:flex-row">
       {/* Cart */}
-      <aside className="flex max-h-[50vh] w-full shrink-0 flex-col border-t bg-card md:max-h-none order-last md:order-3 md:w-[320px] md:border-l md:border-t-0 xl:w-[360px]">
+      <aside className="flex max-h-[50vh] w-full shrink-0 flex-col border-t bg-card md:max-h-none order-last md:order-3 md:w-[360px] md:border-l md:border-t-0 lg:w-[400px] xl:w-[440px]">
         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 border-b px-3 py-2">
           <h2 className="text-base font-bold">Sale</h2>
           <div className="flex min-w-0 justify-end gap-1 overflow-x-auto">
@@ -312,20 +312,27 @@ function Till({ shiftId }: { shiftId: string }) {
         <div className="min-h-0 flex-1 overflow-y-auto">
           {!lines.length && <p className="p-8 text-center text-sm text-muted-foreground">Tap a product or scan a barcode.</p>}
           {lines.map((l) => (
-            <div key={l.product_id} className="flex items-center gap-2 border-b px-3 py-2">
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold">{l.name}</div>
-                <div className="tabular text-xs text-muted-foreground">{show(l.unit_price)} each
-                  {listPrice(l.product_id) !== l.unit_price && <span className="ml-1 text-warning">(price changed from {show(listPrice(l.product_id))})</span>}
-                  {me?.canOverridePrice && <button type="button" className="ml-2 underline" aria-label={`Change price of ${l.name}`} onClick={() => changePrice(l.product_id, l.name, l.unit_price)}>Change price</button>}
-                </div>
-                {l.quantity > l.stock && <div className="text-xs text-destructive">Only {l.stock} in stock</div>}
+            <div key={l.product_id} className="border-b px-3 py-2.5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 text-sm font-semibold leading-snug">{l.name}</div>
+                <span className="tabular shrink-0 text-base font-bold">{show(l.unit_price * l.quantity)}</span>
               </div>
-              <Button size="icon" variant="outline" className="h-9 w-9" aria-label={`Reduce quantity of ${l.name}`} onClick={() => setQty(l.product_id, l.quantity - 1)}><Minus className="h-4 w-4" /></Button>
-              <span className="tabular w-8 text-center font-semibold">{l.quantity}</span>
-              <Button size="icon" variant="outline" className="h-9 w-9" aria-label={`Add one more ${l.name}`} onClick={() => setQty(l.product_id, l.quantity + 1)}><Plus className="h-4 w-4" /></Button>
-              <span className="tabular w-20 text-right text-sm font-semibold">{show(l.unit_price * l.quantity)}</span>
-              <Button size="icon" variant="ghost" className="h-9 w-9 text-destructive" aria-label={`Remove ${l.name} from this sale`} onClick={() => setQty(l.product_id, 0)}><Trash2 className="h-4 w-4" /></Button>
+              <div className="mt-2 flex items-center gap-2">
+                <div className="flex shrink-0 items-center rounded-lg border">
+                  <Button size="icon" variant="ghost" className="h-8 w-8 rounded-r-none" aria-label={`Reduce quantity of ${l.name}`} onClick={() => setQty(l.product_id, l.quantity - 1)}><Minus className="h-4 w-4" /></Button>
+                  <span className="tabular w-9 text-center text-sm font-semibold">{l.quantity}</span>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 rounded-l-none border-l" aria-label={`Add one more ${l.name}`} onClick={() => setQty(l.product_id, l.quantity + 1)}><Plus className="h-4 w-4" /></Button>
+                </div>
+                <span className="tabular min-w-0 flex-1 truncate text-xs text-muted-foreground">{show(l.unit_price)} each</span>
+                <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-destructive" aria-label={`Remove ${l.name} from this sale`} onClick={() => setQty(l.product_id, 0)}><Trash2 className="h-4 w-4" /></Button>
+              </div>
+              {(listPrice(l.product_id) !== l.unit_price || l.quantity > l.stock || me?.canOverridePrice) && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                  {listPrice(l.product_id) !== l.unit_price && <span className="text-warning">price changed from {show(listPrice(l.product_id))}</span>}
+                  {l.quantity > l.stock && <span className="text-destructive">Only {l.stock} in stock</span>}
+                  {me?.canOverridePrice && <button type="button" className="underline" aria-label={`Change price of ${l.name}`} onClick={() => changePrice(l.product_id, l.name, l.unit_price)}>Change price</button>}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -368,7 +375,7 @@ function Till({ shiftId }: { shiftId: string }) {
         </div>
       </aside>
       {/* Categories */}
-      <nav aria-label="Categories" className="hidden w-36 shrink-0 flex-col gap-1 overflow-y-auto border-r bg-muted/40 p-2 md:order-1 md:flex lg:w-44">
+      <nav aria-label="Categories" className="hidden w-32 shrink-0 flex-col gap-1 overflow-y-auto border-r bg-muted/40 p-2 md:order-1 md:flex lg:w-40">
         <Button variant={cat === null ? "default" : "ghost"} className="h-11 justify-start whitespace-normal text-left" onClick={() => setCat(null)}>All products</Button>
         {categories.map((c) => <Button key={c.id} variant={cat === c.id ? "default" : "ghost"} className="h-auto min-h-11 justify-start whitespace-normal py-2 text-left" onClick={() => setCat(c.id)}>{c.name}</Button>)}
       </nav>
