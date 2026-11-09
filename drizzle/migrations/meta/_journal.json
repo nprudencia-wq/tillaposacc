@@ -498,6 +498,41 @@
       "when": 1794228783491,
       "tag": "0070_lock_profile_self_update",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1794228893396,
+      "tag": "0071_create_trial_store",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1794228913601,
+      "tag": "0072_trial_store_opening_stock",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1794229326929,
+      "tag": "0073_branches_one_main_per_store",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1794229415141,
+      "tag": "0074_trial_store_provisioning_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1794229493027,
+      "tag": "0075_discard_unclaimed_trial_store",
+      "breakpoints": true
     }
   ]
 }

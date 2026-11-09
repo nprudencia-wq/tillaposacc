@@ -29,6 +29,7 @@ function Index() {
         <p className="mt-6 max-w-xl text-lg opacity-75">Bottle stores, butcheries, supermarkets and general dealers — one till, live stock, clear receipts.</p>
         <div className="mt-10 flex gap-3">
           <Button asChild size="lg" className="bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"><Link to="/auth">Open the till</Link></Button>
+          <Button asChild size="lg" variant="secondary"><Link to="/signup">Start 14-day free trial</Link></Button>
         </div>
         <div className="mt-24 grid gap-6 md:grid-cols-3">
           {[
