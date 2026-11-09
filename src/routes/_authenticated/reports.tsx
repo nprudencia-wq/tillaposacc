@@ -79,7 +79,13 @@ function Reports() {
         (later ?? []).forEach((m) => { delta[m.product_id] = (delta[m.product_id] ?? 0) + Number(m.quantity); });
         list = list.map((p) => ({ ...p, stock: Number(p.stock) - (delta[p.id] ?? 0) }));
       }
-      return { sales: sales ?? [], items: items ?? [], pays: pays ?? [], refunds: refunds ?? [], products: list, profiles: profiles ?? [], movements: movements ?? [], expenses: expenses ?? [], interest: adjustments ?? [] };
+      // Opening stock: rewind current stock using every movement made from the start date onwards.
+      const { data: sinceStart } = await supabase.from("stock_movements").select("product_id, quantity").gte("created_at", start).limit(50000);
+      const dStart: Record<string, number> = {};
+      (sinceStart ?? []).forEach((m) => { dStart[m.product_id] = (dStart[m.product_id] ?? 0) + Number(m.quantity); });
+      const openingValue = (products ?? []).reduce((a, p) => a + Math.max(0, Number(p.stock) - (dStart[p.id] ?? 0)) * Number(p.cost_price ?? 0), 0);
+      const closingValue = list.reduce((a, p) => a + Math.max(0, Number(p.stock)) * Number(p.cost_price ?? 0), 0);
+      return { openingValue, closingValue, sales: sales ?? [], items: items ?? [], pays: pays ?? [], refunds: refunds ?? [], products: list, profiles: profiles ?? [], movements: movements ?? [], expenses: expenses ?? [], interest: adjustments ?? [] };
     },
   });
 
@@ -111,6 +117,9 @@ function Reports() {
           { name: "Sales", total: r2(revenue - discounts) },
           { name: "Less: returns", total: r2(-refunds) },
           { name: "Turnover", total: r2(net) },
+          { name: "Opening stock (at cost)", total: r2(data.openingValue) },
+          { name: "Add: purchases & stock adjustments", total: r2(data.closingValue + cogs - data.openingValue) },
+          { name: "Less: closing stock (at cost)", total: r2(-data.closingValue) },
           { name: "Less: cost of goods sold", total: r2(-cogs) },
           { name: "Gross profit", total: r2(gross) },
           { name: "Gross margin %", total: net ? r2((gross / net) * 100) : 0 },
