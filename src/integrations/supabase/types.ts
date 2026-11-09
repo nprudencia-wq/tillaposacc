@@ -338,6 +338,7 @@ export type Database = {
       customer_payments: {
         Row: {
           amount: number
+          client_ref: string | null
           created_at: string
           currency: string
           customer_id: string
@@ -353,6 +354,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          client_ref?: string | null
           created_at?: string
           currency?: string
           customer_id: string
@@ -368,6 +370,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          client_ref?: string | null
           created_at?: string
           currency?: string
           customer_id?: string
@@ -2614,6 +2617,19 @@ export type Database = {
         }
         Returns: Json
       }
+      complete_offline_sale_v2: {
+        Args: {
+          p_client_ref: string
+          p_currency: string
+          p_customer?: string
+          p_discount: number
+          p_items: Json
+          p_payments: Json
+          p_shift: string
+          p_sold_at: string
+        }
+        Returns: Json
+      }
       complete_sale: {
         Args: {
           p_currency: string
@@ -2655,6 +2671,7 @@ export type Database = {
       }
       current_store_id: { Args: never; Returns: string }
       customer_balance: { Args: { p_customer: string }; Returns: number }
+      customer_credit_snapshot: { Args: never; Returns: Json }
       debtor_overdue: {
         Args: { p_asof: string; p_days: number }
         Returns: {
@@ -2813,6 +2830,19 @@ export type Database = {
           p_document: string
           p_method: string
           p_reference: string
+        }
+        Returns: string
+      }
+      receive_offline_customer_payment: {
+        Args: {
+          p_amount: number
+          p_client_ref: string
+          p_currency: string
+          p_customer: string
+          p_method: string
+          p_paid_at: string
+          p_reference: string
+          p_shift: string
         }
         Returns: string
       }
