@@ -223,7 +223,7 @@ function DeleteSupplier({ supplier, onClose }: { supplier: Supplier; onClose: ()
 }
 
 type GrnForm = { supplier: string; invoice: string; currency: InvoiceCurrency; rate: string; paid: string; note: string; method: string; lines: ReceivingLine[] };
-function ReceiveGoods({ suppliers, onClose, draft }: { suppliers: { id: string; name: string }[]; onClose: () => void; draft: GrnDraft | null }) {
+export function ReceiveGoods({ suppliers, onClose, draft }: { suppliers: { id: string; name: string }[]; onClose: () => void; draft: GrnDraft | null }) {
   const initial = draft?.payload as unknown as GrnForm | undefined;
   const [savedDraft, setSavedDraft] = useState<GrnDraft | null>(draft);
   const [review, setReview] = useState(false);
