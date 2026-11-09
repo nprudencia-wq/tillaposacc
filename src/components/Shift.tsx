@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowLeft, CheckCircle2, LockKeyhole, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getDeviceName, setDeviceName } from "@/lib/device-name";
 import { cached, closeShiftOffline, deviceSales, isNetworkError, openLocalShift, readLocalShift, readPendingClose, readQueue, syncQueue } from "@/lib/offline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -114,10 +115,14 @@ export function OpenShiftGate() {
   const [zig, setZig] = useState("");
   const [zar, setZar] = useState("");
   const [busy, setBusy] = useState(false);
+  const [device, setDevice] = useState("");
+  useEffect(() => { setDevice(getDeviceName()); }, []);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [report, setReport] = useState<ShiftSummary | null>(null);
   useEffect(() => { void readPendingClose().then((p) => setPendingId(p?.shift_id ?? null)); }, []);
   async function open() {
+    if (!device.trim()) { toast.error("Enter this till's name, e.g. Counter 1"); return; }
+    setDeviceName(device);
     setBusy(true);
     const floats = { usd: Number(usd) || 0, zig: Number(zig) || 0, zar: Number(zar) || 0 };
     const openOffline = async () => {
@@ -136,7 +141,10 @@ export function OpenShiftGate() {
         <h1 className="font-display text-2xl font-bold">Open your till</h1>
         {pendingId && <Button variant="outline" className="mt-3 w-full" onClick={() => void fetchShiftSummary(pendingId).then(setReport).catch((e) => toast.error(e.message))}>Last offline Z-report</Button>}
         <p className="mt-1 text-sm text-muted-foreground">Count the starting cash in your drawer before you begin selling.</p>
-        <label className="mt-5 block text-sm font-medium">Opening float (USD)
+        <label className="mt-5 block text-sm font-medium">Till name (this device)
+          <Input value={device} maxLength={40} onChange={(e) => setDevice(e.target.value)} className="mt-1" placeholder="Counter 1" />
+        </label>
+        <label className="mt-3 block text-sm font-medium">Opening float (USD)
           <Input type="number" min={0} step="0.01" value={usd} onChange={(e) => setUsd(e.target.value)} className="tabular mt-1" placeholder="0.00" />
         </label>
         <label className="mt-3 block text-sm font-medium">Opening float (ZiG)
