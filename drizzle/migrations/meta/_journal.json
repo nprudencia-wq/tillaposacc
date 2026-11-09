@@ -505,6 +505,13 @@
       "when": 1794228893396,
       "tag": "0071_create_trial_store",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1794228913601,
+      "tag": "0072_trial_store_opening_stock",
+      "breakpoints": true
     }
   ]
 }
