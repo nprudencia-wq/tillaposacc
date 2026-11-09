@@ -129,6 +129,7 @@ function Dashboard() {
 
   return (
     <div className="mx-auto max-w-7xl p-4 lg:p-8">
+      {me && <WelcomeTour userId={me.id} storeId={me.storeId} isOwner={me.isOwner} />}
       <h1 className="text-3xl font-bold">Sales and stock dashboard</h1>
       <p className="text-muted-foreground">Good day{me ? `, ${me.name.split(" ")[0]}` : ""} · {settings?.business_name} · ZiG {settings?.zig_rate} = $1</p>
 

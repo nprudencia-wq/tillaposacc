@@ -56,6 +56,7 @@ const navGroups = [
     { to: "/payment-types", label: "Payment types" },
     { to: "/currencies", label: "Currency settings" },
     { to: "/billing", label: "Billing" },
+    { to: "/trials", label: "Trial leads" },
   ] },
 ] as const;
 const inGroup = (path: string, to: string) => path === to || path.startsWith(to + "/");
@@ -111,7 +112,7 @@ function AppLayout() {
     );
   }
 
-  const allowed = (path: string) => { const p = moduleFor(path); return !p || !me || (p === "view_reports" ? me.canViewReports : me.perms?.[p] !== false); };
+  const allowed = (path: string) => { if (path === "/trials") return !!me?.isOwner && vendorStore === true; const p = moduleFor(path); return !p || !me || (p === "view_reports" ? me.canViewReports : me.perms?.[p] !== false); };
   if (me && !allowed(pathname)) return <Navigate to="/pos" replace />;
 
   const visibleGroups = navGroups.map((g) => ({ ...g, items: g.items.filter((n) => allowed(n.to)) })).filter((g) => g.items.length);
