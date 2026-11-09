@@ -1277,6 +1277,30 @@ export type Database = {
           },
         ]
       }
+      sale_number_reservations: {
+        Row: {
+          number: number
+          reserved_at: string
+          store_id: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          number: number
+          reserved_at?: string
+          store_id: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          number?: number
+          reserved_at?: string
+          store_id?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       sale_payments: {
         Row: {
           amount: number
@@ -2881,6 +2905,7 @@ export type Database = {
         }
         Returns: Json
       }
+      reserve_sale_numbers: { Args: { p_count: number }; Returns: number[] }
       return_to_supplier: {
         Args: { p_items: Json; p_reason: string; p_supplier: string }
         Returns: string
