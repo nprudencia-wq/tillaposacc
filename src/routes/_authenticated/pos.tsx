@@ -259,12 +259,16 @@ function Till({ shiftId }: { shiftId: string }) {
     }
     const overridden = lines.some((l) => l.unit_price !== listPrice(l.product_id));
     if (!internetAvailable() && overridden) { toast.error("Changed prices need the internet. Undo the price change or wait to reconnect."); return; }
+    // Only a reference that was actually sent online must be kept; an unsent sale gets a TXN number reserved for this till.
+    const sentBefore = saleRef.current;
     const ref = saleRef.current ?? `TILL-${crypto.randomUUID()}`;
-    saleRef.current = ref;
     if (!internetAvailable() || await readLocalShift()) {
       if (overridden) { toast.error("Upload this shift before using changed prices"); return; }
-      await saveOffline(paid, ref); return;
+      await saveOffline(paid, sentBefore ?? undefined); return;
     }
+    saleRef.current = ref;
+    // With the device itself offline the request never leaves, so the reference is not needed.
+    const unsent = () => (typeof navigator !== "undefined" && !navigator.onLine && !sentBefore ? undefined : ref);
     let result;
     try { result = await networkRead(() => supabase.rpc("complete_sale_once", {
       p_client_ref: ref,
@@ -274,11 +278,11 @@ function Till({ shiftId }: { shiftId: string }) {
       p_currency: currency,
       ...(customer ? { p_customer: customer.id } : {}),
     })); } catch (e) {
-      if (isNetworkError(e) && !overridden) { setInternetAvailable(false); await saveOffline(paid, ref); return; }
+      if (isNetworkError(e) && !overridden) { setInternetAvailable(false); await saveOffline(paid, unsent()); return; }
       throw e;
     }
     const { data, error } = result;
-    if (error && isNetworkError(error) && !overridden) { setInternetAvailable(false); await saveOffline(paid, ref); return; }
+    if (error && isNetworkError(error) && !overridden) { setInternetAvailable(false); await saveOffline(paid, unsent()); return; }
     if (error) { toast.error(error.message); qc.invalidateQueries({ queryKey: ["open-shift"] }); return; }
     window.__lovableEvents?.track?.("project.till_sale_completed", { mode: "online", currency });
     const res = data as { sale_number: string; total: number; change: number; rate: number };
