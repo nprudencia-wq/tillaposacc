@@ -7,6 +7,7 @@ import { useSettings, useStaff } from "@/hooks/use-staff";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Upload, Trash2 } from "lucide-react";
 import { Receipt, type ReceiptData, type StoreLike } from "@/components/Receipt";
 import { receiptConfig, type ReceiptConfig } from "@/lib/receipt-config";
 
@@ -27,7 +28,9 @@ const SAMPLE: ReceiptData = {
   payments: [{ method: "cash", currency: "USD", amount: 7.41 }],
 };
 
-export function ReceiptDesigner({ store }: { store?: StoreLike }) {
+type LogoControls = { hasLogo: boolean; uploading: boolean; onUpload: () => void; onRemove: () => void };
+
+export function ReceiptDesigner({ store, logo }: { store?: StoreLike; logo?: LogoControls }) {
   const { data: st } = useSettings();
   const { data: me } = useStaff();
   const qc = useQueryClient();
@@ -66,6 +69,16 @@ export function ReceiptDesigner({ store }: { store?: StoreLike }) {
               <Button type="button" size="sm" disabled={!canEdit} variant={c.item_layout === "compact" ? "default" : "outline"} onClick={() => set({ item_layout: "compact" })}>One line</Button>
             </div>
           </div>
+          {logo && canEdit && (
+            <div className="space-y-1.5">
+              <Label>Logo</Label>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" size="sm" variant="outline" disabled={logo.uploading} onClick={logo.onUpload}><Upload className="h-4 w-4" />{logo.uploading ? "Uploading…" : logo.hasLogo ? "Replace logo" : "Upload logo"}</Button>
+                {logo.hasLogo && <Button type="button" size="sm" variant="ghost" disabled={logo.uploading} onClick={logo.onRemove}><Trash2 className="h-4 w-4" />Remove</Button>}
+              </div>
+              <p className="text-xs text-muted-foreground">PNG, JPG or WebP. Shows on screen and printed receipts.</p>
+            </div>
+          )}
           <div className="space-y-2">
             {TOGGLES.map(([k, label]) => (
               <label key={k} className="flex items-center gap-2 text-sm">
