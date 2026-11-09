@@ -1,4 +1,5 @@
 # Roadmap
+- [ ] Walk a real cashier shift end to end: offline sales → upload → cash settlement → Back Office reconciliation. Use agreed real sale inputs and actual drawer counts; never fabricate shop transactions or close an active cashier's shift without them.
 - [x] Back Office → Shifts now shows Shift close with Harare date/cashier filters, daily uploaded sales and three-currency submitted counts/variances. Existing X/Z-reports and handover retained. Signed-in date change verified (Nov 8: 3 sales, US$8.50); desktop/mobile checked, build and 14 focused tests passed. Not yet published.
 - [x] Till shift-close screen: three-currency cash count, editable review, notes and existing online/offline settlement. Signed-in desktop/mobile count/review/edit verified without closing the live shift; offline tests passed. Not yet published.
 - [x] Till Sync button with pending count, progress and 20-second manual request allowance; slow-upload test and signed-in no-internet feedback verified. 14 focused tests passed; not yet published.
