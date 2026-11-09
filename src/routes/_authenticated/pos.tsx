@@ -312,22 +312,22 @@ function Till({ shiftId }: { shiftId: string }) {
         <div className="min-h-0 flex-1 overflow-y-auto">
           {!lines.length && <p className="p-8 text-center text-sm text-muted-foreground">Tap a product or scan a barcode.</p>}
           {lines.map((l) => (
-            <div key={l.product_id} className="border-b px-3 py-2.5">
+            <div key={l.product_id} className="border-b px-3 py-2">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 text-sm font-semibold leading-snug">{l.name}</div>
                 <span className="tabular shrink-0 text-base font-bold">{show(l.unit_price * l.quantity)}</span>
               </div>
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-1.5 flex items-center gap-2">
                 <div className="flex shrink-0 items-center rounded-lg border">
-                  <Button size="icon" variant="ghost" className="h-8 w-8 rounded-r-none" aria-label={`Reduce quantity of ${l.name}`} onClick={() => setQty(l.product_id, l.quantity - 1)}><Minus className="h-4 w-4" /></Button>
-                  <span className="tabular w-9 text-center text-sm font-semibold">{l.quantity}</span>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 rounded-l-none border-l" aria-label={`Add one more ${l.name}`} onClick={() => setQty(l.product_id, l.quantity + 1)}><Plus className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-r-none" aria-label={`Reduce quantity of ${l.name}`} onClick={() => setQty(l.product_id, l.quantity - 1)}><Minus className="h-4 w-4" /></Button>
+                  <span className="tabular w-8 text-center text-sm font-semibold">{l.quantity}</span>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 rounded-l-none border-l" aria-label={`Add one more ${l.name}`} onClick={() => setQty(l.product_id, l.quantity + 1)}><Plus className="h-4 w-4" /></Button>
                 </div>
                 <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
                   <span className="tabular min-w-0 truncate text-xs text-muted-foreground">{show(l.unit_price)} each</span>
                   {me?.canOverridePrice && <button type="button" className="shrink-0 text-xs underline" aria-label={`Change price of ${l.name}`} onClick={() => changePrice(l.product_id, l.name, l.unit_price)}>Change price</button>}
                 </div>
-                <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0 text-destructive" aria-label={`Remove ${l.name} from this sale`} onClick={() => setQty(l.product_id, 0)}><Trash2 className="h-4 w-4" /></Button>
+                <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0 text-destructive" aria-label={`Remove ${l.name} from this sale`} onClick={() => setQty(l.product_id, 0)}><Trash2 className="h-4 w-4" /></Button>
               </div>
               {(listPrice(l.product_id) !== l.unit_price || l.quantity > l.stock) && (
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs">
@@ -342,22 +342,22 @@ function Till({ shiftId }: { shiftId: string }) {
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Customer</span>
             <Select value={customerId} onValueChange={setCustomerId}>
-              <SelectTrigger className="h-9 flex-1" aria-label="Customer for this sale"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 flex-1" aria-label="Customer for this sale"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Walk-in customer</SelectItem>
                 {customers.filter((c) => c.active).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}{c.phone ? ` · ${c.phone}` : ""}</SelectItem>)}
               </SelectContent>
             </Select>
-            <Button size="icon" variant="outline" className="h-9 w-9" aria-label="Add a new customer" onClick={() => setAddCust(true)}><Plus className="h-4 w-4" /></Button>
-            {customer && <Button size="icon" variant="outline" className="h-9 w-9" title="Take account payment" aria-label={`Take account payment from ${customer.name}`} onClick={() => setPayCust(true)}><HandCoins className="h-4 w-4" /></Button>}
+            <Button size="icon" variant="outline" className="h-8 w-8" aria-label="Add a new customer" onClick={() => setAddCust(true)}><Plus className="h-4 w-4" /></Button>
+            {customer && <Button size="icon" variant="outline" className="h-8 w-8" title="Take account payment" aria-label={`Take account payment from ${customer.name}`} onClick={() => setPayCust(true)}><HandCoins className="h-4 w-4" /></Button>}
           </div>
           {me?.canDiscount !== false && <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Discount</span>
             <Select value={discKind} onValueChange={(v) => setDiscKind(v as "percent" | "fixed")}>
-              <SelectTrigger className="h-9 w-20"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 w-14"><SelectValue /></SelectTrigger>
               <SelectContent><SelectItem value="percent">%</SelectItem><SelectItem value="fixed">$</SelectItem></SelectContent>
             </Select>
-            <Input type="number" min={0} value={discVal || ""} onChange={(e) => setDiscVal(Number(e.target.value))} className="h-9 flex-1" placeholder="0" />
+            <Input type="number" min={0} value={discVal || ""} onChange={(e) => setDiscVal(Number(e.target.value))} className="h-8 w-20" placeholder="0" />
           </div>}
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Currency</span>
@@ -370,10 +370,10 @@ function Till({ shiftId }: { shiftId: string }) {
           <div className="tabular space-y-1 text-sm">
             {discount > 0 && <div className="flex justify-between"><span>Subtotal</span><span>{show(subtotal)}</span></div>}
             {discount > 0 && <div className="flex justify-between text-destructive"><span>Discount</span><span>-{show(discount)}</span></div>}
-            <div className="flex justify-between pt-1 font-display text-2xl font-bold"><span>Total</span><span>{show(total)}</span></div>
+            <div className="flex justify-between pt-1 font-display text-xl font-bold"><span>Total</span><span>{show(total)}</span></div>
             {currency === "ZiG" && <div className="text-right text-xs text-muted-foreground">{money(total)} at ZiG {rate}/USD</div>}
           </div>
-          <Button size="lg" className="h-12 w-full text-lg" disabled={!lines.length} onClick={() => setPayOpen(true)}>Charge {show(total)}</Button>
+          <Button size="lg" className="h-11 w-full text-base" disabled={!lines.length} onClick={() => setPayOpen(true)}>Charge {show(total)}</Button>
         </div>
       </aside>
       {/* Categories */}
