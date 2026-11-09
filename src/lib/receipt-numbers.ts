@@ -43,6 +43,6 @@ export function topUpReservedNumbers(): Promise<void> {
     if (error || !Array.isArray(data)) return;
     const s = currentScope();
     if (s?.storeId !== scope.storeId || s?.userId !== scope.userId) return;
-    await idbSet(key, nextFromPool([...pool, ...(data as number[]).map(Number)]).rest.length >= 0 ? [...new Set([...pool, ...(data as number[]).map(Number)])] : pool);
+    await idbSet(key, [...new Set([...pool, ...(data as number[]).map(Number)])].sort((a, b) => a - b));
   }).catch(() => {});
 }
