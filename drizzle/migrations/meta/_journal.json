@@ -435,6 +435,13 @@
       "when": 1794212441010,
       "tag": "0061_auto_settle_daily_lines",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1794212577928,
+      "tag": "0062_settlement_approval_tracking",
+      "breakpoints": true
     }
   ]
 }

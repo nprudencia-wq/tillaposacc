@@ -457,6 +457,8 @@ export type Database = {
       }
       daily_settlements: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           auto: boolean
           day: string
           id: string
@@ -467,6 +469,8 @@ export type Database = {
           store_id: string
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           auto?: boolean
           day: string
           id?: string
@@ -477,6 +481,8 @@ export type Database = {
           store_id?: string
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           auto?: boolean
           day?: string
           id?: string
