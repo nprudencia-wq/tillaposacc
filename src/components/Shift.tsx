@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Printer } from "lucide-react";
+import { ArrowLeft, CheckCircle2, LockKeyhole, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { cached, closeShiftOffline, isNetworkError, openLocalShift, readLocalShift, readPendingClose, readQueue, syncQueue } from "@/lib/offline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { money, type Currency, type PayMethod } from "@/lib/pos";
@@ -126,7 +127,7 @@ export function ShiftBar({ shift, canReadX }: { shift: { id: string; shift_numbe
       <div className="ml-auto flex flex-wrap gap-1">
         <Button size="sm" variant="outline" onClick={() => setMoveOpen(true)}>Cash drop / payout</Button>
         {canReadX && <Button size="sm" variant="outline" onClick={xReport}>X-report</Button>}
-        <Button size="sm" onClick={() => setCloseOpen(true)}>End shift</Button>
+        <Button size="sm" onClick={() => setCloseOpen(true)}><LockKeyhole className="h-4 w-4" />Close shift</Button>
       </div>
       {moveOpen && <MovementDialog onClose={() => setMoveOpen(false)} />}
       {closeOpen && <CloseDialog shiftId={shift.id} onClose={() => { setCloseOpen(false); qc.invalidateQueries({ queryKey: ["open-shift"] }); }} onClosed={(s) => { setCloseOpen(false); setReport({ title: "Z-report (shift closed)", s }); }} />}
@@ -179,14 +180,17 @@ function MovementDialog({ onClose }: { onClose: () => void }) {
 
 function CloseDialog({ shiftId, onClose, onClosed }: { shiftId: string; onClose: () => void; onClosed: (s: ShiftSummary) => void }) {
   const qc = useQueryClient();
+  const { data: me } = useStaff();
+  const [review, setReview] = useState(false);
   const [usd, setUsd] = useState("");
   const [zig, setZig] = useState("");
   const [zar, setZar] = useState("");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  const countValid = [usd, zig, zar].every((v) => v.trim() !== "" && Number.isFinite(Number(v)) && Number(v) >= 0);
   async function submit() {
     if (usd === "" || zig === "" || zar === "") { toast.error("Enter the cash counted in all three currencies (0 if none)"); return; }
-    if (Number(usd) < 0 || Number(zig) < 0 || Number(zar) < 0) { toast.error("Counts cannot be negative"); return; }
+    if (!countValid) { toast.error("Enter valid, non-negative cash counts"); return; }
     setBusy(true);
     const closeOffline = async () => {
       try { await closeShiftOffline(shiftId, { usd: Number(usd), zig: Number(zig), zar: Number(zar), notes }); }
@@ -208,19 +212,30 @@ function CloseDialog({ shiftId, onClose, onClosed }: { shiftId: string; onClose:
     qc.invalidateQueries({ queryKey: ["shifts"] });
   }
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>End shift — count your drawer</DialogTitle></DialogHeader>
-        <p className="text-sm text-muted-foreground">Count every note and coin in the drawer. The expected amount is shown only after you submit.</p>
-        <label className="block text-sm font-medium">Cash counted (USD)
-          <Input type="number" min={0} step="0.01" value={usd} onChange={(e) => setUsd(e.target.value)} className="tabular mt-1" />
-        </label>
-        <label className="block text-sm font-medium">Cash counted (ZiG)
-          <Input type="number" min={0} step="0.01" value={zig} onChange={(e) => setZig(e.target.value)} className="tabular mt-1" />
-        </label>
-        <label className="block text-sm font-medium">Cash counted (Rand)<Input type="number" min={0} step="0.01" value={zar} onChange={(e) => setZar(e.target.value)} /></label>
-        <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes (optional)" aria-label="Notes" />
-        <Button className="w-full" disabled={busy} onClick={submit}>Submit count and close shift</Button>
+    <Dialog open onOpenChange={(o) => !o && !busy && onClose()}>
+      <DialogContent className="max-h-[90dvh] max-w-2xl overflow-y-auto p-0" onEscapeKeyDown={(e) => busy && e.preventDefault()} onInteractOutside={(e) => busy && e.preventDefault()}>
+        <DialogHeader className="bg-sidebar p-5 text-sidebar-foreground"><DialogTitle>{review ? "Review & settle till" : "Close your shift"}</DialogTitle></DialogHeader>
+        <div className="space-y-5 p-5">
+          <div className="flex items-center gap-3"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-primary font-bold text-primary-foreground">{me?.name.split(/\s+/).slice(0, 2).map((n) => n[0]).join("").toUpperCase()}</span><div><p className="font-semibold">{me?.name}</p><p className="text-sm text-muted-foreground">{review ? "2 · Confirm settlement" : "1 · Count the drawer"}</p></div></div>
+          {!review ? <>
+            <p className="text-sm text-muted-foreground">Enter the notes and coins in each currency. Use 0 where there is no cash.</p>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <label className="block text-sm font-semibold">Cash counted (USD)<Input autoFocus type="number" min={0} step="0.01" inputMode="decimal" value={usd} onChange={(e) => setUsd(e.target.value)} className="mt-2 h-14 text-xl tabular-nums" placeholder="0.00" /></label>
+              <label className="block text-sm font-semibold">Cash counted (ZiG)<Input type="number" min={0} step="0.01" inputMode="decimal" value={zig} onChange={(e) => setZig(e.target.value)} className="mt-2 h-14 text-xl tabular-nums" placeholder="0.00" /></label>
+              <label className="block text-sm font-semibold">Cash counted (Rand)<Input type="number" min={0} step="0.01" inputMode="decimal" value={zar} onChange={(e) => setZar(e.target.value)} className="mt-2 h-14 text-xl tabular-nums" placeholder="0.00" /></label>
+            </div>
+            <label className="block text-sm font-semibold">Shift notes<Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Shortages, cash drops or handover notes" className="mt-2" /></label>
+            <p className="text-xs text-muted-foreground">Expected cash and any shortage or surplus appear on the Z-report after closing.</p>
+          </> : <>
+            <div className="space-y-3 border-y py-4"><h3 className="font-semibold">Cash counted</h3><Row k="USD" v={money(Number(usd), "USD")} strong /><Row k="ZiG" v={money(Number(zig), "ZiG")} strong /><Row k="Rand" v={money(Number(zar), "ZAR")} strong /></div>
+            {notes && <p className="break-words text-sm text-muted-foreground">{notes}</p>}
+            <p className="text-sm text-muted-foreground">{internetAvailable() ? "Pending sales upload before settlement. Your Z-report follows once the shift closes." : "Your closing count is saved on this till. Sales and settlement upload when the internet returns."}</p>
+          </>}
+          <div className="flex flex-wrap gap-2 border-t pt-4">
+            <Button variant="outline" disabled={busy} onClick={() => review ? setReview(false) : onClose()}><ArrowLeft className="h-4 w-4" />{review ? "Edit counts" : "Return to till"}</Button>
+            <Button className="h-12 flex-1" disabled={busy || !countValid} onClick={() => review ? void submit() : setReview(true)}><CheckCircle2 className="h-4 w-4" />{busy ? "Settling till…" : review ? "Confirm & close shift" : "Review counts"}</Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
