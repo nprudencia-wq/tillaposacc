@@ -177,7 +177,7 @@ function Statement({ grns, pays }: { grns: { created_at: string; grn_number: str
   );
 }
 
-function SupplierForm({ supplier, onClose }: { supplier?: Supplier; onClose: () => void }) {
+export function SupplierForm({ supplier, onClose }: { supplier?: Supplier; onClose: () => void }) {
   const qc = useQueryClient();
   const [f, setF] = useState({ name: supplier?.name ?? "", contact_person: supplier?.contact_person ?? "", phone: supplier?.phone ?? "", email: supplier?.email ?? "", address: supplier?.address ?? "" });
   const [busy, setBusy] = useState(false);
@@ -190,6 +190,7 @@ function SupplierForm({ supplier, onClose }: { supplier?: Supplier; onClose: () 
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     qc.invalidateQueries({ queryKey: ["suppliers"] });
+    qc.invalidateQueries({ queryKey: ["goods-received"] });
     toast.success(supplier ? "Supplier updated" : "Supplier added");
     onClose();
   }
