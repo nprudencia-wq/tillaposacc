@@ -1,7 +1,7 @@
 import { BackBar } from "@/components/BackBar";
 import { createFileRoute, Outlet, redirect, Link, useNavigate, Navigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut, Truck, BarChart3, Users, Wallet, Clock, CreditCard, Contact, ClipboardList, Store, BookOpen, Pencil, Settings } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut, BarChart3, Users, Wallet, Clock, CreditCard, Contact, ClipboardList, Store, BookOpen, Pencil, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaff } from "@/hooks/use-staff";
 import { hasDeviceLogin, clearDeviceSession } from "@/lib/offline-session";
@@ -124,7 +124,7 @@ function AppLayout() {
           {visibleGroups.map((g) => {
             const active = g.items.some((n) => inGroup(pathname, n.to));
             return (
-              <Link key={g.title} to={g.items[0].to}
+              <Link key={g.title} to={g.items[0]!.to}
                 className={"flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition hover:bg-sidebar-accent hover:opacity-100 " + (active ? "bg-sidebar-accent text-sidebar-primary opacity-100" : "opacity-80")}>
                 <g.icon className="h-5 w-5" /><span className="hidden sm:inline">{g.title}</span>
               </Link>
