@@ -403,10 +403,6 @@ function Till({ shiftId }: { shiftId: string }) {
             </SelectContent>
           </Select>
         </div>
-        <div className="mt-2 flex gap-2 overflow-x-auto pb-1 md:hidden">
-          <Button size="sm" variant={cat === null ? "default" : "outline"} onClick={() => setCat(null)} className="h-8 shrink-0 rounded-full px-3 text-xs">All</Button>
-          {categories.map((c) => <Button key={c.id} size="sm" variant={cat === c.id ? "default" : "outline"} onClick={() => setCat(c.id)} className="h-8 shrink-0 rounded-full px-3 text-xs">{c.name}</Button>)}
-        </div>
         <div className={view === "tile" ? "mt-2 grid min-h-0 flex-1 auto-rows-min grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2 overflow-y-auto" : "mt-2 min-h-0 flex-1 overflow-y-auto divide-y border-y"}>
           {filtered.map((p) => {
             const low = Number(p.stock) <= Number(p.min_stock);
