@@ -6,6 +6,8 @@ vi.mock("@/lib/local-db", () => ({
   idbSetMany: async (entries: [string, unknown][]) => { if (mocks.fail) throw new Error("Storage full"); entries.forEach(([k, v]) => mocks.storage.set(k, structuredClone(v))); },
 }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mocks.rpc, from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ data: {}, error: null }) }) }) }) } }));
+vi.mock("@/lib/offline-credit", () => ({ creditSnapshot: async () => undefined, pendingRepayments: async () => [], syncRepayments: async () => true }));
+vi.mock("@/lib/settlement-queue", () => ({ readPendingSettlements: async () => [], syncSettlements: async () => true }));
 import { cached, deviceSales, enqueueSale, readQueue, setOfflineScope, stockAfterQueue, syncQueue, openLocalShift, closeShiftOffline, readPendingClose, type QueuedSale } from "./offline";
 import { setInternetAvailable } from "./connectivity";
 const scope = { storeId: "shop", userId: "cashier" };
