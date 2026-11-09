@@ -274,7 +274,7 @@ function Settlement({ storeId }: { storeId: string }) {
 
       <div className="space-y-3 rounded-2xl border bg-card p-4 print:hidden">
         <label className="block text-sm font-semibold">Settlement notes<Textarea className="mt-2" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Bank deposit slip, card batch number, shortages explained…" /></label>
-        <Button size="lg" disabled={busy || data.rows.length === 0} onClick={save}>{data.saved?.auto ? "Approve settlement" : data.saved ? "Update settlement" : "Settle day"}</Button>
+        <Button size="lg" disabled={busy || data.rows.length === 0} onClick={() => save()}>{data.saved?.auto ? "Approve settlement" : data.saved ? "Update settlement" : "Settle day"}</Button>
       </div>
       {notes && <p className="hidden text-sm print:block">Notes: {notes}</p>}
     </div>
