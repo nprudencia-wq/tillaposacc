@@ -134,6 +134,7 @@ export type Database = {
           actual_cash_zig: number | null
           cashier_id: string
           closed_at: string | null
+          device_name: string | null
           expected_cash_usd: number | null
           expected_cash_zar: number | null
           expected_cash_zig: number | null
@@ -160,6 +161,7 @@ export type Database = {
           actual_cash_zig?: number | null
           cashier_id: string
           closed_at?: string | null
+          device_name?: string | null
           expected_cash_usd?: number | null
           expected_cash_zar?: number | null
           expected_cash_zig?: number | null
@@ -186,6 +188,7 @@ export type Database = {
           actual_cash_zig?: number | null
           cashier_id?: string
           closed_at?: string | null
+          device_name?: string | null
           expected_cash_usd?: number | null
           expected_cash_zar?: number | null
           expected_cash_zig?: number | null
@@ -2992,6 +2995,10 @@ export type Database = {
         Returns: undefined
       }
       save_zimra_config: { Args: { p: Json }; Returns: undefined }
+      set_shift_device: {
+        Args: { p_name: string; p_shift: string }
+        Returns: undefined
+      }
       set_staff_pin: {
         Args: { p_pin: string; p_user: string }
         Returns: undefined

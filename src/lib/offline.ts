@@ -6,6 +6,7 @@ import { mergeQueues } from "@/lib/queue-merge";
 import { internetAvailable, networkRead, setInternetAvailable } from "@/lib/connectivity";
 import type { ReceiptData } from "@/components/Receipt";
 import { creditSnapshot, pendingRepayments, syncRepayments } from "@/lib/offline-credit";
+import { getDeviceName } from "@/lib/device-name";
 import { readPendingSettlements, syncSettlements } from "@/lib/settlement-queue";
 
 // Browser-only helpers: call from effects, handlers or query functions (never at module scope).
@@ -194,7 +195,7 @@ function setSyncing(v: boolean) {
 // ---- Shifts opened with no internet ----
 export type LocalShift = {
   id: string; shift_number: string; status: "open"; opened_at: string; cashier_id: string;
-  opening_float_usd: number; opening_float_zig: number; opening_float_zar: number; offline: true;
+  opening_float_usd: number; opening_float_zig: number; opening_float_zar: number; offline: true; device_name?: string | undefined;
 };
 const SHIFT_KEY = "tilla-offline-shift";
 
@@ -210,11 +211,16 @@ export async function openLocalShift(floats: { usd: number; zig: number; zar: nu
   if (await readPendingClose()) throw new Error("Reconnect to upload the previous shift before opening another");
   const s: LocalShift = {
     id: crypto.randomUUID(), shift_number: "Offline shift", status: "open", opened_at: new Date().toISOString(),
-    cashier_id: activeScope.userId, opening_float_usd: floats.usd, opening_float_zig: floats.zig, opening_float_zar: floats.zar, offline: true,
+    cashier_id: activeScope.userId, opening_float_usd: floats.usd, opening_float_zig: floats.zig, opening_float_zar: floats.zar, offline: true, device_name: getDeviceName() || undefined,
   };
   await idbSet(scopedStorageKey(SHIFT_KEY, activeScope), s);
   window.dispatchEvent(new Event("tilla-queue"));
   return s;
+}
+
+async function tagShiftDevice(id: string, name: string | undefined, timeout: number) {
+  if (!name) return;
+  try { await networkRead(() => supabase.rpc("set_shift_device", { p_shift: id, p_name: name }), timeout); } catch { /* label only */ }
 }
 
 async function syncLocalShift(scope: StoreScope, timeout: number): Promise<boolean> {
@@ -227,6 +233,7 @@ async function syncLocalShift(scope: StoreScope, timeout: number): Promise<boole
     window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "shift_open", network: isNetworkError(error) });
     return false;
   }
+  await tagShiftDevice(s.id, s.device_name, timeout);
   if (activeScope?.storeId === scope.storeId && activeScope?.userId === scope.userId) {
     try { await idbSet(scopedStorageKey(SHIFT_KEY, scope), null); } catch { /* retry later is harmless */ }
   }
@@ -280,6 +287,7 @@ async function syncPendingClose(scope: StoreScope, timeout: number): Promise<boo
       window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "shift_open", network: isNetworkError(error) });
       return false;
     }
+    await tagShiftDevice(ls.id, ls.device_name, timeout);
   }
   for (const s of readQueue().filter((x) => x.shift_id === p.shift_id)) {
     if (!sameScope(scope) || !belongsToScope(s, scope)) return false;

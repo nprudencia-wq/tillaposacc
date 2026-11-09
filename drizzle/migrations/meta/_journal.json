@@ -449,6 +449,13 @@
       "when": 1794214234505,
       "tag": "0063_offline_receipt_numbers",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1794214812208,
+      "tag": "0064_shift_device_name",
+      "breakpoints": true
     }
   ]
 }
