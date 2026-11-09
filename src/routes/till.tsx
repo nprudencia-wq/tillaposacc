@@ -5,7 +5,7 @@ import { cleanLabel, setShopLabel } from "@/lib/till-pairing";
 import { setDeviceName } from "@/lib/device-name";
 
 export const Route = createFileRoute("/till")({
-  validateSearch: (s: { shop?: unknown; till?: unknown }): { shop?: string; till?: string } => ({
+  validateSearch: (s: { shop?: unknown; till?: unknown }): { shop?: string | undefined; till?: string | undefined } => ({
     shop: cleanLabel(s["shop"], 60) || undefined,
     till: cleanLabel(s["till"], 40) || undefined,
   }),
