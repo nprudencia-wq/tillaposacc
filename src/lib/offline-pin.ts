@@ -44,6 +44,25 @@ export async function forgetPinsFor(userId: string) {
   await save((await all()).filter((e) => e.userId !== userId));
 }
 
+/** Remove saved PINs whose user ids are in `revoked` (disabled or deleted staff). Returns how many were removed. */
+export async function removeRevokedPins(revoked: string[]): Promise<number> {
+  if (!revoked.length) return 0;
+  const list = await all();
+  const keep = list.filter((e) => !revoked.includes(e.userId));
+  if (keep.length !== list.length) await save(keep);
+  return list.length - keep.length;
+}
+
+/** On reconnect: ask the shop which saved cashiers are disabled and delete their PINs from this device. */
+export async function purgeDisabledStaffPins(): Promise<number> {
+  const ids = [...new Set((await all()).map((e) => e.userId))];
+  if (!ids.length) return 0;
+  const { supabase } = await import("@/integrations/supabase/client");
+  const { data, error } = await supabase.rpc("revoked_offline_staff", { p_ids: ids });
+  if (error || !Array.isArray(data)) return 0;
+  return removeRevokedPins(data as string[]);
+}
+
 export type OfflineResult = { ok: true; session: string } | { ok: false; reason: string };
 
 /** Check a PIN against this device's saved copy. 5 wrong tries lock that user here for 5 minutes. */

@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
 import { setupPWA } from "@/lib/pwa";
 import { setOfflineScope } from "@/lib/offline";
-import { refreshSavedSession } from "@/lib/offline-pin";
+import { refreshSavedSession, purgeDisabledStaffPins } from "@/lib/offline-pin";
 import { rememberDeviceSession } from "@/lib/offline-session";
 import { internetAvailable } from "@/lib/connectivity";
 
@@ -129,6 +129,14 @@ function RootComponent() {
   const router = useRouter();
 
   useEffect(() => { void setupPWA(); }, []);
+
+  useEffect(() => {
+    const purge = () => { if (navigator.onLine) void purgeDisabledStaffPins().catch(() => {}); };
+    purge();
+    window.addEventListener("online", purge);
+    const { data } = supabase.auth.onAuthStateChange((event) => { if (event === "SIGNED_IN") purge(); });
+    return () => { window.removeEventListener("online", purge); data.subscription.unsubscribe(); };
+  }, []);
 
   useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {

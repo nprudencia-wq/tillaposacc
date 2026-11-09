@@ -49,3 +49,15 @@ describe("offline till PIN", () => {
     expect((await checkOfflinePin("tendai", "1234", t + LOCK_MS + 1)).ok).toBe(true);
   });
 });
+
+describe("disabled staff PIN removal", () => {
+  beforeEach(() => store.clear());
+  it("disabled cashier can no longer unlock offline after reconnect cleanup", async () => {
+    const { removeRevokedPins } = await import("./offline-pin");
+    await rememberPin("tendai", "1234", "u1", {});
+    await rememberPin("rudo", "5678", "u2", {});
+    expect(await removeRevokedPins(["u1"])).toBe(1);
+    expect((await checkOfflinePin("tendai", "1234")).ok).toBe(false);
+    expect((await checkOfflinePin("rudo", "5678")).ok).toBe(true);
+  });
+});
