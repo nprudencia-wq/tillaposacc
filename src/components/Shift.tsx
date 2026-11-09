@@ -1,22 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowLeft, CheckCircle2, LockKeyhole, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { cached, closeShiftOffline, isNetworkError, openLocalShift, readLocalShift, readPendingClose, readQueue, syncQueue } from "@/lib/offline";
+import { cached, closeShiftOffline, deviceSales, isNetworkError, openLocalShift, readLocalShift, readPendingClose, readQueue, syncQueue } from "@/lib/offline";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { money, type Currency, type PayMethod } from "@/lib/pos";
-import { methodLabel } from "@/lib/payment-types";
+import { isCashMethod, methodLabel } from "@/lib/payment-types";
+import { mergeShiftReport, type ShiftSnapshot } from "@/lib/shift-report";
 import { summarizeItemsSold, type SoldSummary } from "@/lib/items-sold";
 import { useStaff } from "@/hooks/use-staff";
 import { deviceSession } from "@/lib/offline-session";
 import { internetAvailable } from "@/lib/connectivity";
 
 export type ShiftSummary = {
+  local?: boolean; checkedAt?: string; items?: SoldSummary[];
   shift: {
     id: string; shift_number: string; status: string; opened_at: string; closed_at: string | null;
     opening_float_zar: number; actual_cash_zar: number | null; variance_zar: number | null;
@@ -69,9 +71,39 @@ async function fetchOpen() {
 }
 
 export async function fetchShiftSummary(id: string) {
-  const { data, error } = await supabase.rpc("shift_summary", { p_shift: id });
-  if (error) throw error;
-  return data as unknown as ShiftSummary;
+  const pending = await readPendingClose();
+  const local = await readLocalShift() ?? pending?.local_shift;
+  let snapshot: ShiftSnapshot;
+  if (local?.id === id) {
+    snapshot = { refs: [], lines: [], checkedAt: local.opened_at, summary: {
+      shift: { ...local, closed_at: null, actual_cash_usd: null, actual_cash_zig: null, actual_cash_zar: null, variance_usd: null, variance_zig: null, variance_zar: null, notes: null },
+      sales_count: 0, sales_total_usd: 0, payments: [], movements: [], cash_in_usd: 0, cash_in_zig: 0, change_usd: 0, change_zig: 0,
+      refunds_usd: 0, refunds_zig: 0, paid_in_usd: 0, paid_in_zig: 0, paid_out_usd: 0, paid_out_zig: 0,
+      expected_usd: local.opening_float_usd, expected_zig: local.opening_float_zig,
+      ...{ expected_zar: local.opening_float_zar },
+    } };
+  } else snapshot = await cached(`shift-report:${id}`, async () => {
+    const { data, error } = await supabase.rpc("shift_summary", { p_shift: id });
+    if (error) throw error;
+    const sales: { client_ref: string | null; sale_items: { product_id: string | null; name: string; quantity: number; refunded_qty: number; line_total: number }[] }[] = [];
+    for (let offset = 0; ; offset += 500) {
+      const result = await supabase.from("sales").select("client_ref, sale_items(product_id, name, quantity, refunded_qty, line_total)").eq("shift_id", id).order("id").range(offset, offset + 499);
+      if (result.error) throw result.error;
+      sales.push(...(result.data ?? []));
+      if ((result.data?.length ?? 0) < 500) break;
+    }
+    return { summary: data as unknown as ShiftSummary, refs: sales.flatMap((s) => s.client_ref ? [s.client_ref] : []), lines: sales.flatMap((s) => s.sale_items), checkedAt: new Date().toISOString() };
+  });
+  const result = mergeShiftReport(snapshot, await deviceSales(), isCashMethod);
+  const summary = { ...result.summary, items: result.items, local: !internetAvailable() || local?.id === id, checkedAt: snapshot.checkedAt };
+  if (pending?.shift_id === id) {
+    summary.shift = { ...summary.shift, status: "closed", closed_at: pending.closed_at, notes: pending.notes,
+      actual_cash_usd: pending.usd, actual_cash_zig: pending.zig, actual_cash_zar: pending.zar,
+      variance_usd: pending.usd - summary.expected_usd, variance_zig: pending.zig - summary.expected_zig,
+      variance_zar: pending.zar - Number((summary as unknown as Record<string, number>).expected_zar ?? 0) };
+    summary.local = true;
+  }
+  return summary;
 }
 
 export function OpenShiftGate() {
@@ -80,6 +112,9 @@ export function OpenShiftGate() {
   const [zig, setZig] = useState("");
   const [zar, setZar] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [report, setReport] = useState<ShiftSummary | null>(null);
+  useEffect(() => { void readPendingClose().then((p) => setPendingId(p?.shift_id ?? null)); }, []);
   async function open() {
     setBusy(true);
     const floats = { usd: Number(usd) || 0, zig: Number(zig) || 0, zar: Number(zar) || 0 };
@@ -97,6 +132,7 @@ export function OpenShiftGate() {
     <div className="grid min-h-[70vh] place-items-center p-6">
       <div className="w-full max-w-sm rounded-2xl border bg-card p-6 shadow-soft">
         <h1 className="font-display text-2xl font-bold">Open your till</h1>
+        {pendingId && <Button variant="outline" className="mt-3 w-full" onClick={() => void fetchShiftSummary(pendingId).then(setReport).catch((e) => toast.error(e.message))}>Last offline Z-report</Button>}
         <p className="mt-1 text-sm text-muted-foreground">Count the starting cash in your drawer before you begin selling.</p>
         <label className="mt-5 block text-sm font-medium">Opening float (USD)
           <Input type="number" min={0} step="0.01" value={usd} onChange={(e) => setUsd(e.target.value)} className="tabular mt-1" placeholder="0.00" />
@@ -107,6 +143,7 @@ export function OpenShiftGate() {
         <label className="mt-3 block text-sm font-medium">Opening float (Rand)<Input type="number" min={0} step="0.01" value={zar} onChange={(e) => setZar(e.target.value)} /></label>
         <Button size="lg" className="mt-5 w-full" disabled={busy} onClick={open}>Open shift</Button>
       </div>
+      {report && <ShiftReportDialog s={report} title="Z-report (saved on till)" onClose={() => setReport(null)} />}
     </div>
   );
 }
@@ -116,6 +153,14 @@ export function ShiftBar({ shift, canReadX }: { shift: { id: string; shift_numbe
   const [moveOpen, setMoveOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
   const [report, setReport] = useState<{ title: string; s: ShiftSummary } | null>(null);
+  useEffect(() => {
+    const warm = () => { if (internetAvailable()) void fetchShiftSummary(shift.id).catch(() => {}); };
+    warm();
+    const timer = setInterval(warm, 30000);
+    window.addEventListener("tilla-sync", warm);
+    window.addEventListener("tilla-sale", warm);
+    return () => { clearInterval(timer); window.removeEventListener("tilla-sync", warm); window.removeEventListener("tilla-sale", warm); };
+  }, [shift.id]);
   async function xReport() {
     try { setReport({ title: "X-report (mid-shift)", s: await fetchShiftSummary(shift.id) }); }
     catch (e) { toast.error((e as Error).message); }
@@ -125,7 +170,7 @@ export function ShiftBar({ shift, canReadX }: { shift: { id: string; shift_numbe
       <span className="font-semibold">{shift.shift_number}</span>
       <span className="text-muted-foreground">opened {new Date(shift.opened_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
       <div className="ml-auto flex flex-wrap gap-1">
-        <Button size="sm" variant="outline" onClick={() => setMoveOpen(true)}>Cash drop / payout</Button>
+        <Button size="sm" variant="outline" onClick={() => internetAvailable() ? setMoveOpen(true) : toast.error("Cash drops and payouts need internet to record the drawer audit.")}>Cash drop / payout</Button>
         {canReadX && <Button size="sm" variant="outline" onClick={xReport}>X-report</Button>}
         <Button size="sm" onClick={() => setCloseOpen(true)}><LockKeyhole className="h-4 w-4" />Close shift</Button>
       </div>
@@ -193,12 +238,16 @@ function CloseDialog({ shiftId, onClose, onClosed }: { shiftId: string; onClose:
     if (!countValid) { toast.error("Enter valid, non-negative cash counts"); return; }
     setBusy(true);
     const closeOffline = async () => {
+      let summary: ShiftSummary | null = null;
+      try { summary = await fetchShiftSummary(shiftId); } catch { /* no downloaded report: still allow durable closure */ }
       try { await closeShiftOffline(shiftId, { usd: Number(usd), zig: Number(zig), zar: Number(zar), notes }); }
       catch (e) { setBusy(false); toast.error((e as Error).message); return; }
       setBusy(false);
       toast.success("Shift closed offline — the count and Z-report upload when the internet is back");
       qc.invalidateQueries({ queryKey: ["open-shift"] });
-      onClose();
+      if (summary) {
+        try { onClosed(await fetchShiftSummary(shiftId)); } catch { onClose(); }
+      } else onClose();
     };
     if (!internetAvailable()) { await closeOffline(); return; }
     await syncQueue();
@@ -260,6 +309,7 @@ export function ShiftReport({ s, title }: { s: ShiftSummary; title: string }) {
       <div>
         <div className="font-display text-lg font-bold">{title}</div>
         <div className="text-muted-foreground">{sh.shift_number} · {new Date(sh.opened_at).toLocaleString()}{sh.closed_at ? ` – ${new Date(sh.closed_at).toLocaleTimeString()}` : " (still open)"}</div>
+        {s.local && <div className="text-xs text-muted-foreground">Saved shop figures + sales on this till{ s.checkedAt ? ` · last checked ${new Date(s.checkedAt).toLocaleTimeString()}` : "" }</div>}
       </div>
       <div className="space-y-1 border-t pt-2">
         <Row k="Sales" v={`${s.sales_count} · ${money(Number(s.sales_total_usd))}`} strong />
@@ -313,13 +363,11 @@ function ItemsSold({ items }: { items: SoldSummary[] }) {
 export function ShiftReportDialog({ s, title, onClose }: { s: ShiftSummary; title: string; onClose: () => void }) {
   const [show, setShow] = useState(false);
   const [printItems, setPrintItems] = useState(false);
-  const { data: items, isLoading } = useQuery({
+  const { data: items, isLoading, error } = useQuery({
     queryKey: ["shift-items", s.shift.id],
     enabled: show,
     queryFn: async () => {
-      const { data, error } = await supabase.from("sale_items").select("product_id, name, quantity, refunded_qty, line_total, sales!inner(shift_id)").eq("sales.shift_id", s.shift.id);
-      if (error) throw error;
-      return summarizeItemsSold(data ?? []);
+      return s.items ?? (await fetchShiftSummary(s.shift.id)).items ?? [];
     },
   });
   return (
@@ -333,6 +381,7 @@ export function ShiftReportDialog({ s, title, onClose }: { s: ShiftSummary; titl
         <div className="space-y-2 border-t pt-2 print:hidden">
           <Button variant="secondary" className="w-full" onClick={() => setShow((v) => !v)}>{show ? "Hide items sold" : "View items sold"}</Button>
           {show && isLoading && <p className="text-sm text-muted-foreground">Loading items…</p>}
+          {show && error && <p className="text-sm text-destructive">Items unavailable on this till. Connect once to download the shift.</p>}
           {show && (
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={printItems} onChange={(e) => setPrintItems(e.target.checked)} />
