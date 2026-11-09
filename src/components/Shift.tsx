@@ -18,7 +18,6 @@ import { useStaff } from "@/hooks/use-staff";
 import { deviceSession } from "@/lib/offline-session";
 import { internetAvailable } from "@/lib/connectivity";
 import { enqueueCashMovement, mergeCashMovements, movementsMissingFrom, readCashMovements } from "@/lib/offline-cash";
-import { syncQueue as runSync } from "@/lib/offline";
 
 export type ShiftSummary = {
   local?: boolean; checkedAt?: string; items?: SoldSummary[];
@@ -207,7 +206,7 @@ function MovementDialog({ shiftId, onClose }: { shiftId: string; onClose: () => 
     catch (e) { setBusy(false); toast.error((e as Error).message); return; }
     setBusy(false);
     toast.success(internetAvailable() ? `${moveLabels[type]} recorded` : `${moveLabels[type]} saved on till — uploads when internet is back`);
-    if (navigator.onLine) void runSync();
+    if (navigator.onLine) void syncQueue();
     onClose();
   }
   return (

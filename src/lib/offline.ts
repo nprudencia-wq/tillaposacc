@@ -6,7 +6,7 @@ import { mergeQueues } from "@/lib/queue-merge";
 import { internetAvailable, networkRead, setInternetAvailable } from "@/lib/connectivity";
 import type { ReceiptData } from "@/components/Receipt";
 import { creditSnapshot, pendingRepayments, syncRepayments } from "@/lib/offline-credit";
-import { syncCashMovements } from "@/lib/offline-cash";
+import { pendingCashMovements, syncCashMovements } from "@/lib/offline-cash";
 import { getDeviceName } from "@/lib/device-name";
 import { readPendingSettlements, syncSettlements } from "@/lib/settlement-queue";
 
@@ -168,7 +168,7 @@ export function stockAfterQueue<T extends { id: string; stock: number | string }
 }
 export async function hasPendingUploads() {
   await queueReady;
-  return readQueue().length > 0 || !!(await readLocalShift()) || !!(await readPendingClose()) || (await pendingRepayments()).length > 0 || (await readPendingSettlements()).length > 0;
+  return readQueue().length > 0 || !!(await readLocalShift()) || !!(await readPendingClose()) || (await pendingRepayments()).length > 0 || (await pendingCashMovements()).length > 0 || (await readPendingSettlements()).length > 0;
 }
 async function updateUploadedSale(scope: StoreScope, s: QueuedSale, error?: string) {
   await serialized(async () => {
