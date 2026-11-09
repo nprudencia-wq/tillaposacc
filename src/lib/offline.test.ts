@@ -12,6 +12,18 @@ const scope = { storeId: "shop", userId: "cashier" };
 const sale: QueuedSale = { client_ref: "sale-1", sold_at: "2026-11-07T13:00:00Z", shift_id: "shift", currency: "USD", discount: 0, items: [{ product_id: "bread", quantity: 2 }], payments: [{ method: "cash", currency: "USD", amount: 2 }], total: 2 };
 beforeEach(() => { mocks.storage.clear(); mocks.fail = false; mocks.rpc.mockReset(); localStorage.clear(); setOfflineScope(null); });
 describe("Durable disconnected sales", () => {
+  it("allows a manual sync to finish a slow upload without losing the sale", async () => {
+    setOfflineScope(scope); await enqueueSale(sale);
+    vi.useFakeTimers();
+    try {
+      mocks.rpc.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve({ error: null }), 8000)));
+      const result = syncQueue(20000);
+      await vi.advanceTimersByTimeAsync(8000);
+      expect(await result).toEqual({ synced: 1, failed: 0 });
+      expect(readQueue()).toHaveLength(0);
+      expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    } finally { vi.useRealTimers(); }
+  });
   it("rejects short-paid sales before storing a queue or receipt", async () => {
     setOfflineScope(scope);
     await expect(enqueueSale({ ...sale, payments: [{ method: "cash", currency: "USD", amount: 1.99 }] })).rejects.toThrow("Take full payment");

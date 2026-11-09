@@ -196,12 +196,12 @@ export async function openLocalShift(floats: { usd: number; zig: number; zar: nu
   return s;
 }
 
-async function syncLocalShift(scope: StoreScope): Promise<boolean> {
+async function syncLocalShift(scope: StoreScope, timeout: number): Promise<boolean> {
   const s = await readLocalShift();
   if (!s) return true;
   const { error } = await networkRead(() => supabase.rpc("open_offline_shift", {
     p_id: s.id, p_opened_at: s.opened_at, p_float_usd: s.opening_float_usd, p_float_zig: s.opening_float_zig, p_float_zar: s.opening_float_zar,
-  }));
+  }), timeout);
   if (error) {
     window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "shift_open", network: isNetworkError(error) });
     return false;
@@ -246,14 +246,14 @@ async function uploadSale(s: QueuedSale) {
 }
 
 /** Uploads an offline-closed shift: its opening (if offline), its sales, then the count. Returns false to retry later. */
-async function syncPendingClose(scope: StoreScope): Promise<boolean> {
+async function syncPendingClose(scope: StoreScope, timeout: number): Promise<boolean> {
   const p = await readPendingClose();
   if (!p) return true;
   if (p.local_shift) {
     const ls = p.local_shift;
     const { error } = await networkRead(() => supabase.rpc("open_offline_shift", {
       p_id: ls.id, p_opened_at: ls.opened_at, p_float_usd: ls.opening_float_usd, p_float_zig: ls.opening_float_zig, p_float_zar: ls.opening_float_zar,
-    }));
+    }), timeout);
     if (error) {
       window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "shift_open", network: isNetworkError(error) });
       return false;
@@ -261,7 +261,7 @@ async function syncPendingClose(scope: StoreScope): Promise<boolean> {
   }
   for (const s of readQueue().filter((x) => x.shift_id === p.shift_id)) {
     if (!sameScope(scope) || !belongsToScope(s, scope)) return false;
-    const { error } = await networkRead(() => uploadSale(s));
+    const { error } = await networkRead(() => uploadSale(s), timeout);
     if (error) window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "sale", network: isNetworkError(error) });
     if (error && isNetworkError(error)) return false;
     await updateUploadedSale(scope, s, error?.message);
@@ -271,7 +271,7 @@ async function syncPendingClose(scope: StoreScope): Promise<boolean> {
   if (!sameScope(scope) || readQueue().some((s) => s.shift_id === p.shift_id)) return false;
   const { error } = await networkRead(() => supabase.rpc("close_offline_shift", {
     p_id: p.shift_id, p_closed_at: p.closed_at, p_actual_usd: p.usd, p_actual_zig: p.zig, p_actual_zar: p.zar, p_notes: p.notes,
-  }));
+  }), timeout);
   if (error) {
     window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "shift_close", network: isNetworkError(error) });
     return false;
@@ -284,7 +284,7 @@ async function syncPendingClose(scope: StoreScope): Promise<boolean> {
 }
 
 /** Upload the offline shift (if any), then queued sales one by one. The server ignores duplicates, so retries are safe. */
-export async function syncQueue(): Promise<{ synced: number; failed: number }> {
+export async function syncQueue(timeout = 5000): Promise<{ synced: number; failed: number }> {
   const scope = activeScope;
   if (syncing || !navigator.onLine || !scope) return { synced: 0, failed: 0 };
   setSyncing(true);
@@ -292,18 +292,18 @@ export async function syncQueue(): Promise<{ synced: number; failed: number }> {
   pendingCloseUploaded = false;
   try {
     await queueReady;
-    const { error: reachError } = await networkRead(() => supabase.from("store_memberships").select("store_id").eq("user_id", scope.userId).single());
+    const { error: reachError } = await networkRead(() => supabase.from("store_memberships").select("store_id").eq("user_id", scope.userId).single(), timeout);
     if (reachError) { if (isNetworkError(reachError)) setInternetAvailable(false); return { synced, failed }; }
     setInternetAvailable(true);
     // A shift closed offline goes first (its sales, then its count), so the next shift can't merge into it.
-    if (!(await syncPendingClose(scope))) return { synced, failed };
+    if (!(await syncPendingClose(scope, timeout))) return { synced, failed };
     // Sales need their shift on the server first.
-    if (!(await syncLocalShift(scope))) return { synced, failed };
+    if (!(await syncLocalShift(scope, timeout))) return { synced, failed };
     complete = true;
     for (const s of readQueue()) {
       if (activeScope?.storeId !== scope.storeId || activeScope?.userId !== scope.userId) break;
       if (!belongsToScope(s, scope)) { failed++; continue; }
-      const { error } = await networkRead(() => uploadSale(s));
+      const { error } = await networkRead(() => uploadSale(s), timeout);
       if (activeScope?.storeId !== scope.storeId || activeScope?.userId !== scope.userId) break;
       if (error) window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "sale", network: isNetworkError(error) });
       if (error && isNetworkError(error)) { setInternetAvailable(false); complete = false; break; }
