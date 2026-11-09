@@ -1,6 +1,7 @@
 import { BackBar } from "@/components/BackBar";
 import { createFileRoute, Outlet, redirect, Link, useNavigate, Navigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut, BarChart3, Users, Wallet, Clock, CreditCard, Contact, ClipboardList, Store, BookOpen, Pencil, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaff } from "@/hooks/use-staff";
