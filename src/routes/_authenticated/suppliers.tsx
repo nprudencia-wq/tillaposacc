@@ -222,7 +222,7 @@ function DeleteSupplier({ supplier, onClose }: { supplier: Supplier; onClose: ()
   return <Dialog open onOpenChange={(open) => !open && onClose()}><DialogContent><DialogHeader><DialogTitle>Delete {supplier.name}?</DialogTitle></DialogHeader><p className="text-sm text-muted-foreground">Suppliers with deliveries, payments or returns cannot be deleted.</p><div className="flex justify-end gap-2"><Button variant="outline" onClick={onClose}>Cancel</Button><Button variant="destructive" disabled={busy} onClick={remove}>{busy ? "Deleting…" : "Delete supplier"}</Button></div></DialogContent></Dialog>;
 }
 
-type GrnForm = { supplier: string; invoice: string; currency: InvoiceCurrency; rate: string; paid: string; note: string; method: string; lines: ReceivingLine[] };
+type GrnForm = { supplier: string; invoice: string; currency: InvoiceCurrency; rate: string; paid: string; note: string; method: string; lines: ReceivingLine[]; delivery_date?: string };
 export function ReceiveGoods({ suppliers, onClose, draft }: { suppliers: { id: string; name: string }[]; onClose: () => void; draft: GrnDraft | null }) {
   const initial = draft?.payload as unknown as GrnForm | undefined;
   const [savedDraft, setSavedDraft] = useState<GrnDraft | null>(draft);
@@ -235,6 +235,8 @@ export function ReceiveGoods({ suppliers, onClose, draft }: { suppliers: { id: s
   });
   const [supplier, setSupplier] = useState(initial?.supplier ?? suppliers[0]?.id ?? "");
   const [invoice, setInvoice] = useState(initial?.invoice ?? "");
+  const todayHarare = new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Harare" });
+  const [deliveryDate, setDeliveryDate] = useState(initial?.delivery_date || todayHarare);
   const [currency, setCurrency] = useState<InvoiceCurrency>(initial?.currency ?? "USD");
   const [rate, setRate] = useState(initial?.rate ?? "1");
   const [paid, setPaid] = useState(initial?.paid ?? "");
@@ -268,13 +270,14 @@ export function ReceiveGoods({ suppliers, onClose, draft }: { suppliers: { id: s
   const entered = lines.filter((line) => line.product_id || line.quantity || line.unit_cost);
   function validate() {
     if (!supplier || !entered.length || entered.some((line) => !completeReceivingLine(line))) return "Choose a supplier and complete every entered line";
+    if (!deliveryDate || deliveryDate > todayHarare) return "Delivery date cannot be in the future";
     if (!Number.isFinite(Number(rate)) || Number(rate) <= 0) return "Enter a positive exchange rate";
     if (!Number.isFinite(Number(paid)) || Number(paid) < 0 || Number(paid) > total) return "Paid now must be between zero and the total";
     if (Number(paid) > 0 && !currentMethod) return "Choose a payment type";
     return null;
   }
   async function persist() {
-    const payload: GrnForm = { supplier, invoice, currency, rate, paid, note, method: currentMethod, lines };
+    const payload: GrnForm = { supplier, invoice, currency, rate, paid, note, method: currentMethod, lines, delivery_date: deliveryDate };
     const { data, error } = await supabase.rpc("save_grn_draft", { p_id: savedDraft?.id ?? crypto.randomUUID(), p_version: savedDraft?.version ?? 0, p_payload: payload as unknown as Database["public"]["Tables"]["grn_drafts"]["Row"]["payload"] });
     if (error) throw error;
     if (!data) throw new Error("Draft could not be saved");
@@ -315,7 +318,7 @@ export function ReceiveGoods({ suppliers, onClose, draft }: { suppliers: { id: s
       <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
         <DialogHeader><DialogTitle>{review ? "Review goods received" : savedDraft ? "Edit GRN draft" : "Receive goods (GRN)"}</DialogTitle></DialogHeader>
         {review ? <>
-          <div className="grid gap-2 text-sm sm:grid-cols-2"><div>Supplier: <b>{suppliers.find((s) => s.id === supplier)?.name}</b></div><div>Invoice: <b>{invoice || "—"}</b></div><div>Currency: <b>{currency}</b> · Rate: {rate} per USD</div><div>Paid now: <b>{invoiceMoney(Number(paid), currency)}</b></div></div>
+          <div className="grid gap-2 text-sm sm:grid-cols-2"><div>Supplier: <b>{suppliers.find((s) => s.id === supplier)?.name}</b></div><div>Invoice: <b>{invoice || "—"}</b></div><div>Delivery date: <b>{new Date(deliveryDate + "T12:00").toLocaleDateString()}</b></div><div>Currency: <b>{currency}</b> · Rate: {rate} per USD</div><div>Paid now: <b>{invoiceMoney(Number(paid), currency)}</b></div></div>
           <div className="overflow-x-auto border rounded-md"><Table><TableHeader><TableRow><TableHead>Product</TableHead><TableHead>Received quantity</TableHead><TableHead>Unit cost</TableHead><TableHead>Total cost</TableHead></TableRow></TableHeader><TableBody>{entered.map((line, i) => <TableRow key={i}><TableCell>{products.find((p) => p.id === line.product_id)?.name}</TableCell><TableCell>{line.quantity}</TableCell><TableCell>{invoiceMoney(Number(line.unit_cost), currency)}</TableCell><TableCell>{invoiceMoney(Number(line.quantity) * Number(line.unit_cost), currency)}</TableCell></TableRow>)}</TableBody></Table></div>
           <div className="grid gap-3 border-y py-4 sm:grid-cols-3"><div><p className="text-sm text-muted-foreground">Total quantity</p><b>{entered.reduce((sum, l) => sum + Number(l.quantity), 0).toLocaleString()}</b></div><div><p className="text-sm text-muted-foreground">Total cost</p><b>{invoiceMoney(total, currency)}</b></div><div><p className="text-sm text-muted-foreground">USD cost</p><b>{money(usdTotal ?? 0)}</b></div></div>
           <p className="text-sm text-muted-foreground">Inventory has not been updated yet.</p>
@@ -325,6 +328,7 @@ export function ReceiveGoods({ suppliers, onClose, draft }: { suppliers: { id: s
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5"><Label>Supplier</Label><Select value={supplier} onValueChange={setSupplier}><SelectTrigger aria-label="Supplier"><SelectValue /></SelectTrigger><SelectContent>{suppliers.map((item) => <SelectItem key={item.id} value={item.id}>{item.name}</SelectItem>)}</SelectContent></Select></div>
           <div className="space-y-1.5"><Label htmlFor="grn-invoice">Supplier invoice number</Label><Input id="grn-invoice" value={invoice} onChange={(event) => setInvoice(event.target.value)} /></div>
+          <div className="space-y-1.5"><Label htmlFor="grn-date">Delivery date</Label><Input id="grn-date" type="date" max={todayHarare} value={deliveryDate} onChange={(event) => setDeliveryDate(event.target.value)} /></div>
           <div className="space-y-1.5"><Label>Invoice currency</Label><Select value={currency} onValueChange={(value) => changeCurrency(value as InvoiceCurrency)}><SelectTrigger aria-label="Invoice currency"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem><SelectItem value="ZAR">Rand (ZAR)</SelectItem></SelectContent></Select></div>
           <div className="space-y-1.5"><Label htmlFor="grn-rate">{currency === "USD" ? "Exchange rate" : `${currency === "ZAR" ? "Rand" : "ZiG"} per US$1`}</Label><Input id="grn-rate" type="number" min="0.000001" step="0.000001" disabled={currency === "USD"} value={rate} onChange={(event) => changeRate(event.target.value)} /></div>
         </div>
