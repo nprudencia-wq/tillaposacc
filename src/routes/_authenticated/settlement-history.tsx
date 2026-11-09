@@ -34,7 +34,7 @@ function History({ storeId }: { storeId: string }) {
       if (error) throw error;
       const names = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
       const who = (id?: string | null) => (id && names.get(id)) || "Staff";
-      return (s ?? []).map((r: Row) => ({ ...r, settledByName: who(r.settled_by), approvedByName: r.approved_by ? who(r.approved_by) : null }));
+      return ((s ?? []) as Row[]).map((r) => ({ ...r, settledByName: who(r.settled_by), approvedByName: r.approved_by ? who(r.approved_by) : null }));
     },
   });
 
