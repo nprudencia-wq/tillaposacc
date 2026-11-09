@@ -1,7 +1,7 @@
 import { BackBar } from "@/components/BackBar";
 import { createFileRoute, Outlet, redirect, Link, useNavigate, Navigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut, Truck, BarChart3, Users, Wallet, Clock, CreditCard, Contact, ClipboardList, Store, BookOpen, Pencil } from "lucide-react";
+import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut, Truck, BarChart3, Users, Wallet, Clock, CreditCard, Contact, ClipboardList, Store, BookOpen, Pencil, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaff } from "@/hooks/use-staff";
 import { hasDeviceLogin, clearDeviceSession } from "@/lib/offline-session";
@@ -23,40 +23,40 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 const navGroups = [
-  { title: "", items: [
-    { to: "/pos", label: "Open till", icon: ShoppingCart },
-    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { to: "/manage", label: "Quick edit", icon: Pencil },
+  { title: "Dashboard", icon: LayoutDashboard, items: [
+    { to: "/dashboard", label: "Dashboard" },
+    { to: "/manage", label: "Quick edit" },
   ] },
-  { title: "Inventory & stock", items: [
-    { to: "/inventory", label: "Inventory", icon: Boxes },
-    { to: "/stock", label: "Stock control", icon: ClipboardList },
-    { to: "/suppliers", label: "Suppliers", icon: Truck },
+  { title: "Inventory", icon: Boxes, items: [
+    { to: "/inventory", label: "Inventory" },
+    { to: "/stock", label: "Stock control" },
+    { to: "/suppliers", label: "Suppliers" },
   ] },
-  { title: "Sales", items: [
-    { to: "/sales", label: "Sales", icon: Receipt },
-    { to: "/documents", label: "Sales documents", icon: BookOpen },
-    { to: "/customers", label: "Customers", icon: Contact },
+  { title: "Sales", icon: Receipt, items: [
+    { to: "/sales", label: "Sales" },
+    { to: "/documents", label: "Sales documents" },
+    { to: "/customers", label: "Customers" },
   ] },
-  { title: "Staff & shifts", items: [
-    { to: "/staff", label: "Staff", icon: Users },
-    { to: "/shifts", label: "Shifts", icon: Clock },
-    { to: "/settlement", label: "Daily settlement", icon: Wallet },
-    { to: "/settlement-history", label: "Settlement history", icon: ClipboardList },
-    { to: "/multi-till", label: "Multi-till", icon: BarChart3 },
+  { title: "Shifts", icon: Clock, items: [
+    { to: "/shifts", label: "Shifts" },
+    { to: "/settlement", label: "Daily settlement" },
+    { to: "/settlement-history", label: "Settlement history" },
+    { to: "/multi-till", label: "Multi-till" },
+    { to: "/staff", label: "Staff" },
   ] },
-  { title: "Finance", items: [
-    { to: "/expenses", label: "Expenses", icon: Wallet },
-    { to: "/accounting", label: "Accounting", icon: BookOpen },
-    { to: "/reports", label: "Reports", icon: BarChart3 },
+  { title: "Reports", icon: BarChart3, items: [
+    { to: "/reports", label: "Reports" },
+    { to: "/expenses", label: "Expenses" },
+    { to: "/accounting", label: "Accounting" },
   ] },
-  { title: "Settings", items: [
-    { to: "/payment-types", label: "Payment types", icon: CreditCard },
-    { to: "/currencies", label: "Currency settings", icon: Wallet },
-    { to: "/store", label: "Store profile", icon: Store },
-    { to: "/billing", label: "Billing", icon: CreditCard },
+  { title: "Settings", icon: Settings, items: [
+    { to: "/store", label: "Store profile" },
+    { to: "/payment-types", label: "Payment types" },
+    { to: "/currencies", label: "Currency settings" },
+    { to: "/billing", label: "Billing" },
   ] },
 ] as const;
+const inGroup = (path: string, to: string) => path === to || path.startsWith(to + "/");
 
 const MODULE_PERM: Record<string, Permission> = {"/dashboard": "module_dashboard", "/manage": "module_inventory", "/inventory": "module_inventory", "/stock": "module_stock", "/suppliers": "module_suppliers", "/sales": "module_sales", "/documents": "module_documents", "/customers": "module_customers", "/staff": "module_staff", "/shifts": "module_shifts", "/settlement": "module_shifts", "/settlement-history": "module_shifts", "/multi-till": "module_shifts", "/expenses": "module_expenses", "/accounting": "module_accounting", "/reports": "view_reports", "/payment-types": "module_settings", "/currencies": "module_settings", "/store": "module_settings", "/billing": "module_settings"};
 function moduleFor(path: string) { const k = Object.keys(MODULE_PERM).find((p) => path === p || path.startsWith(p + "/")); return k ? MODULE_PERM[k] : undefined; }
@@ -110,27 +110,26 @@ function AppLayout() {
   const allowed = (path: string) => { const p = moduleFor(path); return !p || !me || (p === "view_reports" ? me.canViewReports : me.perms?.[p] !== false); };
   if (me && !allowed(pathname)) return <Navigate to="/pos" replace />;
 
+  const visibleGroups = navGroups.map((g) => ({ ...g, items: g.items.filter((n) => allowed(n.to)) })).filter((g) => g.items.length);
+  const currentGroup = visibleGroups.find((g) => g.items.some((n) => inGroup(pathname, n.to)));
+
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="flex shrink-0 items-center gap-1 bg-sidebar px-3 py-2 text-sidebar-foreground md:w-56 md:flex-col md:items-stretch md:px-3 md:py-5 print:hidden">
         <div className="hidden px-3 pb-6 font-display text-xl font-bold md:block">Tilla<span className="text-sidebar-primary">POS</span> <span className="text-xs font-normal opacity-60">· Back Office</span></div>
         <nav className="flex flex-1 gap-1 overflow-x-auto md:flex-col">
-          {navGroups.map((g) => ({ ...g, items: g.items.filter((n) => allowed(n.to)) })).filter((g) => g.items.length).map((g) => (
-            <div key={g.title || "main"} className="flex gap-1 md:flex-col md:pb-3">
-              {g.title && <div className="hidden px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider opacity-50 md:block">{g.title}</div>}
-              {g.items.map((n) => (
-            <Link
-              key={n.to}
-              to={n.to}
-              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium opacity-80 transition hover:bg-sidebar-accent hover:opacity-100"
-              activeProps={{ className: "bg-sidebar-accent !opacity-100 text-sidebar-primary" }}
-            >
-              <n.icon className="h-5 w-5" />
-              <span className="hidden sm:inline">{n.label}</span>
-            </Link>
-              ))}
-            </div>
-          ))}
+          <Link to="/pos" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium opacity-80 transition hover:bg-sidebar-accent hover:opacity-100 md:mb-2">
+            <ShoppingCart className="h-5 w-5" /><span className="hidden sm:inline">Open till</span>
+          </Link>
+          {visibleGroups.map((g) => {
+            const active = g.items.some((n) => inGroup(pathname, n.to));
+            return (
+              <Link key={g.title} to={g.items[0].to}
+                className={"flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition hover:bg-sidebar-accent hover:opacity-100 " + (active ? "bg-sidebar-accent text-sidebar-primary opacity-100" : "opacity-80")}>
+                <g.icon className="h-5 w-5" /><span className="hidden sm:inline">{g.title}</span>
+              </Link>
+            );
+          })}
         </nav>
         <div className="md:border-t md:border-sidebar-border md:pt-4">
           {me && (
@@ -148,7 +147,18 @@ function AppLayout() {
           </button>
         </div>
       </aside>
-      <main className="min-w-0 flex-1"><SubscriptionBanner /><OfflineBar /><BackBar /><Outlet /></main>
+      <main className="min-w-0 flex-1"><SubscriptionBanner /><OfflineBar /><BackBar />
+        {currentGroup && currentGroup.items.length > 1 && (
+          <div className="flex gap-1 overflow-x-auto border-b border-border px-4 pt-2 print:hidden">
+            {currentGroup.items.map((n) => (
+              <Link key={n.to} to={n.to}
+                className={"whitespace-nowrap rounded-t-lg border-b-2 px-3 py-2 text-sm font-medium transition " + (inGroup(pathname, n.to) ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
+                {n.label}
+              </Link>
+            ))}
+          </div>
+        )}
+        <Outlet /></main>
     </div>
   );
 }
