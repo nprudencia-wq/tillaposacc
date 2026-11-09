@@ -2936,6 +2936,7 @@ export type Database = {
         Args: { p_items: Json; p_reason: string; p_supplier: string }
         Returns: string
       }
+      revoked_offline_staff: { Args: { p_ids: string[] }; Returns: string[] }
       role_allows: {
         Args: { _perm: string; _user_id: string }
         Returns: boolean

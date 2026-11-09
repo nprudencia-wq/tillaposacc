@@ -547,6 +547,13 @@
       "when": 1794230382914,
       "tag": "0077_sale_payment_references",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1794230620289,
+      "tag": "0078_disabled_staff_pin_check",
+      "breakpoints": true
     }
   ]
 }
