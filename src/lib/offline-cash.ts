@@ -65,7 +65,7 @@ const SUFFIX: Record<string, string> = { USD: "usd", ZiG: "zig", ZAR: "zar" };
 /** Add this till's not-yet-downloaded movements to a shift report; drops and payouts both leave the drawer. */
 export function mergeCashMovements<T extends { movements: { type: string; currency: string; amount: number; reason: string; created_at: string }[] }>(summary: T, extra: QueuedCashMovement[]): T {
   if (!extra.length) return summary;
-  const out = { ...summary, movements: [...summary.movements] } as T & Record<string, unknown>;
+  const out: Record<string, unknown> & { movements: T["movements"] } = { ...summary, movements: [...summary.movements] };
   for (const m of extra) {
     const sfx = SUFFIX[m.currency];
     if (!sfx) continue;
@@ -75,5 +75,5 @@ export function mergeCashMovements<T extends { movements: { type: string; curren
     out[`expected_${sfx}`] = r2(Number(out[`expected_${sfx}`] ?? 0) + (m.type === "paid_in" ? m.amount : -m.amount));
     out.movements.push({ type: m.type, currency: m.currency, amount: m.amount, reason: m.uploaded ? m.reason : `${m.reason} (pending upload)`, created_at: m.at });
   }
-  return out;
+  return out as unknown as T;
 }
