@@ -383,9 +383,9 @@ function Till({ shiftId }: { shiftId: string }) {
       </nav>
       {/* Products */}
       <section className="flex min-h-0 min-w-0 flex-1 flex-col p-2 md:order-2 md:p-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button size="icon" variant="outline" className="h-11 w-11 shrink-0" aria-label="Open till menu" onClick={() => setMenuOpen(true)}><Menu className="h-5 w-5" /></Button>
-          <div className="relative flex-1">
+          <div className="relative min-w-[10rem] flex-1">
           <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
           <Input
             ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)}
