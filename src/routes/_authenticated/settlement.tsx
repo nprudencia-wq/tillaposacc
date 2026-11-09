@@ -137,7 +137,9 @@ function Settlement({ storeId }: { storeId: string }) {
     const owedLine = (data.saved?.lines as { method: string }[] | undefined)?.find((l) => l.method === "_owed");
     if (owedLine) (lines as unknown[]).push(owedLine);
     const { data: u } = await supabase.auth.getSession();
-    const record = { store_id: storeId, day, lines, notes, settled_by: u.session?.user.id ?? "", settled_at: new Date().toISOString(), auto: false };
+    const approving = !!data.saved?.auto;
+    const record = { store_id: storeId, day, lines, notes, settled_by: u.session?.user.id ?? "", settled_at: new Date().toISOString(), auto: false,
+      ...(approving ? { approved_by: u.session?.user.id ?? null, approved_at: new Date().toISOString() } : {}) };
     let offline = !internetAvailable();
     if (!offline) {
       const { error } = await uploadSettlement(record).catch((e) => ({ error: e as { message: string } }));
