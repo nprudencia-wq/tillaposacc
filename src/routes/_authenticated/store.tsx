@@ -66,10 +66,22 @@ function StorePage() {
       const { error } = await supabase.storage.from("product-images").upload(path, image, { contentType: "image/png" });
       if (error) throw error;
       await receiptLogoSource(path);
+      const { error: saveError } = await supabase.from("settings").update({ logo_url: path, updated_at: new Date().toISOString() }).eq("store_id", me.storeId);
+      if (saveError) throw saveError;
       setF((current) => current ? { ...current, logo_url: path } : current);
-      toast.success("Logo uploaded. Save to apply it to receipts.");
+      qc.invalidateQueries({ queryKey: ["settings"] });
+      toast.success("Logo uploaded and added to receipts");
     } catch (error) { toast.error(error instanceof Error ? error.message : "Could not upload logo"); }
     finally { setUploading(false); if (logoInput.current) logoInput.current.value = ""; }
+  }
+
+  async function removeLogo() {
+    if (!f || !me?.storeId || !canEdit) return;
+    const { error } = await supabase.from("settings").update({ logo_url: "", updated_at: new Date().toISOString() }).eq("store_id", me.storeId);
+    if (error) { toast.error(error.message); return; }
+    setF({ ...f, logo_url: "" });
+    qc.invalidateQueries({ queryKey: ["settings"] });
+    toast.success("Logo removed");
   }
 
   async function save(e: React.FormEvent) {
@@ -98,7 +110,7 @@ function StorePage() {
           <input ref={logoInput} type="file" accept="image/png,image/jpeg,image/webp" aria-label="Choose receipt logo" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) void uploadLogo(file); }} />
           {canEdit && <div className="flex flex-wrap gap-2">
             <Button type="button" variant="outline" disabled={uploading || busy} onClick={() => logoInput.current?.click()}><Upload className="h-4 w-4" />{uploading ? "Uploading…" : f.logo_url ? "Replace logo" : "Upload logo"}</Button>
-            {f.logo_url && <Button type="button" variant="ghost" disabled={uploading || busy} onClick={() => setF({ ...f, logo_url: "" })}><Trash2 className="h-4 w-4" />Remove logo</Button>}
+            {f.logo_url && <Button type="button" variant="ghost" disabled={uploading || busy} onClick={() => void removeLogo()}><Trash2 className="h-4 w-4" />Remove logo</Button>}
           </div>}
         </div>
         {FIELDS.map(([k, label]) => (
@@ -125,7 +137,7 @@ function StorePage() {
         <Link to="/currencies" className="text-sm font-medium text-primary underline">Currency settings →</Link>
         {canEdit ? <Button type="submit" disabled={busy || uploading}>{busy ? "Saving…" : "Save receipt details"}</Button> : <p className="text-sm text-muted-foreground">Only managers and owners can change these.</p>}
       </form>
-      <div className="mt-6 rounded-2xl bg-card p-6 shadow-soft"><ReceiptDesigner store={{ ...st, ...f, vat_rate: Number(f.vat_rate) }} /></div>
+      <div className="mt-6 rounded-2xl bg-card p-6 shadow-soft"><ReceiptDesigner store={{ ...st, ...f, vat_rate: Number(f.vat_rate) }} logo={{ hasLogo: !!f.logo_url, uploading, onUpload: () => logoInput.current?.click(), onRemove: () => void removeLogo() }} /></div>
       <div className="mt-6 rounded-2xl bg-card p-6 shadow-soft"><ZimraSettings canEdit={!!me?.isOwner} /></div>
     </div>
   );
