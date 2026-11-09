@@ -19,7 +19,7 @@ export const signupStore = createServerFn({ method: "POST" })
       app_metadata: { initial_role: "owner", store_id: storeId },
     });
     if (error) {
-      throw new Error(/already|exists|duplicate|registered/i.test(error.message) ? "An account with that email already exists. Sign in instead." : "Could not create your account. Please try again.");
+      throw new Error(/already|exists|duplicate|registered/i.test(error.message) ? "An account with that email already exists. Sign in instead." : "Could not create your account. Please try again. DBG " + error.message);
     }
     return { ok: true, email };
   });
