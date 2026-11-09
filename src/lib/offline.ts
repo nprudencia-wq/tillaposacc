@@ -5,7 +5,7 @@ import { idbGet, idbSet, idbSetMany } from "@/lib/local-db";
 import { mergeQueues } from "@/lib/queue-merge";
 import { internetAvailable, networkRead, setInternetAvailable } from "@/lib/connectivity";
 import type { ReceiptData } from "@/components/Receipt";
-import { pendingRepayments, syncRepayments } from "@/lib/offline-credit";
+import { creditSnapshot, pendingRepayments, syncRepayments } from "@/lib/offline-credit";
 import { readPendingSettlements, syncSettlements } from "@/lib/settlement-queue";
 
 // Browser-only helpers: call from effects, handlers or query functions (never at module scope).
@@ -336,6 +336,9 @@ export async function syncQueue(timeout = 5000): Promise<{ synced: number; faile
       if (error) { failed++; complete = false; continue; }
       synced++;
     }
+    if (complete && !(await syncSettlements(scope, timeout))) complete = false;
+    // Fresh balances, so the next offline credit check includes what just uploaded.
+    if (synced > 0) void creditSnapshot().catch(() => {});
   } catch (e) {
     if (isNetworkError(e)) setInternetAvailable(false);
     else failed++;
