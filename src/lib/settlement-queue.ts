@@ -5,7 +5,7 @@ import { currentScope, isNetworkError } from "@/lib/offline";
 import { scopedStorageKey, type StoreScope } from "@/lib/store-scope";
 
 /** A day settlement saved on this device while offline; the latest save for a day wins. */
-export type PendingSettlement = { store_id: string; day: string; lines: unknown[]; notes: string; settled_by: string; settled_at: string };
+export type PendingSettlement = { store_id: string; day: string; lines: unknown[]; notes: string; settled_by: string; settled_at: string; auto?: boolean };
 const KEY = "tilla-pending-settlements";
 const db = supabase as unknown as { from: (t: string) => any };
 

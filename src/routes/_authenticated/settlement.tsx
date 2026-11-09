@@ -79,11 +79,12 @@ function Settlement({ storeId }: { storeId: string }) {
       ]);
       const names = new Map((profiles.data ?? []).map((p) => [p.id, p.full_name]));
       const who = (id?: string | null) => (id && names.get(id)) || "Staff";
-      const [sales, refunds, repayments, moves] = await Promise.all([
+      const [sales, refunds, repayments, moves, shifts] = await Promise.all([
         all<any>(() => supabase.from("sales").select("id, sale_number, created_at, cashier_id, change_given, status, client_ref, sale_payments(method, amount, exchange_rate)").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
         all<any>(() => supabase.from("refunds").select("id, created_at, refunded_by, method, amount").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
         all<any>(() => supabase.from("customer_payments").select("payment_number, created_at, received_by, method, amount, client_ref").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
         all<any>(() => supabase.from("shift_cash_movements").select("id, created_at, user_id, type, currency, amount, reason").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
+        all<any>(() => supabase.from("cashier_shifts").select("id, opening_float_usd, opening_float_zig, opening_float_zar, actual_cash_usd, actual_cash_zig, actual_cash_zar").eq("store_id", storeId).eq("status", "closed").gte("closed_at", start).lt("closed_at", end).order("id")),
       ]);
       const rate = (c: string) => (c === "ZiG" || c === "ZIG" ? Number(settings.data?.zig_rate) : c === "ZAR" ? Number(settings.data?.rand_rate) : 1) || 1;
       const { data: auth } = await supabase.auth.getSession();
@@ -95,7 +96,13 @@ function Settlement({ storeId }: { storeId: string }) {
         movements: moves.map((m) => ({ ...m, cashier: who(m.user_id), usd: Number(m.amount) / rate(m.currency) })),
         saleRefs: sales.map((s) => s.client_ref).filter(Boolean) as string[],
         payRefs: repayments.map((p) => p.client_ref).filter(Boolean) as string[],
-        saved: saved.data as null | { lines: { method: string; counted: number }[]; notes: string; settled_at: string; settled_by: string },
+        // Cash the cashiers counted at shift close, minus their floats, in US$.
+        shiftCash: shifts.length ? Math.round(shifts.reduce((t, s) => t
+          + (Number(s.actual_cash_usd ?? 0) - Number(s.opening_float_usd ?? 0))
+          + (Number(s.actual_cash_zig ?? 0) - Number(s.opening_float_zig ?? 0)) / rate("ZiG")
+          + (Number(s.actual_cash_zar ?? 0) - Number(s.opening_float_zar ?? 0)) / rate("ZAR"), 0) * 100) / 100 : null,
+        shiftCount: shifts.length,
+        saved: saved.data as null | { lines: { method: string; counted: number }[]; notes: string; settled_at: string; settled_by: string; auto?: boolean },
         settledBy: who(saved.data?.settled_by), me: who(auth.session?.user.id), checkedAt: new Date().toISOString(),
       };
   }
@@ -119,7 +126,7 @@ function Settlement({ storeId }: { storeId: string }) {
     setBusy(true);
     const lines = data.rows.map((r) => ({ method: r.method, label: r.label, group: r.group, expected: r.expected, counted: r.group === "account" ? r.expected : countOf(r), difference: r.group === "account" ? 0 : Math.round((countOf(r)! - r.expected) * 100) / 100 }));
     const { data: u } = await supabase.auth.getSession();
-    const record = { store_id: storeId, day, lines, notes, settled_by: u.session?.user.id ?? "", settled_at: new Date().toISOString() };
+    const record = { store_id: storeId, day, lines, notes, settled_by: u.session?.user.id ?? "", settled_at: new Date().toISOString(), auto: false };
     let offline = !internetAvailable();
     if (!offline) {
       const { error } = await uploadSettlement(record).catch((e) => ({ error: e as { message: string } }));
