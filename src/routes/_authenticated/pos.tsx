@@ -293,9 +293,17 @@ function Till({ shiftId }: { shiftId: string }) {
             placeholder="Search name, SKU or scan barcode…" className="h-11 bg-card pl-10 text-base"
           />
         </div>
+        {/* Prominent report button on phones — easy to spot and tap */}
+        <Button
+          size="lg"
+          className="mt-2 h-12 w-full text-base font-bold md:hidden"
+          onClick={() => setDashboardOpen(true)}
+        >
+          <ReceiptText className="h-5 w-5" />My day — today's report
+        </Button>
         <div className="mt-2 flex items-center gap-2">
           <TillSyncButton />
-          <Button size="sm" variant="outline" className="shrink-0" onClick={() => setDashboardOpen(true)}><ReceiptText className="h-4 w-4" />My day</Button>
+          <Button size="sm" variant="outline" className="hidden shrink-0 md:inline-flex" onClick={() => setDashboardOpen(true)}><ReceiptText className="h-4 w-4" />My day</Button>
           <div className="flex shrink-0 gap-1 border-r pr-2">
             <Button size="icon" variant={view === "list" ? "default" : "outline"} title="List view" aria-label="List view" aria-pressed={view === "list"} onClick={() => { setView("list"); localStorage.setItem(deviceStorageKey("tilla-product-view"), "list"); }}><List className="h-4 w-4" /></Button>
             <Button size="icon" variant={view === "tile" ? "default" : "outline"} title="Tile view" aria-label="Tile view" aria-pressed={view === "tile"} onClick={() => { setView("tile"); localStorage.setItem(deviceStorageKey("tilla-product-view"), "tile"); }}><LayoutGrid className="h-4 w-4" /></Button>
