@@ -68,6 +68,23 @@ function AppLayout() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
+  // Live link: any price or stock change (till sale, refund, GRN, edit) on any device refreshes Inventory and the till.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        for (const key of ["products", "movements", "stock-movements", "branch_stock", "manage-products", "inventory", "dashboard", "reports"]) qc.invalidateQueries({ queryKey: [key] });
+      }, 400);
+    };
+    const channel = supabase
+      .channel(`stock-live-${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, refresh)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "stock_movements" }, refresh)
+      .subscribe();
+    return () => { clearTimeout(timer); supabase.removeChannel(channel); };
+  }, [qc]);
+
   async function signOut() {
     await supabase.rpc("log_event", { p_action: "logout" }).then(() => {}, () => {});
     await qc.cancelQueries();
