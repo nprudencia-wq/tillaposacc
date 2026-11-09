@@ -121,7 +121,8 @@ function Settlement({ storeId }: { storeId: string }) {
         r.group === "cash" && cashRows.length === 1 && data.shiftCash !== null ? String(data.shiftCash) : String(r.expected)])));
     }
     setNotes(data.saved?.notes ?? "");
-  }, [data.saved, data.rows, data.shiftCash]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.saved, data.rows.length, data.shiftCash]);
   const autoFilled = !(data.saved && !data.saved.auto && data.saved.lines.length > 0);
 
   const totals = groupTotals(data.rows);
