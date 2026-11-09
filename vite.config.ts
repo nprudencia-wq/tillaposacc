@@ -32,18 +32,18 @@ export default defineConfig({
           modifyURLPrefix: { "client/": "" },
           runtimeCaching: [
             {
-              urlPattern: ({ request, url, sameOrigin }) => sameOrigin && request.method === "GET" && !url.pathname.startsWith("/~oauth") && (request.mode === "navigate" || url.pathname === "/auth" || url.pathname === "/pos"),
+              urlPattern: ({ request, url, sameOrigin }) => sameOrigin && request.method === "GET" && !url.pathname.startsWith("/~oauth") && (request.mode === "navigate" || url.pathname === "/auth" || url.pathname === "/pos" || url.pathname === "/till"),
               handler: "NetworkFirst",
               options: {
                 cacheName: "pages",
-                networkTimeoutSeconds: 3,
+                networkTimeoutSeconds: 2,
                 expiration: { maxEntries: 30 },
                 plugins: [
                   {
                     // Cold launch with no internet: serve any saved app page (till first) instead of the browser offline screen.
                     handlerDidError: async () => {
                       const c = await caches.open("pages");
-                      for (const path of ["/pos", "/auth", "/"]) {
+                      for (const path of ["/pos", "/till", "/auth", "/"]) {
                         const hit = await c.match(new URL(path, self.location.origin).href, { ignoreSearch: true });
                         if (hit) return hit;
                       }

@@ -44,5 +44,8 @@ export async function setupPWA() {
   if (!navigator.serviceWorker.controller) {
     await new Promise<void>((resolve) => navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true }));
   }
-  await Promise.all(["/", "/auth", "/pos"].map((path) => fetch(path, { credentials: "same-origin" }).catch(() => undefined)));
+  const warm = () => Promise.all(["/", "/auth", "/till", "/pos"].map((path) => fetch(path, { credentials: "same-origin" }).catch(() => undefined)));
+  await warm();
+  // Keep the offline copy fresh after updates so cold launches without internet always open the till.
+  window.addEventListener("online", () => { void warm(); });
 }
