@@ -27,8 +27,8 @@ export function WelcomeTour({ userId, storeId, isOwner }: { userId: string; stor
       return { isTrial: s ? !s.is_vendor_store : false, hasSale: (count ?? 0) > 0 };
     },
   });
-  if (!isOwner || !done || !trial?.isTrial || done.dismissed) return null;
-  const state = { ...done, sale: done.sale || trial.hasSale };
+  if (!isOwner || !done || !trial?.isTrial || done["dismissed"]) return null;
+  const state: Record<string, boolean> = { ...done, sale: !!done["sale"] || trial.hasSale };
   const save = (next: Record<string, boolean>) => { setDone(next); localStorage.setItem(key, JSON.stringify(next)); };
   const finished = STEPS.every((s) => state[s.key]);
 
