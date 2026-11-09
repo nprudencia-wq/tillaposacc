@@ -117,7 +117,14 @@ function Till({ shiftId }: { shiftId: string }) {
   const [addCust, setAddCust] = useState(false);
   const [payCust, setPayCust] = useState(false);
   // Keep customer balances on the device so credit limits are checked offline too.
-  useEffect(() => { void creditSnapshot().catch(() => {}); }, []);
+  // Refresh on reconnect and every 2 minutes while online, so other tills' credit sales are known before the next outage.
+  useEffect(() => {
+    const refresh = () => { if (navigator.onLine) void creditSnapshot().catch(() => {}); };
+    refresh();
+    const t = window.setInterval(refresh, 120_000);
+    window.addEventListener("online", refresh);
+    return () => { window.clearInterval(t); window.removeEventListener("online", refresh); };
+  }, []);
   const customer = customers.find((c) => c.id === customerId);
 
   useEffect(() => {
