@@ -79,7 +79,7 @@ describe("Till completion tracking", () => {
   });
   it("keeps checkout working when tracking is unavailable", async () => {
     const { dependencies, finish } = setup();
-    dependencies.window = {} as typeof dependencies.window;
+    dependencies.window = { dispatchEvent: vi.fn() } as unknown as typeof dependencies.window;
     await handler("complete", dependencies)(payment);
     expect(finish).toHaveBeenCalledOnce();
   });
