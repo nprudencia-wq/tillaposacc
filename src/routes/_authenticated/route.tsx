@@ -1,6 +1,7 @@
 import { BackBar } from "@/components/BackBar";
 import { createFileRoute, Outlet, redirect, Link, useNavigate, Navigate, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { LayoutDashboard, ShoppingCart, Boxes, Receipt, LogOut, BarChart3, Users, Wallet, Clock, CreditCard, Contact, ClipboardList, Store, BookOpen, Pencil, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStaff } from "@/hooks/use-staff";
@@ -67,6 +68,23 @@ function AppLayout() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  // Live link: any price or stock change (till sale, refund, GRN, edit) on any device refreshes Inventory and the till.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        for (const key of ["products", "movements", "stock-movements", "branch_stock", "manage-products", "inventory", "dashboard", "reports"]) qc.invalidateQueries({ queryKey: [key] });
+      }, 400);
+    };
+    const channel = supabase
+      .channel(`stock-live-${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, refresh)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "stock_movements" }, refresh)
+      .subscribe();
+    return () => { clearTimeout(timer); supabase.removeChannel(channel); };
+  }, [qc]);
 
   async function signOut() {
     await supabase.rpc("log_event", { p_action: "logout" }).then(() => {}, () => {});
