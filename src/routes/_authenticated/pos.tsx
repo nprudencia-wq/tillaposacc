@@ -8,6 +8,7 @@ import { RecentReceipts } from "@/components/RecentReceipts";
 import { ProductImage } from "@/components/ProductImage";
 import { HardwareSettings } from "@/components/HardwareSettings";
 import { CashierDashboard } from "@/components/CashierDashboard";
+import { TillSyncButton } from "@/components/TillSyncButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useSettings, useStaff } from "@/hooks/use-staff";
 import { Button } from "@/components/ui/button";
@@ -272,6 +273,7 @@ function Till({ shiftId }: { shiftId: string }) {
           />
         </div>
         <div className="mt-2 flex items-center gap-2">
+          <TillSyncButton />
           <Button size="sm" variant="outline" className="shrink-0" onClick={() => setDashboardOpen(true)}><ReceiptText className="h-4 w-4" />My day</Button>
           <div className="flex shrink-0 gap-1 border-r pr-2">
             <Button size="icon" variant={view === "list" ? "default" : "outline"} title="List view" aria-label="List view" aria-pressed={view === "list"} onClick={() => { setView("list"); localStorage.setItem(deviceStorageKey("tilla-product-view"), "list"); }}><List className="h-4 w-4" /></Button>
