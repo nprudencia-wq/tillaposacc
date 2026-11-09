@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as SignupRouteImport } from './routes/signup'
 import { Route as TillRouteImport } from './routes/till'
 import { Route as AuthenticatedAccountingRouteImport } from './routes/_authenticated/accounting'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
@@ -48,6 +49,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TillRoute = TillRouteImport.update({
@@ -172,6 +178,7 @@ const AuthenticatedSuppliersRoute = AuthenticatedSuppliersRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/signup': typeof SignupRoute
   '/till': typeof TillRoute
   '/accounting': typeof AuthenticatedAccountingRoute
   '/billing': typeof AuthenticatedBillingRoute
@@ -199,6 +206,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/signup': typeof SignupRoute
   '/till': typeof TillRoute
   '/accounting': typeof AuthenticatedAccountingRoute
   '/billing': typeof AuthenticatedBillingRoute
@@ -228,6 +236,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/signup': typeof SignupRoute
   '/till': typeof TillRoute
   '/_authenticated/accounting': typeof AuthenticatedAccountingRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
@@ -257,6 +266,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/signup'
     | '/till'
     | '/accounting'
     | '/billing'
@@ -284,6 +294,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/signup'
     | '/till'
     | '/accounting'
     | '/billing'
@@ -312,6 +323,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/signup'
     | '/till'
     | '/_authenticated/accounting'
     | '/_authenticated/billing'
@@ -341,6 +353,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  SignupRoute: typeof SignupRoute
   TillRoute: typeof TillRoute
 }
 
@@ -365,6 +378,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/till': {
@@ -588,6 +608,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  SignupRoute: SignupRoute,
   TillRoute: TillRoute,
 }
 export const routeTree = rootRouteImport
