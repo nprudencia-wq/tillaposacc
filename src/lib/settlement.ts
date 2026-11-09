@@ -8,7 +8,7 @@ interface Input {
   sales: { id: string; sale_number: string; created_at: string; cashier: string; change_given: number; status?: string; payments: { method: string; amount: number; exchange_rate: number }[] }[];
   refunds: { id: string; created_at: string; cashier: string; method: string; amount: number }[];
   repayments: { payment_number: string; created_at: string; cashier: string; method: string; amount: number }[];
-  movements: { id: string; created_at: string; cashier: string; type: string; usd: number }[];
+  movements: { id: string; created_at: string; cashier: string; type: string; usd: number; reason?: string | null }[];
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -53,6 +53,8 @@ export function buildSettlement(input: Input): MethodRow[] {
     r.sources.push({ kind: "refund", ref: `Refund ${f.id.slice(0, 8)}`, at: f.created_at, cashier: f.cashier, method: f.method, usd: -r2(Number(f.amount)) });
   }
   for (const m of input.movements) {
+    // Debt payments in cash also log a drawer paid-in; they're already counted as repayments.
+    if (m.type === "paid_in" && (m.reason ?? "").startsWith("Debt payment from")) continue;
     const r = row(cashCode);
     const signed = m.type === "paid_in" ? m.usd : -m.usd;
     r.movements += signed;

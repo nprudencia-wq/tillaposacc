@@ -66,7 +66,7 @@ function Settlement({ storeId }: { storeId: string }) {
         movements: server.movements,
       });
       const pending = (await readPendingSettlements()).find((p) => p.store_id === storeId && p.day === day);
-      const saved = pending ? { ...pending, offline: true } : server.saved;
+      const saved = pending ? (pending as unknown as NonNullable<typeof server.saved>) : server.saved;
       return { rows, saved, settledBy: pending ? `${me} (waiting to upload)` : server.settledBy, saleCount: server.sales.length + local.length, localCount: local.length + reps.length, checkedAt: server.checkedAt };
     },
   });
@@ -83,7 +83,7 @@ function Settlement({ storeId }: { storeId: string }) {
         all<any>(() => supabase.from("sales").select("id, sale_number, created_at, cashier_id, change_given, status, client_ref, sale_payments(method, amount, exchange_rate)").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
         all<any>(() => supabase.from("refunds").select("id, created_at, refunded_by, method, amount").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
         all<any>(() => supabase.from("customer_payments").select("payment_number, created_at, received_by, method, amount, client_ref").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
-        all<any>(() => supabase.from("shift_cash_movements").select("id, created_at, user_id, type, currency, amount").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
+        all<any>(() => supabase.from("shift_cash_movements").select("id, created_at, user_id, type, currency, amount, reason").eq("store_id", storeId).gte("created_at", start).lt("created_at", end).order("id")),
       ]);
       const rate = (c: string) => (c === "ZiG" || c === "ZIG" ? Number(settings.data?.zig_rate) : c === "ZAR" ? Number(settings.data?.rand_rate) : 1) || 1;
       const { data: auth } = await supabase.auth.getSession();
