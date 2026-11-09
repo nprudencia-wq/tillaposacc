@@ -154,7 +154,8 @@ function Settlement({ storeId }: { storeId: string }) {
   const countOf = (r: MethodRow) => (counted[r.method] === undefined || counted[r.method] === "" ? null : Number(counted[r.method]));
   const settleRows = data.rows.filter((r) => r.group !== "account");
 
-  async function save(override?: Record<string, string>) {
+  async function save(override?: Record<string, string>, noteOverride?: string) {
+    const notesToSave = noteOverride ?? notes;
     const src = override ?? counted;
     const countOf = (r: MethodRow) => (src[r.method] === undefined || src[r.method] === "" ? null : Number(src[r.method]));
     const bad = settleRows.find((r) => countOf(r) === null || !Number.isFinite(countOf(r)!) || countOf(r)! < 0);
@@ -166,7 +167,7 @@ function Settlement({ storeId }: { storeId: string }) {
     else if (owedTotal !== undefined) (lines as unknown[]).push({ method: "_owed", label: "Total owed by customers", group: "owed", expected: owedTotal, counted: owedTotal, difference: 0 });
     const { data: u } = await supabase.auth.getSession();
     const approving = !!data.saved?.auto;
-    const record = { store_id: storeId, day, lines, notes, settled_by: u.session?.user.id ?? "", settled_at: new Date().toISOString(), auto: false,
+    const record = { store_id: storeId, day, lines, notes: notesToSave, settled_by: u.session?.user.id ?? "", settled_at: new Date().toISOString(), auto: false,
       ...(approving ? { approved_by: u.session?.user.id ?? null, approved_at: new Date().toISOString() } : {}) };
     let offline = !internetAvailable();
     if (!offline) {
@@ -183,8 +184,9 @@ function Settlement({ storeId }: { storeId: string }) {
   async function settleAuto() {
     const auto = autoCounts();
     setCounted(auto);
-    if (!notes) setNotes(`Settled automatically from till figures${data.shiftCount ? ` and ${data.shiftCount} shift close count(s)` : ""}.`);
-    await save(auto);
+    const note = notes || `Settled automatically from till figures${data.shiftCount ? ` and ${data.shiftCount} shift close count(s)` : ""}.`;
+    setNotes(note);
+    await save(auto, note);
   }
 
   return (
@@ -238,7 +240,7 @@ function Settlement({ storeId }: { storeId: string }) {
                     <td className="p-3 text-right font-semibold">{money(r.expected)}</td>
                     <td className="p-3 text-right">
                       {r.group === "account" ? <span className="text-muted-foreground">On customer accounts</span> :
-                        <Input inputMode="decimal" className="ml-auto w-28 text-right print:hidden" value={counted[r.method] ?? ""} onChange={(e) => setCounted({ ...counted, [r.method]: e.target.value })} placeholder="0.00" />}
+                        <Input inputMode="decimal" className="ml-auto w-28 text-right print:hidden" value={counted[r.method] ?? ""} onChange={(e) => { setEdited(true); setCounted({ ...counted, [r.method]: e.target.value }); }} placeholder="0.00" />}
                       {r.group !== "account" && <span className="hidden print:inline">{c === null ? "—" : money(c)}</span>}
                     </td>
                     <td className={`p-3 text-right font-semibold ${diff === null ? "" : diff < 0 ? "text-destructive" : diff > 0 ? "text-primary" : ""}`}>{diff === null ? "—" : diff > 0 ? `+${money(diff)}` : money(diff)}</td>
