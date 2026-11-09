@@ -3,6 +3,17 @@ import type { ReceiptData } from "@/components/Receipt";
 import type { ReceiptConfig } from "@/lib/receipt-config";
 
 const ESC = 0x1b, GS = 0x1d;
+export function logoRaster(width: number, height: number, pixels: Uint8ClampedArray) {
+  const bytesWide = Math.ceil(width / 8);
+  const bytes = new Uint8Array(8 + bytesWide * height);
+  bytes.set([GS, 0x76, 0x30, 0, bytesWide & 255, bytesWide >> 8, height & 255, height >> 8]);
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const i = (y * width + x) * 4;
+    const brightness = (pixels[i] * 0.299 + pixels[i + 1] * 0.587 + pixels[i + 2] * 0.114) * pixels[i + 3] / 255 + 255 - pixels[i + 3];
+    if (brightness < 160) bytes[8 + y * bytesWide + Math.floor(x / 8)] |= 0x80 >> (x % 8);
+  }
+  return bytes;
+}
 export const DRAWER_KICK = new Uint8Array([ESC, 0x70, 0x00, 0x19, 0xfa]); // pin 2, ~50ms/500ms
 export const CUT = new Uint8Array([GS, 0x56, 0x42, 0x00]);
 
@@ -40,11 +51,13 @@ export type StoreInfo = {
 
 const fmt = (n: number, cur: string) => `${cur === "USD" ? "$" : cur === "ZAR" ? "R" : "ZiG "}${n.toFixed(2)}`;
 
-export function receiptBytes(r: ReceiptData, store: StoreInfo | undefined, c: ReceiptConfig, opts: { cut?: boolean; kick?: boolean } = {}) {
+export function receiptBytes(r: ReceiptData, store: StoreInfo | undefined, c: ReceiptConfig, opts: { cut?: boolean; kick?: boolean; logo?: Uint8Array } = {}) {
   const cols = columnsFor(c.paper_width);
   const dash = "-".repeat(cols);
   const cv = (usd: number) => (r.currency !== "USD" ? usd * r.rate : usd);
-  const p = new EscPos().init().align("center").bold(true).line(store?.business_name || r.business).bold(false);
+  const p = new EscPos().init().align("center");
+  if (c.show_logo && opts.logo) p.raw(opts.logo).line();
+  p.bold(true).line(store?.business_name || r.business).bold(false);
   if (c.show_address && store?.address) p.line(store.address);
   if (c.show_phone && store?.phone) p.line(`Tel: ${store.phone}`);
   if (c.show_email && store?.email) p.line(store.email);
