@@ -34,7 +34,7 @@ export const PERMISSIONS = {
   module_expenses: "Expenses",
   module_accounting: "Accounting",
   module_settings: "Settings (payment types, currency, store, billing)",
-  report_pl: "Profit & loss",
+  report_pl: "Income statement",
   report_expenses: "Expenses",
   report_daily: "Daily sales",
   report_product: "By product",
