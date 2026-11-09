@@ -71,6 +71,11 @@ function AppLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useShopUpdates(me?.storeId, me?.id);
+  const { data: vendorStore } = useQuery({
+    queryKey: ["vendor-store", me?.storeId],
+    enabled: !!me?.storeId && !!me?.isOwner,
+    queryFn: async () => (await supabase.from("stores").select("is_vendor_store").eq("id", me!.storeId).maybeSingle()).data?.is_vendor_store ?? false,
+  });
 
   async function signOut() {
     await supabase.rpc("log_event", { p_action: "logout" }).then(() => {}, () => {});
@@ -112,7 +117,7 @@ function AppLayout() {
     );
   }
 
-  const allowed = (path: string) => { if (path === "/trials") return !!me?.isOwner && vendorStore === true; const p = moduleFor(path); return !p || !me || (p === "view_reports" ? me.canViewReports : me.perms?.[p] !== false); };
+  const allowed = (path: string) => { if (path === "/trials") return !me || (me.isOwner && vendorStore !== false); const p = moduleFor(path); return !p || !me || (p === "view_reports" ? me.canViewReports : me.perms?.[p] !== false); };
   if (me && !allowed(pathname)) return <Navigate to="/pos" replace />;
 
   const visibleGroups = navGroups.map((g) => ({ ...g, items: g.items.filter((n) => allowed(n.to)) })).filter((g) => g.items.length);

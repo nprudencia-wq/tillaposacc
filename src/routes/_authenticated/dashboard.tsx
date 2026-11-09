@@ -11,6 +11,7 @@ import { money, type Currency, type PayMethod } from "@/lib/pos";
 import { methodLabel } from "@/lib/payment-types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ReceiptActions, type ReceiptData } from "@/components/Receipt";
+import { WelcomeTour } from "@/components/WelcomeTour";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Tilla POS" }, { name: "description", content: "Sales and stock at a glance." }, { property: "og:title", content: "Dashboard — Tilla POS" }, { property: "og:description", content: "Sales and stock at a glance." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
