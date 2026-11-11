@@ -1,0 +1,1 @@
+ALTER PUBLICATION supabase_realtime ADD TABLE public.cashbook_reconciliations, public.asset_register, public.asset_depreciation;
