@@ -48,8 +48,10 @@ const navGroups = [
   ] },
   { title: "Reports", icon: BarChart3, items: [
     { to: "/reports", label: "Reports" },
-    { to: "/expenses", label: "Expenses" },
+  ] },
+  { title: "Accounting", icon: BookOpen, items: [
     { to: "/accounting", label: "Accounting" },
+    { to: "/expenses", label: "Expenses" },
   ] },
   { title: "Settings", icon: Settings, items: [
     { to: "/store", label: "Store profile" },

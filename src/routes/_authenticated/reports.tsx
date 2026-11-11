@@ -134,12 +134,6 @@ function Reports() {
         ],
       },
       {
-        id: "expenses", label: "Expenses",
-        cols: [{ key: "name", label: "Date" }, { key: "category", label: "Category" }, { key: "description", label: "Description" }, { key: "total", label: "USD", money: true }],
-        rows: [...data.expenses].sort((a, b) => a.expense_date.localeCompare(b.expense_date)).map((e) => ({ name: e.expense_date, category: e.category, description: e.description ?? "", total: r2(Number(e.amount)) })),
-        totals: { name: "Total", category: "", description: "", total: r2(expenses) },
-      },
-      {
         id: "daily", label: "Daily sales",
         cols: [{ key: "name", label: "Date" }, { key: "count", label: "Transactions" }, { key: "total", label: "Sales (USD)", money: true }],
         rows: byDay.map((d) => ({ name: d.name, count: d.count, total: r2(d.total) })),
