@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { money } from "@/lib/pos";
 import { exportExcel, exportPDF, type Col, type Row } from "@/lib/export";
-import { balanceSheet, journalBalanced, profitFor, trialBalance, type AccountType, type GlAccount, type GlLine, type TbRow } from "@/lib/ledger";
+import { assetSchedule, balanceSheet, journalBalanced, profitFor, trialBalance, type AccountType, type GlAccount, type GlLine, type TbRow } from "@/lib/ledger";
 
 export const Route = createFileRoute("/_authenticated/accounting")({
   head: () => ({
@@ -173,9 +173,17 @@ function Statement({ title, rows, total }: { title: string; rows: TbRow[]; total
 
 function BalanceSheetTab({ tb, to }: { tb: TbRow[]; to: string }) {
   const bs = balanceSheet(tb);
+  const assets = assetSchedule(tb);
   const earn: TbRow = { code: "", name: "Current earnings (profit to date)", type: "equity", debit: 0, credit: 0, balance: bs.earnings };
   const rows: Row[] = [
-    ...bs.assets.map((r) => ({ line: r.name, amount: r.balance })), { line: "Total assets", amount: bs.totalAssets },
+    ...assets.flatMap((a) => a.accRow
+      ? [
+          { line: `${a.row.name} — cost`, amount: a.row.balance },
+          { line: `${a.row.name} — less accumulated depreciation`, amount: -a.acc },
+          { line: `${a.row.name} — net book value`, amount: a.nbv },
+        ]
+      : [{ line: a.row.name, amount: a.row.balance }]),
+    { line: "Total assets", amount: bs.totalAssets },
     ...bs.liabilities.map((r) => ({ line: r.name, amount: r.balance })), { line: "Total liabilities", amount: bs.totalLiabilities },
     ...bs.equity.map((r) => ({ line: r.name, amount: r.balance })), { line: earn.name, amount: bs.earnings }, { line: "Total equity", amount: bs.totalEquity },
     { line: "Liabilities + equity", amount: bs.totalLE },
@@ -187,7 +195,26 @@ function BalanceSheetTab({ tb, to }: { tb: TbRow[]; to: string }) {
         <ExportButtons name={`balance-sheet-${to}`} title="Balance sheet" sub={`As at ${to}`} cols={[{ key: "line", label: "Line" }, { key: "amount", label: "USD", money: true }]} rows={rows} />
       </div>
       <div className="grid gap-6 md:grid-cols-2">
-        <div><Statement title="Assets" rows={bs.assets} total={bs.totalAssets} /></div>
+        <div>
+          <div className="mt-3">
+            <h3 className="font-semibold">Assets</h3>
+            {assets.length === 0 && <p className="text-sm text-muted-foreground">Nothing yet.</p>}
+            {assets.map((a) => (
+              <div key={a.row.code} className="py-1 text-sm">
+                {a.accRow ? (
+                  <>
+                    <div className="flex justify-between"><span>{a.row.code} {a.row.name} — cost</span><span className="tabular">{money(a.row.balance)}</span></div>
+                    <div className="flex justify-between text-muted-foreground"><span className="pl-4">Less accumulated depreciation</span><span className="tabular">({money(a.acc)})</span></div>
+                    <div className="flex justify-between font-medium"><span className="pl-4">Net book value</span><span className="tabular">{money(a.nbv)}</span></div>
+                  </>
+                ) : (
+                  <div className="flex justify-between"><span>{a.row.code} {a.row.name}</span><span className="tabular">{money(a.row.balance)}</span></div>
+                )}
+              </div>
+            ))}
+            <div className="flex justify-between border-t py-1 font-semibold"><span>Total assets</span><span className="tabular">{money(bs.totalAssets)}</span></div>
+          </div>
+        </div>
         <div>
           <Statement title="Liabilities" rows={bs.liabilities} total={bs.totalLiabilities} />
           <Statement title="Equity" rows={[...bs.equity, earn]} total={bs.totalEquity} />

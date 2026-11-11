@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { balanceSheet, journalBalanced, profitFor, trialBalance, type GlAccount, type GlLine } from "./ledger";
+import { assetSchedule, balanceSheet, journalBalanced, profitFor, trialBalance, type GlAccount, type GlLine } from "./ledger";
 
 const acc: GlAccount[] = [
   { code: "1000", name: "Cash", type: "asset", system: true, active: true },
@@ -30,6 +30,22 @@ describe("ledger", () => {
   it("profit only counts the chosen dates", () => {
     expect(profitFor(lines, acc, "2026-11-01", "2026-11-30").profit).toBe(12);
     expect(profitFor(lines, acc, "2026-10-01", "2026-10-31").profit).toBe(0);
+  });
+  it("asset schedule pairs cost with accumulated depreciation", () => {
+    const accs: GlAccount[] = [
+      ...acc,
+      { code: "990", name: "Building", type: "asset", system: false, active: true },
+      { code: "990-AD", name: "Accumulated depreciation - Building", type: "asset", system: false, active: true },
+    ];
+    const ls = [...lines, L("2026-01-01", "990", 10000, 0), L("2026-12-31", "990-AD", 0, 1000)];
+    const tb = trialBalance(ls, accs);
+    const sch = assetSchedule(tb);
+    const b = sch.find((a) => a.row.code === "990")!;
+    expect(b.row.balance).toBe(10000);
+    expect(b.acc).toBe(1000);
+    expect(b.nbv).toBe(9000);
+    expect(sch.some((a) => a.row.code === "990-AD")).toBe(false);
+    expect(sch.find((a) => a.row.code === "1000")!.acc).toBe(0);
   });
   it("journal must balance", () => {
     expect(journalBalanced([{ debit: 50, credit: 0 }, { debit: 0, credit: 50 }]).ok).toBe(true);
