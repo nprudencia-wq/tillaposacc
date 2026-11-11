@@ -302,7 +302,7 @@ function Till({ shiftId }: { shiftId: string }) {
   return (
     <div className="flex h-full min-w-0 flex-col overflow-hidden md:flex-row">
       {/* Cart */}
-      <aside className="flex max-h-[50vh] w-full shrink-0 flex-col border-t bg-card md:max-h-none order-last md:order-3 md:w-[360px] md:border-l md:border-t-0 lg:w-[400px] xl:w-[440px]">
+      <aside className="flex max-h-[50vh] w-full shrink-0 flex-col border-t bg-card md:max-h-none order-last md:order-2 md:w-[360px] md:border-l md:border-t-0 lg:w-[400px] xl:w-[440px]">
         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 border-b px-3 py-2">
           <h2 className="text-base font-bold">Sale</h2>
           <div className="flex min-w-0 justify-end gap-1 overflow-x-auto">
@@ -378,13 +378,8 @@ function Till({ shiftId }: { shiftId: string }) {
           <Button size="lg" className="h-11 w-full text-base" disabled={!lines.length} onClick={() => setPayOpen(true)}>Charge {show(total)}</Button>
         </div>
       </aside>
-      {/* Categories */}
-      <nav aria-label="Categories" className="hidden w-32 shrink-0 flex-col gap-1 overflow-y-auto border-r bg-muted/40 p-2 md:order-1 md:flex lg:w-40">
-        <Button variant={cat === null ? "default" : "ghost"} className="h-11 justify-start whitespace-normal text-left" onClick={() => setCat(null)}>All products</Button>
-        {categories.map((c) => <Button key={c.id} variant={cat === c.id ? "default" : "ghost"} className="h-auto min-h-11 justify-start whitespace-normal py-2 text-left" onClick={() => setCat(c.id)}>{c.name}</Button>)}
-      </nav>
       {/* Products */}
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col p-2 md:order-2 md:p-3">
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col p-2 md:order-1 md:p-3">
         <div className="flex flex-wrap items-center gap-2">
           <Button size="icon" variant="outline" className="h-11 w-11 shrink-0" aria-label="Open till menu" onClick={() => setMenuOpen(true)}><Menu className="h-5 w-5" /></Button>
           <div className="relative min-w-[10rem] flex-1">
