@@ -454,7 +454,7 @@ function Till({ shiftId }: { shiftId: string }) {
 
       {payCust && customer && <AccountPaymentDialog customer={customer} shiftId={shiftId} zigRate={rate} randRate={randRate} randEnabled={randEnabled} onClose={() => setPayCust(false)} />}
       {addCust && <CustomerDialog customer={null} onClose={() => setAddCust(false)} onSaved={(c) => { qc.invalidateQueries({ queryKey: ["customers"] }); setCustomerId(c.id); }} />}
-      {payOpen && <PayDialog total={total} currency={currency} rate={rate} randRate={randRate} onClose={() => setPayOpen(false)} onPay={complete} />}
+      {payOpen && <PayDialog total={total} currency={currency} rate={rate} randRate={randRate} customer={customer} onClose={() => setPayOpen(false)} onPay={complete} />}
 
       <RecentReceipts open={reprintOpen} onOpenChange={setReprintOpen} />
       <HardwareSettings open={hwOpen} onOpenChange={setHwOpen} />
@@ -488,8 +488,10 @@ function Till({ shiftId }: { shiftId: string }) {
   );
 }
 
-function PayDialog({ total, currency, rate, randRate, onClose, onPay }: {
-  total: number; currency: Currency; rate: number; randRate: number; onClose: () => void; onPay: (p: Payment[]) => Promise<void>;
+function PayDialog({ total, currency, rate, randRate, customer, onClose, onPay }: {
+  total: number; currency: Currency; rate: number; randRate: number;
+  customer: { id: string; name: string; credit_limit: number } | null;
+  onClose: () => void; onPay: (p: Payment[]) => Promise<void>;
 }) {
   const { data: types } = usePaymentTypes();
   const methods = activeTypes(types);
@@ -525,6 +527,28 @@ function PayDialog({ total, currency, rate, randRate, onClose, onPay }: {
           <Button variant="outline" size="sm" onClick={() => setPayments([...payments, { method: second, currency, amount: Math.max(0, fromUSD(-change, currency, rate, randRate)) }])}>
             <Plus className="h-4 w-4" />Split payment
           </Button>
+          {payments.some((p) => isAccountType(p.method)) && !customer && (
+            <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              Choose the customer first — a payment on account needs a credit customer name.
+            </p>
+          )}
+          <div className="space-y-1 rounded-xl border p-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Payment allocation</div>
+            {payments.filter((p) => p.amount > 0).map((p, i) => (
+              <div key={i} className="flex items-baseline justify-between gap-2 text-sm">
+                <span>
+                  {methodLabel(p.method)}
+                  {isAccountType(p.method) && (
+                    <span className="ml-1 font-medium text-primary">
+                      · on account{customer ? ` — ${customer.name}` : ""}
+                    </span>
+                  )}
+                  {p.reference?.trim() && <span className="ml-1 text-xs text-muted-foreground">ref {p.reference.trim()}</span>}
+                </span>
+                <span className="tabular font-medium">{money(p.amount, p.currency)}</span>
+              </div>
+            ))}
+          </div>
           <div className="tabular rounded-xl bg-muted p-4">
             <div className="flex justify-between text-sm"><span>Paid</span><span>{money(fromUSD(paidUSD(payments, rate, randRate), currency, rate, randRate), currency)}</span></div>
             <div className={`flex justify-between font-display text-xl font-bold ${change < 0 ? "text-destructive" : "text-success"}`}>
