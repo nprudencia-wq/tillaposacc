@@ -66,7 +66,7 @@ function Dashboard() {
         supabase.from("profiles").select("id, full_name"),
         supabase.from("sale_items").select("quantity, refunded_qty, cost_price, sales!inner(created_at)").gte("sales.created_at", start).lte("sales.created_at", end),
       ]);
-      return { cogs: (pItems ?? []).reduce((a, i) => a + Number(i.cost_price) * (Number(i.quantity) - Number(i.refunded_qty ?? 0)), 0), sales: sales ?? [], pays: pays ?? [], refunds: refunds ?? [], names: Object.fromEntries((profiles ?? []).map((p) => [p.id, p.full_name])) as Record<string, string> };
+      return { items: pItems ?? [], cogs: (pItems ?? []).reduce((a, i) => a + Number(i.cost_price) * (Number(i.quantity) - Number(i.refunded_qty ?? 0)), 0), sales: sales ?? [], pays: pays ?? [], refunds: refunds ?? [], names: Object.fromEntries((profiles ?? []).map((p) => [p.id, p.full_name])) as Record<string, string> };
     },
   });
 
@@ -75,6 +75,17 @@ function Dashboard() {
   const pDisc = pSales.reduce((a, s) => a + Number(s.discount), 0);
   const pTotal = pSales.reduce((a, s) => a + Number(s.total), 0);
   const pRefunds = (summary?.refunds ?? []).reduce((a, r) => a + Number((r as { amount: number }).amount ?? 0), 0);
+  const dayKey = (t: string) => new Date(t).toLocaleDateString("en-CA", { timeZone: "Africa/Harare" });
+  const daily = Object.values(pSales.reduce<Record<string, { day: string; n: number; gross: number; disc: number; net: number; refund: number; cost: number }>>((acc, x) => {
+    const e = (acc[dayKey(x.created_at)] ??= { day: dayKey(x.created_at), n: 0, gross: 0, disc: 0, net: 0, refund: 0, cost: 0 });
+    e.n++; e.gross += Number(x.subtotal); e.disc += Number(x.discount); e.net += Number(x.total);
+    return acc;
+  }, {}));
+  const dmap = Object.fromEntries(daily.map((d) => [d.day, d]));
+  const blank = (day: string) => (dmap[day] ??= (daily.push({ day, n: 0, gross: 0, disc: 0, net: 0, refund: 0, cost: 0 }), daily[daily.length - 1]!));
+  for (const r of summary?.refunds ?? []) blank(dayKey(r.created_at)).refund += Number(r.amount);
+  for (const i of summary?.items ?? []) { const t = (i.sales as unknown as { created_at: string }).created_at; blank(dayKey(t)).cost += Number(i.cost_price) * (Number(i.quantity) - Number(i.refunded_qty ?? 0)); }
+  daily.sort((a, b) => b.day.localeCompare(a.day));
   const avg = pSales.length ? pTotal / pSales.length : 0;
 
   const byMethod = Object.values((summary?.pays ?? []).reduce<Record<string, { key: string; label: string; usd: number; count: Set<string> }>>((acc, p) => {
@@ -184,6 +195,27 @@ function Dashboard() {
             <div className="flex justify-between border-b py-2"><span>Gross margin</span><span className="tabular">{pTotal - pRefunds > 0 ? `${(((pTotal - pRefunds - (summary?.cogs ?? 0)) / (pTotal - pRefunds)) * 100).toFixed(1)}%` : "—"}</span></div>
             <div className="flex justify-between border-b py-2"><span>Receipts · average</span><span className="tabular">{pSales.length} · {money(avg)}</span></div>
           </div>
+        </div>
+
+        <div className="mt-6 rounded-xl border bg-card p-5 shadow-soft">
+          <h3 className="mb-3 font-semibold">Sales and gross profit by day</h3>
+          {!daily.length ? <p className="text-sm text-muted-foreground">No sales in this period.</p> : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead className="text-left text-muted-foreground"><tr>{["Date", "Receipts", "Gross sales", "Discounts", "Refunds", "Net sales", "Cost of goods", "Gross profit", "Margin"].map((h, k) => <th key={h} className={`py-1 font-medium ${k ? "text-right" : ""}`}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {daily.map((d) => { const net = d.net - d.refund, gp = net - d.cost; return (
+                    <tr key={d.day} className="border-t">
+                      <td className="py-2">{new Date(d.day + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}</td>
+                      <td className="tabular text-right">{d.n}</td><td className="tabular text-right">{money(d.gross)}</td><td className="tabular text-right">{money(d.disc)}</td><td className="tabular text-right">{money(d.refund)}</td>
+                      <td className="tabular text-right font-medium">{money(net)}</td><td className="tabular text-right">{money(d.cost)}</td>
+                      <td className={`tabular text-right font-semibold ${gp < 0 ? "text-destructive" : ""}`}>{money(gp)}</td><td className="tabular text-right">{net > 0 ? `${((gp / net) * 100).toFixed(1)}%` : "—"}</td>
+                    </tr>
+                  ); })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
