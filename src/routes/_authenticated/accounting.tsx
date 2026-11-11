@@ -84,6 +84,7 @@ function AccountingPage() {
           <TabsTrigger value="pl">Income statement</TabsTrigger>
           <TabsTrigger value="bs">Balance sheet</TabsTrigger>
           <TabsTrigger value="gl">General ledger</TabsTrigger>
+          <TabsTrigger value="cb">Cashbook reconciliation</TabsTrigger>
           <TabsTrigger value="jv">Journals</TabsTrigger>
           <TabsTrigger value="coa">Chart of accounts</TabsTrigger>
         </TabsList>
@@ -91,6 +92,7 @@ function AccountingPage() {
         <TabsContent value="pl"><IncomeTab lines={all} accounts={accs} from={from} to={to} /></TabsContent>
         <TabsContent value="bs"><BalanceSheetTab tb={tb} to={to} /></TabsContent>
         <TabsContent value="gl"><LedgerTab lines={all} accounts={accs} from={from} to={to} /></TabsContent>
+        <TabsContent value="cb"><CashbookTab lines={all} accounts={accs} from={from} to={to} /></TabsContent>
         <TabsContent value="jv"><JournalTab accounts={accs} /></TabsContent>
         <TabsContent value="coa"><AccountsTab accounts={accs} /></TabsContent>
       </Tabs>
@@ -348,6 +350,76 @@ function AccountsTab({ accounts }: { accounts: GlAccount[] }) {
           ))}
         </div>
       ))}
+    </section>
+  );
+}
+
+function CashbookTab({ lines, accounts, from, to }: { lines: GlLine[]; accounts: GlAccount[]; from: string; to: string }) {
+  const [acct, setAcct] = useState("1000");
+  const [stmt, setStmt] = useState("");
+  const [cleared, setCleared] = useState<Set<number>>(new Set());
+  const cashAccts = accounts.filter((a) => a.type === "asset" && a.code !== "1100" && a.code !== "1200");
+  const { opening, rows, closing } = useMemo(() => {
+    const mine = lines.filter((l) => l.account_code === acct).sort((a, b) => a.entry_date.localeCompare(b.entry_date));
+    const opening = mine.filter((l) => l.entry_date < from).reduce((a, l) => a + Number(l.debit) - Number(l.credit), 0);
+    const rows = mine.filter((l) => l.entry_date >= from && l.entry_date <= to);
+    const closing = opening + rows.reduce((a, l) => a + Number(l.debit) - Number(l.credit), 0);
+    return { opening: Math.round(opening * 100) / 100, rows, closing: Math.round(closing * 100) / 100 };
+  }, [lines, acct, from, to]);
+  const unclearedIn = rows.reduce((a, l, i) => a + (cleared.has(i) ? 0 : Number(l.debit)), 0);
+  const unclearedOut = rows.reduce((a, l, i) => a + (cleared.has(i) ? 0 : Number(l.credit)), 0);
+  const statement = Number(stmt) || 0;
+  const adjusted = Math.round((statement + unclearedIn - unclearedOut) * 100) / 100;
+  const diff = Math.round((closing - adjusted) * 100) / 100;
+  const toggle = (i: number) => { const n = new Set(cleared); if (n.has(i)) n.delete(i); else n.add(i); setCleared(n); };
+  const cols: Col[] = [{ key: "date", label: "Date" }, { key: "ref", label: "Reference" }, { key: "memo", label: "Details" }, { key: "in", label: "Money in", money: true }, { key: "out", label: "Money out", money: true }, { key: "status", label: "Status" }];
+  const exp: Row[] = [
+    ...rows.map((r, i) => ({ date: r.entry_date, ref: r.reference, memo: r.memo, in: Number(r.debit), out: Number(r.credit), status: cleared.has(i) ? "Cleared" : "Not cleared" })),
+    { date: "", ref: "", memo: "Cashbook balance", in: closing, out: 0, status: "" },
+    { date: "", ref: "", memo: "Statement / counted balance", in: statement, out: 0, status: "" },
+    { date: "", ref: "", memo: "Difference", in: diff, out: 0, status: diff === 0 ? "Reconciled" : "Not reconciled" },
+  ];
+  return (
+    <section className="mt-4 rounded-xl border bg-card p-4 shadow-soft">
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end gap-3">
+          <div><Label>Cashbook</Label>
+            <Select value={acct} onValueChange={(v) => { setAcct(v); setCleared(new Set()); }}>
+              <SelectTrigger className="w-64" aria-label="Cashbook account"><SelectValue /></SelectTrigger>
+              <SelectContent>{cashAccts.map((a) => <SelectItem key={a.code} value={a.code}>{a.code} {a.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div><Label htmlFor="cb-stmt">Bank statement / cash counted on {to}</Label><Input id="cb-stmt" inputMode="decimal" className="w-48" value={stmt} onChange={(e) => setStmt(e.target.value)} placeholder="0.00" /></div>
+        </div>
+        <ExportButtons name={`cashbook-rec-${acct}-${to}`} title={`Cashbook reconciliation ${acct}`} sub={`${from} to ${to}`} cols={cols} rows={exp} />
+      </div>
+      <div className="grid gap-2 rounded-lg border p-3 text-sm sm:grid-cols-2">
+        <div className="flex justify-between"><span>Opening balance ({from})</span><span className="tabular">{money(opening)}</span></div>
+        <div className="flex justify-between"><span>Cashbook balance ({to})</span><span className="tabular font-semibold">{money(closing)}</span></div>
+        <div className="flex justify-between"><span>Statement / counted balance</span><span className="tabular">{money(statement)}</span></div>
+        <div className="flex justify-between"><span>Add: money in not yet cleared</span><span className="tabular">{money(unclearedIn)}</span></div>
+        <div className="flex justify-between"><span>Less: money out not yet cleared</span><span className="tabular">{money(unclearedOut)}</span></div>
+        <div className="flex justify-between"><span>Adjusted statement balance</span><span className="tabular">{money(adjusted)}</span></div>
+        <div className={`flex justify-between font-bold sm:col-span-2 ${diff === 0 ? "" : "text-destructive"}`}><span>{diff === 0 ? "Reconciled" : "Difference to investigate"}</span><span className="tabular">{money(diff)}</span></div>
+      </div>
+      <p className="my-2 text-sm text-muted-foreground">Tick each entry that appears on your bank statement or was counted in cash.</p>
+      <Table>
+        <TableHeader><TableRow><TableHead>Cleared</TableHead><TableHead>Date</TableHead><TableHead>Type</TableHead><TableHead>Reference</TableHead><TableHead>Details</TableHead><TableHead className="text-right">Money in</TableHead><TableHead className="text-right">Money out</TableHead></TableRow></TableHeader>
+        <TableBody>
+          {rows.length === 0 && <TableRow><TableCell colSpan={7} className="text-muted-foreground">No entries in these dates.</TableCell></TableRow>}
+          {rows.map((r, i) => (
+            <TableRow key={i}>
+              <TableCell><input type="checkbox" aria-label={`Cleared ${r.reference}`} className="h-4 w-4" checked={cleared.has(i)} onChange={() => toggle(i)} /></TableCell>
+              <TableCell className="tabular">{r.entry_date}</TableCell><TableCell>{SOURCE_LABEL[r.source] ?? r.source}</TableCell><TableCell>{r.reference}</TableCell><TableCell className="max-w-56 truncate">{r.memo}</TableCell>
+              <TableCell className="text-right tabular">{Number(r.debit) ? money(Number(r.debit)) : ""}</TableCell><TableCell className="text-right tabular">{Number(r.credit) ? money(Number(r.credit)) : ""}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <div className="mt-2 flex gap-2">
+        <Button variant="outline" size="sm" onClick={() => setCleared(new Set(rows.map((_, i) => i)))}>Tick all</Button>
+        <Button variant="outline" size="sm" onClick={() => setCleared(new Set())}>Clear ticks</Button>
+      </div>
     </section>
   );
 }
