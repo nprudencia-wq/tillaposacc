@@ -582,6 +582,13 @@
       "when": 1794388446238,
       "tag": "0082_asset_first_used_date",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1794388617840,
+      "tag": "0083_asset_register_purchase_dates",
+      "breakpoints": true
     }
   ]
 }

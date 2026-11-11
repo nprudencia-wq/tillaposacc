@@ -84,6 +84,42 @@ export type Database = {
           },
         ]
       }
+      asset_register: {
+        Row: {
+          account_code: string
+          purchase_date: string | null
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_code: string
+          purchase_date?: string | null
+          store_id?: string
+          updated_at?: string
+        }
+        Update: {
+          account_code?: string
+          purchase_date?: string | null
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_register_store_id_account_code_fkey"
+            columns: ["store_id", "account_code"]
+            isOneToOne: true
+            referencedRelation: "gl_accounts"
+            referencedColumns: ["store_id", "code"]
+          },
+          {
+            foreignKeyName: "asset_register_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branch_stock: {
         Row: {
           branch_id: string
@@ -3045,6 +3081,10 @@ export type Database = {
         Returns: boolean
       }
       run_depreciation: { Args: { p_year: number }; Returns: number }
+      save_asset_purchase_date: {
+        Args: { p_code: string; p_purchase_date: string }
+        Returns: undefined
+      }
       save_branch: {
         Args: { p_active: boolean; p_id: string; p_name: string }
         Returns: string

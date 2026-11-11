@@ -15,6 +15,7 @@ import { money } from "@/lib/pos";
 import { exportExcel, exportPDF, type Col, type Row } from "@/lib/export";
 import { assetSchedule, balanceSheet, journalBalanced, profitFor, trialBalance, type AccountType, type GlAccount, type GlLine, type TbRow } from "@/lib/ledger";
 import { annualDepreciation } from "@/lib/depreciation";
+import { AssetRegister } from "@/components/AssetRegister";
 
 export const Route = createFileRoute("/_authenticated/accounting")({
   head: () => ({
@@ -42,6 +43,8 @@ function AccountingPage() {
   const allowed = me?.roles.some((r) => ["admin", "owner", "manager", "accountant"].includes(r));
   const [from, setFrom] = useState(today().slice(0, 8) + "01");
   const [to, setTo] = useState(today());
+  const [tab, setTab] = useState("tb");
+  const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
 
   const { data: accounts } = useQuery({
     queryKey: ["gl-accounts"],
@@ -79,7 +82,7 @@ function AccountingPage() {
         {isLoading && <span className="text-sm text-muted-foreground">Loading…</span>}
       </div>
 
-      <Tabs defaultValue="tb" className="mt-6">
+      <Tabs value={tab} onValueChange={setTab} className="mt-6">
         <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="tb">Trial balance</TabsTrigger>
           <TabsTrigger value="pl">Income statement</TabsTrigger>
@@ -88,6 +91,7 @@ function AccountingPage() {
           <TabsTrigger value="cb">Cashbook reconciliation</TabsTrigger>
           <TabsTrigger value="rb">Reconciled balances</TabsTrigger>
           <TabsTrigger value="jv">Journals</TabsTrigger>
+          <TabsTrigger value="assets">Asset register</TabsTrigger>
           <TabsTrigger value="dep">Depreciation</TabsTrigger>
           <TabsTrigger value="coa">Chart of accounts</TabsTrigger>
         </TabsList>
@@ -98,7 +102,8 @@ function AccountingPage() {
         <TabsContent value="cb"><CashbookTab lines={all} accounts={accs} from={from} to={to} userId={me?.id} /></TabsContent>
         <TabsContent value="rb"><ReconciledTab accounts={accs} /></TabsContent>
         <TabsContent value="jv"><JournalTab accounts={accs} /></TabsContent>
-        <TabsContent value="dep"><DepreciationTab accounts={accs} tb={tb} /></TabsContent>
+        <TabsContent value="assets"><AssetRegister accounts={accs} onAddAsset={() => setTab("coa")} onDepreciation={(code) => { setSelectedAsset(code); setTab("dep"); }} /></TabsContent>
+        <TabsContent value="dep"><DepreciationTab accounts={accs} tb={tb} selectedAsset={selectedAsset} onRegister={() => setTab("assets")} /></TabsContent>
         <TabsContent value="coa"><AccountsTab accounts={accs} /></TabsContent>
       </Tabs>
     </div>
@@ -539,7 +544,7 @@ function ReconciledTab({ accounts }: { accounts: GlAccount[] }) {
   );
 }
 
-function DepreciationTab({ accounts, tb }: { accounts: GlAccount[]; tb: TbRow[] }) {
+function DepreciationTab({ accounts, tb, selectedAsset, onRegister }: { accounts: GlAccount[]; tb: TbRow[]; selectedAsset: string | null; onRegister: () => void }) {
   const qc = useQueryClient();
   const assets = accounts.filter((a) => a.type === "asset" && !a.system && !a.code.endsWith("-AD"));
   const thisYear = new Date().getFullYear();
@@ -547,6 +552,8 @@ function DepreciationTab({ accounts, tb }: { accounts: GlAccount[]; tb: TbRow[] 
   const [rates, setRates] = useState<Record<string, string>>({});
   const [startDates, setStartDates] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const selectedRow = useRef<HTMLTableRowElement>(null);
+  useEffect(() => { selectedRow.current?.scrollIntoView({ block: "nearest", inline: "nearest" }); }, [selectedAsset]);
   const { data: cfg } = useQuery({
     queryKey: ["asset-depreciation"],
     queryFn: async () => {
@@ -579,7 +586,7 @@ function DepreciationTab({ accounts, tb }: { accounts: GlAccount[]; tb: TbRow[] 
   }
   return (
     <section className="mt-4 rounded-xl border bg-card p-4 shadow-soft">
-      <h2 className="text-lg font-semibold">Asset depreciation (per annum)</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-semibold">Asset depreciation (per annum)</h2><Button variant="outline" size="sm" onClick={onRegister}>Asset register</Button></div>
       {assets.length === 0 && <p className="mt-3 text-sm">Add an asset account in Chart of accounts first.</p>}
       <Table className="mt-3">
         <TableHeader><TableRow><TableHead>Asset</TableHead><TableHead className="text-right">Cost</TableHead><TableHead className="text-right">Accumulated</TableHead><TableHead className="text-right">Book value</TableHead><TableHead>First used</TableHead><TableHead>Rate % p.a.</TableHead><TableHead className="text-right">Depreciation for {year}</TableHead><TableHead>Last year posted</TableHead></TableRow></TableHeader>
@@ -591,7 +598,7 @@ function DepreciationTab({ accounts, tb }: { accounts: GlAccount[]; tb: TbRow[] 
             const rate = Number(rates[a.code] ?? c?.rate ?? 0);
             const estimate = annualDepreciation(cost, acc, rate, start, Number(year), today());
             return (
-              <TableRow key={a.code}>
+              <TableRow key={a.code} ref={selectedAsset === a.code ? selectedRow : undefined} className={selectedAsset === a.code ? "bg-muted" : undefined}>
                 <TableCell>{a.code} {a.name}</TableCell>
                 <TableCell className="text-right tabular">{money(cost)}</TableCell>
                 <TableCell className="text-right tabular">{money(acc)}</TableCell>
