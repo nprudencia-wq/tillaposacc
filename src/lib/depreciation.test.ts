@@ -24,3 +24,9 @@ describe("annual asset depreciation from first use", () => {
     expect(annualDepreciation(10000, 9990, 10, "2025-07-01", 2026, "2026-12-31")).toBe(10);
   });
 });
+import { monthlyDepreciation } from "./depreciation";
+describe("monthlyDepreciation", () => {
+  it("charges a full month as cost × rate / 12", () => expect(monthlyDepreciation(12000, 0, 10, "2026-01-01", 2026, 3)).toBe(100));
+  it("pro-rates the first month by exact days used", () => expect(monthlyDepreciation(12000, 0, 10, "2026-03-15", 2026, 3)).toBe(54.84));
+  it("charges nothing before first use", () => expect(monthlyDepreciation(12000, 0, 10, "2026-04-01", 2026, 3)).toBe(0));
+});

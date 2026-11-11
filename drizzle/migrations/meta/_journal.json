@@ -589,6 +589,27 @@
       "when": 1794388617840,
       "tag": "0083_asset_register_purchase_dates",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1794389139391,
+      "tag": "0084_monthly_prorata_depreciation",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1794389151498,
+      "tag": "0085_depreciation_complete_months_only",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1794389179593,
+      "tag": "0086_depreciation_monthly_impl",
+      "breakpoints": true
     }
   ]
 }

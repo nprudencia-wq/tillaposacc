@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { money } from "@/lib/pos";
 import { exportExcel, exportPDF, type Col, type Row } from "@/lib/export";
 import { assetSchedule, balanceSheet, journalBalanced, profitFor, trialBalance, type AccountType, type GlAccount, type GlLine, type TbRow } from "@/lib/ledger";
-import { annualDepreciation } from "@/lib/depreciation";
+import { annualDepreciation, monthlyDepreciation } from "@/lib/depreciation";
 import { AssetRegister } from "@/components/AssetRegister";
 
 export const Route = createFileRoute("/_authenticated/accounting")({
@@ -544,6 +544,11 @@ function ReconciledTab({ accounts }: { accounts: GlAccount[] }) {
   );
 }
 
+function postedThrough(c?: { last_month?: string | null; last_year?: number | null } | null) {
+  if (c?.last_month) return c.last_month.slice(0, 7);
+  return c?.last_year != null ? `${c.last_year}-12` : "";
+}
+
 function DepreciationTab({ accounts, tb, selectedAsset, onRegister }: { accounts: GlAccount[]; tb: TbRow[]; selectedAsset: string | null; onRegister: () => void }) {
   const qc = useQueryClient();
   const assets = accounts.filter((a) => a.type === "asset" && !a.system && !a.code.endsWith("-AD"));
@@ -552,6 +557,9 @@ function DepreciationTab({ accounts, tb, selectedAsset, onRegister }: { accounts
   const [rates, setRates] = useState<Record<string, string>>({});
   const [startDates, setStartDates] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const lastDone = new Date(); lastDone.setDate(1); lastDone.setMonth(lastDone.getMonth() - 1);
+  const [month, setMonth] = useState(`${lastDone.getFullYear()}-${String(lastDone.getMonth() + 1).padStart(2, "0")}`);
+  const [my = 0, mm = 0] = month.split("-").map(Number);
   const selectedRow = useRef<HTMLTableRowElement>(null);
   useEffect(() => { selectedRow.current?.scrollIntoView({ block: "nearest", inline: "nearest" }); }, [selectedAsset]);
   const { data: cfg } = useQuery({
@@ -573,9 +581,11 @@ function DepreciationTab({ accounts, tb, selectedAsset, onRegister }: { accounts
     toast.success("Asset depreciation settings saved");
     qc.invalidateQueries({ queryKey: ["asset-depreciation"] });
   }
-  async function run() {
+  async function run(monthly = false) {
     setBusy(true);
-    const { data, error } = await supabase.rpc("run_depreciation", { p_year: Number(year) });
+    const { data, error } = monthly
+      ? await supabase.rpc("run_depreciation_through", { p_year: my, p_month: mm })
+      : await supabase.rpc("run_depreciation", { p_year: Number(year) });
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success(data ? `Depreciation posted for ${data} asset(s)` : "Nothing to post for that year");
@@ -586,10 +596,10 @@ function DepreciationTab({ accounts, tb, selectedAsset, onRegister }: { accounts
   }
   return (
     <section className="mt-4 rounded-xl border bg-card p-4 shadow-soft">
-      <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-semibold">Asset depreciation (per annum)</h2><Button variant="outline" size="sm" onClick={onRegister}>Asset register</Button></div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-semibold">Asset depreciation (monthly, pro-rata)</h2><Button variant="outline" size="sm" onClick={onRegister}>Asset register</Button></div>
       {assets.length === 0 && <p className="mt-3 text-sm">Add an asset account in Chart of accounts first.</p>}
       <Table className="mt-3">
-        <TableHeader><TableRow><TableHead>Asset</TableHead><TableHead className="text-right">Cost</TableHead><TableHead className="text-right">Accumulated</TableHead><TableHead className="text-right">Book value</TableHead><TableHead>First used</TableHead><TableHead>Rate % p.a.</TableHead><TableHead className="text-right">Depreciation for {year}</TableHead><TableHead>Last year posted</TableHead></TableRow></TableHeader>
+        <TableHeader><TableRow><TableHead>Asset</TableHead><TableHead className="text-right">Cost</TableHead><TableHead className="text-right">Accumulated</TableHead><TableHead className="text-right">Book value</TableHead><TableHead>First used</TableHead><TableHead>Rate % p.a.</TableHead><TableHead className="text-right">Month {month}</TableHead><TableHead className="text-right">Year {year} (est.)</TableHead><TableHead>Posted through</TableHead></TableRow></TableHeader>
         <TableBody>
           {assets.map((a) => {
             const c = cfg?.find((x) => x.account_code === a.code);
@@ -613,8 +623,9 @@ function DepreciationTab({ accounts, tb, selectedAsset, onRegister }: { accounts
                     <Button size="sm" variant="outline" onClick={() => save(a.code)}>Save</Button>
                   </div>
                 </TableCell>
+                <TableCell className="text-right tabular">{postedThrough(c) >= month ? "Posted" : money(monthlyDepreciation(cost, acc, rate, start, my, mm))}</TableCell>
                 <TableCell className="text-right tabular">{c?.last_year != null && c.last_year >= Number(year) ? "Posted" : money(estimate)}</TableCell>
-                <TableCell>{c?.last_year ?? "—"}</TableCell>
+                <TableCell>{postedThrough(c) || "—"}</TableCell>
               </TableRow>
             );
           })}
@@ -622,8 +633,11 @@ function DepreciationTab({ accounts, tb, selectedAsset, onRegister }: { accounts
       </Table>
       <div className="mt-4 flex flex-wrap items-end gap-2">
         <div><Label htmlFor="dep-year">Year</Label><Input id="dep-year" className="w-28" inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value)} /></div>
-        <Button onClick={run} disabled={busy || !cfg?.length || !Number.isInteger(Number(year)) || Number(year) < 1 || Number(year) > thisYear || cfg.some((c) => !c.start_date && (c.last_year == null || c.last_year < Number(year))) || Object.keys(rates).some((code) => rates[code] !== String(cfg.find((c) => c.account_code === code)?.rate ?? "")) || Object.keys(startDates).some((code) => startDates[code] !== (cfg.find((c) => c.account_code === code)?.start_date ?? ""))}>Post depreciation for {year}</Button>
+        <div><Label htmlFor="dep-month">Month</Label><Input id="dep-month" type="month" className="w-40" value={month} onChange={(e) => setMonth(e.target.value)} /></div>
+        <Button onClick={() => run(true)} disabled={busy || !cfg?.length || !my || !mm || cfg.some((c) => !c.start_date && (c.last_year == null || c.last_year < Number(year))) || Object.keys(rates).some((code) => rates[code] !== String(cfg.find((c) => c.account_code === code)?.rate ?? "")) || Object.keys(startDates).some((code) => startDates[code] !== (cfg.find((c) => c.account_code === code)?.start_date ?? ""))}>Post through {month}</Button>
+        <Button variant="outline" onClick={() => run(false)} disabled={busy || !cfg?.length || !Number.isInteger(Number(year)) || Number(year) < 1 || Number(year) > thisYear || cfg.some((c) => !c.start_date && (c.last_year == null || c.last_year < Number(year))) || Object.keys(rates).some((code) => rates[code] !== String(cfg.find((c) => c.account_code === code)?.rate ?? "")) || Object.keys(startDates).some((code) => startDates[code] !== (cfg.find((c) => c.account_code === code)?.start_date ?? ""))}>Post all finished months of {year}</Button>
       </div>
+      <p className="mt-2 text-xs text-muted-foreground">Each month charges cost × rate ÷ 12; the first month counts only the days from first use. Posting catches up any earlier unposted months. Only finished months can be posted.</p>
     </section>
   );
 }

@@ -52,6 +52,7 @@ export type Database = {
       asset_depreciation: {
         Row: {
           account_code: string
+          last_month: string | null
           last_year: number | null
           rate: number
           start_date: string | null
@@ -60,6 +61,7 @@ export type Database = {
         }
         Insert: {
           account_code: string
+          last_month?: string | null
           last_year?: number | null
           rate: number
           start_date?: string | null
@@ -68,6 +70,7 @@ export type Database = {
         }
         Update: {
           account_code?: string
+          last_month?: string | null
           last_year?: number | null
           rate?: number
           start_date?: string | null
@@ -2734,6 +2737,17 @@ export type Database = {
         }
         Returns: number
       }
+      asset_month_depreciation: {
+        Args: {
+          p_acc: number
+          p_asof: string
+          p_cost: number
+          p_month: string
+          p_rate: number
+          p_start: string
+        }
+        Returns: number
+      }
       auto_close_daily_settlements: {
         Args: { p_day?: string }
         Returns: number
@@ -3081,6 +3095,14 @@ export type Database = {
         Returns: boolean
       }
       run_depreciation: { Args: { p_year: number }; Returns: number }
+      run_depreciation_through: {
+        Args: { p_month: number; p_year: number }
+        Returns: number
+      }
+      run_depreciation_through_impl: {
+        Args: { p_month: number; p_year: number }
+        Returns: number
+      }
       save_asset_purchase_date: {
         Args: { p_code: string; p_purchase_date: string }
         Returns: undefined
