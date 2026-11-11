@@ -454,7 +454,7 @@ function Till({ shiftId }: { shiftId: string }) {
 
       {payCust && customer && <AccountPaymentDialog customer={customer} shiftId={shiftId} zigRate={rate} randRate={randRate} randEnabled={randEnabled} onClose={() => setPayCust(false)} />}
       {addCust && <CustomerDialog customer={null} onClose={() => setAddCust(false)} onSaved={(c) => { qc.invalidateQueries({ queryKey: ["customers"] }); setCustomerId(c.id); }} />}
-      {payOpen && <PayDialog total={total} currency={currency} rate={rate} randRate={randRate} customer={customer} onClose={() => setPayOpen(false)} onPay={complete} />}
+      {payOpen && <PayDialog total={total} currency={currency} rate={rate} randRate={randRate} customer={customer ?? null} onClose={() => setPayOpen(false)} onPay={complete} />}
 
       <RecentReceipts open={reprintOpen} onOpenChange={setReprintOpen} />
       <HardwareSettings open={hwOpen} onOpenChange={setHwOpen} />
