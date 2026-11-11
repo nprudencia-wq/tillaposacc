@@ -52,3 +52,27 @@ describe("ledger", () => {
     expect(journalBalanced([{ debit: 50, credit: 0 }, { debit: 0, credit: 40 }]).ok).toBe(false);
   });
 });
+
+import { cashFlow } from "./ledger";
+describe("cashFlow", () => {
+  const accs = [
+    { code: "1000", name: "Cash", type: "asset", system: true, active: true },
+    { code: "1010", name: "Bank", type: "asset", system: true, active: true },
+    { code: "991", name: "Furniture", type: "asset", system: false, active: true },
+    { code: "991-AD", name: "Acc dep", type: "asset", system: true, active: true },
+    { code: "3000", name: "Capital", type: "equity", system: true, active: true },
+    { code: "4000", name: "Sales", type: "income", system: true, active: true },
+    { code: "6300", name: "Depreciation", type: "expense", system: true, active: true },
+  ] as const;
+  const L = (d: string, a: string, dr: number, cr: number) => ({ entry_date: d, source: "journal", reference: "", memo: "", account_code: a, debit: dr, credit: cr });
+  const lines = [
+    L("2026-09-30", "3000", 0, 2000), L("2026-09-30", "1010", 2000, 0),
+    L("2026-10-15", "991", 1200, 0), L("2026-10-15", "1010", 0, 1200),
+    L("2026-10-20", "1000", 300, 0), L("2026-10-20", "4000", 0, 300),
+    L("2026-10-31", "6300", 5.48, 0), L("2026-10-31", "991-AD", 0, 5.48),
+  ];
+  const cf = cashFlow(lines, [...accs], "2026-10-01", "2026-10-31");
+  it("adds depreciation back to profit", () => expect(cf.operating).toBe(300));
+  it("shows asset purchases as investing outflow", () => expect(cf.investingTotal).toBe(-1200));
+  it("reconciles opening cash plus net change to closing cash", () => { expect(cf.opening).toBe(2000); expect(cf.closing).toBe(1100); expect(cf.netChange).toBe(-900); });
+});

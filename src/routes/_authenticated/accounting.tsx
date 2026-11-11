@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { money } from "@/lib/pos";
 import { exportExcel, exportPDF, type Col, type Row } from "@/lib/export";
-import { assetSchedule, balanceSheet, journalBalanced, profitFor, trialBalance, type AccountType, type GlAccount, type GlLine, type TbRow } from "@/lib/ledger";
+import { assetSchedule, balanceSheet, cashFlow, type CashFlowLine, journalBalanced, profitFor, trialBalance, type AccountType, type GlAccount, type GlLine, type TbRow } from "@/lib/ledger";
 import { annualDepreciation, monthlyDepreciation } from "@/lib/depreciation";
 import { AssetRegister } from "@/components/AssetRegister";
 
@@ -21,9 +21,9 @@ export const Route = createFileRoute("/_authenticated/accounting")({
   head: () => ({
     meta: [
       { title: "Accounting — Tilla POS" },
-      { name: "description", content: "General ledger, trial balance, balance sheet and journals built from your till." },
+      { name: "description", content: "General ledger, trial balance, income statement, balance sheet, cash flow and journals built from your till." },
       { property: "og:title", content: "Accounting — Tilla POS" },
-      { property: "og:description", content: "General ledger, trial balance, balance sheet and journals built from your till." },
+      { property: "og:description", content: "General ledger, trial balance, income statement, balance sheet, cash flow and journals built from your till." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -87,6 +87,7 @@ function AccountingPage() {
           <TabsTrigger value="tb">Trial balance</TabsTrigger>
           <TabsTrigger value="pl">Income statement</TabsTrigger>
           <TabsTrigger value="bs">Balance sheet</TabsTrigger>
+          <TabsTrigger value="cf">Cash flow</TabsTrigger>
           <TabsTrigger value="gl">General ledger</TabsTrigger>
           <TabsTrigger value="cb">Cashbook reconciliation</TabsTrigger>
           <TabsTrigger value="rb">Reconciled balances</TabsTrigger>
@@ -97,6 +98,7 @@ function AccountingPage() {
         </TabsList>
         <TabsContent value="tb"><TrialBalanceTab tb={tb} to={to} /></TabsContent>
         <TabsContent value="pl"><IncomeTab lines={all} accounts={accs} from={from} to={to} /></TabsContent>
+        <TabsContent value="cf"><CashFlowTab lines={all} accounts={accs} from={from} to={to} /></TabsContent>
         <TabsContent value="bs"><BalanceSheetTab tb={tb} to={to} /></TabsContent>
         <TabsContent value="gl"><LedgerTab lines={all} accounts={accs} from={from} to={to} /></TabsContent>
         <TabsContent value="cb"><CashbookTab lines={all} accounts={accs} from={from} to={to} userId={me?.id} /></TabsContent>
@@ -162,6 +164,49 @@ function IncomeTab({ lines, accounts, from, to }: { lines: GlLine[]; accounts: G
       <Statement title="Income" rows={inc} total={p.income} />
       <Statement title="Expenses" rows={exp} total={p.expense} />
       <div className="mt-4 flex justify-between border-t pt-3 text-lg font-bold"><span>Net profit</span><span className={`tabular ${p.profit < 0 ? "text-destructive" : ""}`}>{money(p.profit)}</span></div>
+    </section>
+  );
+}
+
+function CashFlowTab({ lines, accounts, from, to }: { lines: GlLine[]; accounts: GlAccount[]; from: string; to: string }) {
+  const cf = cashFlow(lines, accounts, from, to);
+  const label = (l: CashFlowLine) => (l.code.endsWith("-AD") ? `Add back: ${l.name}` : `${l.amount < 0 ? "Increase" : "Decrease"} in ${l.name}`);
+  const fin = (l: CashFlowLine) => `${l.code} ${l.name}`;
+  const rows: Row[] = [
+    { line: "Operating activities", amount: "" }, { line: "Net profit", amount: cf.profit },
+    ...cf.adjustments.map((l) => ({ line: label(l), amount: l.amount })), { line: "Net cash from operating activities", amount: cf.operating },
+    { line: "Investing activities", amount: "" }, ...cf.investing.map((l) => ({ line: fin(l), amount: l.amount })), { line: "Net cash from investing activities", amount: cf.investingTotal },
+    { line: "Financing activities", amount: "" }, ...cf.financing.map((l) => ({ line: fin(l), amount: l.amount })), { line: "Net cash from financing activities", amount: cf.financingTotal },
+    { line: "Net change in cash", amount: cf.netChange }, { line: `Cash and bank at ${from}`, amount: cf.opening }, { line: `Cash and bank at ${to}`, amount: cf.closing },
+  ];
+  const Line = ({ name, amount, bold }: { name: string; amount: number; bold?: boolean }) => (
+    <div className={`flex justify-between py-1 text-sm ${bold ? "border-t font-semibold" : ""}`}><span>{name}</span><span className={`tabular ${amount < 0 ? "text-destructive" : ""}`}>{amount < 0 ? `(${money(-amount)})` : money(amount)}</span></div>
+  );
+  const ok = Math.abs(cf.opening + cf.netChange - cf.closing) < 0.01;
+  return (
+    <section className="mt-4 rounded-xl border bg-card p-4 shadow-soft">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">Cash flow statement {from} to {to}</h2>
+        <ExportButtons name={`cash-flow-${from}-${to}`} title="Cash flow statement" sub={`${from} to ${to}`} cols={[{ key: "line", label: "Line" }, { key: "amount", label: "USD", money: true }]} rows={rows} />
+      </div>
+      <h3 className="mt-3 font-semibold">Operating activities</h3>
+      <Line name="Net profit (from income statement)" amount={cf.profit} />
+      {cf.adjustments.map((l) => <Line key={l.code} name={label(l)} amount={l.amount} />)}
+      <Line name="Net cash from operating activities" amount={cf.operating} bold />
+      <h3 className="mt-4 font-semibold">Investing activities</h3>
+      {cf.investing.length === 0 && <p className="text-sm text-muted-foreground">No asset purchases or sales.</p>}
+      {cf.investing.map((l) => <Line key={l.code} name={fin(l)} amount={l.amount} />)}
+      <Line name="Net cash from investing activities" amount={cf.investingTotal} bold />
+      <h3 className="mt-4 font-semibold">Financing activities</h3>
+      {cf.financing.length === 0 && <p className="text-sm text-muted-foreground">No owner capital, drawings or loans.</p>}
+      {cf.financing.map((l) => <Line key={l.code} name={fin(l)} amount={l.amount} />)}
+      <Line name="Net cash from financing activities" amount={cf.financingTotal} bold />
+      <div className="mt-4 border-t pt-2">
+        <Line name="Net change in cash and bank" amount={cf.netChange} bold />
+        <Line name={`Cash and bank at ${from}`} amount={cf.opening} />
+        <Line name={`Cash and bank at ${to}`} amount={cf.closing} bold />
+        <p className={`mt-1 text-xs ${ok ? "text-muted-foreground" : "text-destructive"}`}>{ok ? "Matches Cash on hand + Bank & mobile money on the balance sheet." : "Does not match the cash accounts — check journals."}</p>
+      </div>
     </section>
   );
 }

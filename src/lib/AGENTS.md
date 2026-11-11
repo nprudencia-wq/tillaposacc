@@ -19,3 +19,4 @@
 - Trial leads (/trials) read other stores only through vendor-verified `listTrialLeads` before loading the admin client. Why: trial shops must never see each other.
 - Subscription approvals are store-scoped: `decide_subscription_payment` (service-role only) extends the paying store's paid_until from the later of trial end, last paid date or today; the vendor approves any shop via vendor-verified `decideSubPayment` on /trials. Why: approving one shop must never extend another.
 - Till device pairing links (/till?shop=&till=) only set device-local labels via src/lib/till-pairing.ts; they grant no access. Why: shop identity must never be readable by signed-out visitors.
+- Cash flow statement is derived on read (indirect method) by `cashFlow()` in src/lib/ledger.ts: cash = accounts 1000+1010; system assets/liabilities and -AD are operating, own assets investing, equity and own liabilities financing. Why: it always reconciles to the balance sheet cash.

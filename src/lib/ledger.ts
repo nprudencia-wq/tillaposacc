@@ -67,3 +67,48 @@ export function journalBalanced(lines: { debit: number; credit: number }[]) {
   const cr = r2(lines.reduce((a, l) => a + (l.credit || 0), 0));
   return { dr, cr, ok: dr > 0 && dr === cr && lines.filter((l) => l.debit || l.credit).length >= 2 };
 }
+
+export const CASH_CODES = ["1000", "1010"];
+export interface CashFlowLine { code: string; name: string; amount: number }
+export interface CashFlow {
+  profit: number; adjustments: CashFlowLine[]; operating: number;
+  investing: CashFlowLine[]; investingTotal: number; financing: CashFlowLine[]; financingTotal: number;
+  opening: number; netChange: number; closing: number;
+}
+/**
+ * Indirect cash flow for a date range. Each non-cash account's effect on cash is −(debits − credits) in range:
+ * depreciation and system accounts (debtors, stock, payables) are operating; own asset accounts are investing;
+ * equity and own liabilities (loans) are financing. Because every entry balances, the net change equals the cash account movement.
+ */
+export function cashFlow(lines: GlLine[], accounts: GlAccount[], from: string, to: string): CashFlow {
+  const acc = new Map(accounts.map((a) => [a.code, a]));
+  const move = new Map<string, number>();
+  let opening = 0, closing = 0;
+  for (const l of lines) {
+    const net = Number(l.debit) - Number(l.credit);
+    if (CASH_CODES.includes(l.account_code)) {
+      if (l.entry_date < from) opening += net;
+      if (l.entry_date <= to) closing += net;
+      continue;
+    }
+    if (l.entry_date < from || l.entry_date > to) continue;
+    move.set(l.account_code, (move.get(l.account_code) ?? 0) + net);
+  }
+  const p = profitFor(lines, accounts, from, to);
+  const adjustments: CashFlowLine[] = [], investing: CashFlowLine[] = [], financing: CashFlowLine[] = [];
+  for (const [code, net] of [...move].sort(([a], [b]) => a.localeCompare(b))) {
+    const a = acc.get(code);
+    const t = a?.type;
+    if (t === "income" || t === "expense") continue;
+    const line = { code, name: a?.name ?? code, amount: r2(-net) };
+    if (line.amount === 0) continue;
+    if (code.endsWith("-AD") || (t === "asset" && a?.system) || (t === "liability" && a?.system) || !a) adjustments.push(line);
+    else if (t === "asset") investing.push(line);
+    else financing.push(line);
+  }
+  const sum = (x: CashFlowLine[]) => r2(x.reduce((s, l) => s + l.amount, 0));
+  const operating = r2(p.profit + sum(adjustments));
+  const investingTotal = sum(investing), financingTotal = sum(financing);
+  return { profit: p.profit, adjustments, operating, investing, investingTotal, financing, financingTotal,
+    opening: r2(opening), netChange: r2(operating + investingTotal + financingTotal), closing: r2(closing) };
+}
