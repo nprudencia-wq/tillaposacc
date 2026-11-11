@@ -72,6 +72,13 @@ function Reports() {
       ]);
       const { data: grnRows } = await supabase.from("grns").select("total").gte("created_at", start).lte("created_at", end);
       const purchases = (grnRows ?? []).reduce((a, g) => a + Number(g.total), 0);
+      const [{ data: acctTypes }, { data: repay }] = await Promise.all([
+        supabase.from("payment_types").select("code").eq("is_account", true),
+        supabase.from("customer_payments").select("amount").gte("created_at", start).lte("created_at", end),
+      ]);
+      const acct = new Set((acctTypes ?? []).map((t) => t.code));
+      const creditSales = (pays ?? []).filter((x) => acct.has(x.method)).reduce((a, x) => a + Number(x.amount) / (Number(x.exchange_rate) || 1), 0);
+      const repayments = (repay ?? []).reduce((a, x) => a + Number(x.amount), 0);
       const { data: adjustments } = await supabase.from("customer_adjustments").select("kind, amount").eq("kind", "interest").gte("created_at", start).lte("created_at", end);
       // Stock as at the end date: rewind today's stock using movements made after it.
       let list = products ?? [];
@@ -87,7 +94,7 @@ function Reports() {
       (sinceStart ?? []).forEach((m) => { dStart[m.product_id] = (dStart[m.product_id] ?? 0) + Number(m.quantity); });
       const openingValue = (products ?? []).reduce((a, p) => a + Math.max(0, Number(p.stock) - (dStart[p.id] ?? 0)) * Number(p.cost_price ?? 0), 0);
       const closingValue = list.reduce((a, p) => a + Math.max(0, Number(p.stock)) * Number(p.cost_price ?? 0), 0);
-      return { purchases, openingValue, closingValue, sales: sales ?? [], items: items ?? [], pays: pays ?? [], refunds: refunds ?? [], products: list, profiles: profiles ?? [], movements: movements ?? [], expenses: expenses ?? [], interest: adjustments ?? [] };
+      return { creditSales, repayments, purchases, openingValue, closingValue, sales: sales ?? [], items: items ?? [], pays: pays ?? [], refunds: refunds ?? [], products: list, profiles: profiles ?? [], movements: movements ?? [], expenses: expenses ?? [], interest: adjustments ?? [] };
     },
   });
 
@@ -131,6 +138,9 @@ function Reports() {
           { name: "Total expenses", total: r2(-expenses) },
           { name: "Net profit", total: r2(netProfit) },
           { name: "Net margin %", total: net ? r2((netProfit / net) * 100) : 0 },
+          { name: "Memo (not in profit): sales on credit (on account)", total: r2(data.creditSales) },
+          { name: "Memo (not in profit): cash & other paid sales", total: r2(revenue - discounts - data.creditSales) },
+          { name: "Memo (not in profit): credit customers paid", total: r2(data.repayments) },
         ],
       },
       {

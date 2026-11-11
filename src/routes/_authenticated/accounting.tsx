@@ -150,10 +150,12 @@ function IncomeTab({ lines, accounts, from, to }: { lines: GlLine[]; accounts: G
   const tb = trialBalance(inRange, accounts);
   const inc = tb.filter((r) => r.type === "income"), exp = tb.filter((r) => r.type === "expense");
   const p = profitFor(lines, accounts, from, to);
+  const repaid = Math.round(inRange.filter((l) => l.source === "customer_payment" && l.account_code === "1100").reduce((a, l) => a + Number(l.credit) - Number(l.debit), 0) * 100) / 100;
   const rows: Row[] = [
     ...inc.map((r) => ({ line: r.name, amount: r.balance })), { line: "Total income", amount: p.income },
     ...exp.map((r) => ({ line: r.name, amount: r.balance })), { line: "Total expenses", amount: p.expense },
     { line: "Net profit", amount: p.profit },
+    { line: "Memo (not in profit): credit customers paid", amount: repaid },
   ];
   return (
     <section className="mt-4 rounded-xl border bg-card p-4 shadow-soft">
@@ -164,6 +166,7 @@ function IncomeTab({ lines, accounts, from, to }: { lines: GlLine[]; accounts: G
       <Statement title="Income" rows={inc} total={p.income} />
       <Statement title="Expenses" rows={exp} total={p.expense} />
       <div className="mt-4 flex justify-between border-t pt-3 text-lg font-bold"><span>Net profit</span><span className={`tabular ${p.profit < 0 ? "text-destructive" : ""}`}>{money(p.profit)}</span></div>
+      <div className="mt-3 flex justify-between rounded-md bg-muted px-3 py-2 text-sm"><span>Credit customers paid <span className="text-muted-foreground">(debt repayments — not income, already counted when sold)</span></span><span className="tabular font-medium">{money(repaid)}</span></div>
     </section>
   );
 }
