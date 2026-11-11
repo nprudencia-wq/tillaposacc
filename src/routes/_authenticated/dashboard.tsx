@@ -59,13 +59,14 @@ function Dashboard() {
     enabled: period !== "custom" || (!!custom.from && !!custom.to && custom.from <= custom.to),
     queryFn: async () => {
       const { start, end } = range(period, custom);
-      const [{ data: sales }, { data: pays }, { data: refunds }, { data: profiles }] = await Promise.all([
+      const [{ data: sales }, { data: pays }, { data: refunds }, { data: profiles }, { data: pItems }] = await Promise.all([
         supabase.from("sales").select("*").gte("created_at", start).lte("created_at", end).order("created_at", { ascending: false }),
         supabase.from("sale_payments").select("sale_id, method, currency, amount, exchange_rate, sales!inner(created_at, exchange_rate)").gte("sales.created_at", start).lte("sales.created_at", end),
         supabase.from("refunds").select("amount, created_at").gte("created_at", start).lte("created_at", end),
         supabase.from("profiles").select("id, full_name"),
+        supabase.from("sale_items").select("quantity, refunded_qty, cost_price, sales!inner(created_at)").gte("sales.created_at", start).lte("sales.created_at", end),
       ]);
-      return { sales: sales ?? [], pays: pays ?? [], refunds: refunds ?? [], names: Object.fromEntries((profiles ?? []).map((p) => [p.id, p.full_name])) as Record<string, string> };
+      return { cogs: (pItems ?? []).reduce((a, i) => a + Number(i.cost_price) * (Number(i.quantity) - Number(i.refunded_qty ?? 0)), 0), sales: sales ?? [], pays: pays ?? [], refunds: refunds ?? [], names: Object.fromEntries((profiles ?? []).map((p) => [p.id, p.full_name])) as Record<string, string> };
     },
   });
 
@@ -165,6 +166,24 @@ function Dashboard() {
           <Card label="Average sale" value={money(avg)} sub="per receipt" />
           <Card label="Discounts" value={money(pDisc)} sub={`from ${money(pGross)} gross`} />
           <Card label="Refunds" value={money(pRefunds)} sub={`${summary?.refunds.length ?? 0} refunds`} />
+        </div>
+
+        <div className="mt-6 rounded-xl border bg-card p-5 shadow-soft">
+          <h3 className="mb-3 font-semibold">Sales summary · {periodLabels[period]}</h3>
+          <div className="grid gap-x-10 text-sm md:grid-cols-2">
+            {([
+              ["Gross sales", pGross, false],
+              ["Refunds", -pRefunds, false],
+              ["Discounts", -pDisc, false],
+              ["Net sales", pTotal - pRefunds, true],
+              ["Cost of goods", -(summary?.cogs ?? 0), false],
+              ["Gross profit", pTotal - pRefunds - (summary?.cogs ?? 0), true],
+            ] as const).map(([l, v, b]) => (
+              <div key={l} className={`flex justify-between border-b py-2 ${b ? "font-semibold" : ""}`}><span>{l}</span><span className={`tabular ${v < 0 ? "text-destructive" : ""}`}>{money(v)}</span></div>
+            ))}
+            <div className="flex justify-between border-b py-2"><span>Gross margin</span><span className="tabular">{pTotal - pRefunds > 0 ? `${(((pTotal - pRefunds - (summary?.cogs ?? 0)) / (pTotal - pRefunds)) * 100).toFixed(1)}%` : "—"}</span></div>
+            <div className="flex justify-between border-b py-2"><span>Receipts · average</span><span className="tabular">{pSales.length} · {money(avg)}</span></div>
+          </div>
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-3">
