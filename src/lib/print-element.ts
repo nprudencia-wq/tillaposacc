@@ -3,7 +3,7 @@ export function printReceiptElement() {
   const nodes = Array.from(document.querySelectorAll<HTMLElement>("#receipt-print"));
   const el = nodes.reverse().find((n) => n.offsetParent !== null || n.getClientRects().length > 0) ?? nodes[0];
   if (!el) { window.print(); return; }
-  const paper = el.dataset.paper === "58mm" ? "58mm" : el.dataset.paper === "80mm" ? "80mm" : "";
+  const paper = el.dataset["paper"] === "58mm" ? "58mm" : el.dataset["paper"] === "80mm" ? "80mm" : "";
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
   frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;";
