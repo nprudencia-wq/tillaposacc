@@ -1,3 +1,4 @@
+import { printReceiptElement } from "@/lib/print-element";
 import { useEffect, useRef, useState } from "react";
 import { Printer, ArrowRight, Share2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { receiptLogoRaster } from "@/lib/receipt-logo";
 
 export async function printReceipt(receipt: ReceiptData, settings: unknown) {
   const hw = loadHardware();
-  if (hw.printer === "none") { window.print(); return; }
+  if (hw.printer === "none") { printReceiptElement(); return; }
   const st = settings as (StoreInfo & { receipt_config?: unknown; logo_url?: string }) | undefined;
   const config = receiptConfig(st?.receipt_config);
   try {

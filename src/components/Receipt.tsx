@@ -1,3 +1,4 @@
+import { printReceiptElement } from "@/lib/print-element";
 import { toast } from "sonner";
 import { Printer, Share2 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
@@ -111,7 +112,7 @@ export function ReceiptActions({ r }: { r: ReceiptData }) {
     <>
       <div className="max-h-[60vh] overflow-y-auto rounded-lg border"><Receipt r={r} /></div>
       <div className="flex gap-2">
-        <Button className="flex-1" onClick={() => window.print()}><Printer className="h-4 w-4" />Print</Button>
+        <Button className="flex-1" onClick={() => printReceiptElement()}><Printer className="h-4 w-4" />Print</Button>
         <Button variant="outline" className="flex-1" onClick={share}><Share2 className="h-4 w-4" />Share</Button>
       </div>
     </>

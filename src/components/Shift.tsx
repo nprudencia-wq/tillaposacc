@@ -1,3 +1,4 @@
+import { printReceiptElement } from "@/lib/print-element";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -403,7 +404,7 @@ export function ShiftReportDialog({ s, title, onClose }: { s: ShiftSummary; titl
             </label>
           )}
         </div>
-        <Button variant="outline" onClick={() => window.print()} className="print:hidden"><Printer className="h-4 w-4" />Print</Button>
+        <Button variant="outline" onClick={() => printReceiptElement()} className="print:hidden"><Printer className="h-4 w-4" />Print</Button>
       </DialogContent>
     </Dialog>
   );
