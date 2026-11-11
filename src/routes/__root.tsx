@@ -85,7 +85,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { name: "theme-color", content: "#1f3a2e" },
+      { name: "theme-color", content: "#0e2043" },
       { title: "Tilla POS — Retail point of sale" },
       { name: "description", content: "Point of sale and stock management for Zimbabwean retailers. USD and ZiG." },
       { property: "og:type", content: "website" },

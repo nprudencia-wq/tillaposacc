@@ -169,7 +169,7 @@ export function AuthPage({ tillOnly = false }: { tillOnly?: boolean } = {}) {
   return (
     <div className="flex min-h-screen flex-col bg-sidebar text-sidebar-foreground">
       <header className="flex items-center justify-between px-5 py-4">
-        <Link to="/" className="font-display text-xl font-bold">Tilla<span className="text-primary">POS</span> <span className="text-sm font-normal opacity-70">· {[label.shop, label.till || "Main Till"].filter(Boolean).join(" · ")}</span></Link>
+        <Link to="/" className="font-display text-xl font-bold">Tilla<span className="text-sidebar-primary">POS</span> <span className="text-sm font-normal opacity-70">· {[label.shop, label.till || "Main Till"].filter(Boolean).join(" · ")}</span></Link>
         <span className={`flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${online ? "bg-primary/15 text-primary" : "bg-destructive/15 text-destructive"}`}>
           <span className={`h-2 w-2 rounded-full ${online ? "bg-primary" : "bg-destructive"}`} />{online ? "Online" : "Offline — till still works"}
         </span>
