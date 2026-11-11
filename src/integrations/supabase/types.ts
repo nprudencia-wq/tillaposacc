@@ -49,6 +49,38 @@ export type Database = {
           },
         ]
       }
+      asset_depreciation: {
+        Row: {
+          account_code: string
+          last_year: number | null
+          rate: number
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_code: string
+          last_year?: number | null
+          rate: number
+          store_id?: string
+          updated_at?: string
+        }
+        Update: {
+          account_code?: string
+          last_year?: number | null
+          rate?: number
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_depreciation_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branch_stock: {
         Row: {
           branch_id: string
@@ -2998,6 +3030,7 @@ export type Database = {
         Args: { _perm: string; _user_id: string }
         Returns: boolean
       }
+      run_depreciation: { Args: { p_year: number }; Returns: number }
       save_branch: {
         Args: { p_active: boolean; p_id: string; p_name: string }
         Returns: string
@@ -3076,6 +3109,10 @@ export type Database = {
         Returns: undefined
       }
       save_zimra_config: { Args: { p: Json }; Returns: undefined }
+      set_asset_depreciation: {
+        Args: { p_code: string; p_rate: number }
+        Returns: undefined
+      }
       set_sale_payment_references: {
         Args: { p_refs: Json; p_sale_number: string }
         Returns: number

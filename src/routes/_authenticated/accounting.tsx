@@ -87,6 +87,7 @@ function AccountingPage() {
           <TabsTrigger value="cb">Cashbook reconciliation</TabsTrigger>
           <TabsTrigger value="rb">Reconciled balances</TabsTrigger>
           <TabsTrigger value="jv">Journals</TabsTrigger>
+          <TabsTrigger value="dep">Depreciation</TabsTrigger>
           <TabsTrigger value="coa">Chart of accounts</TabsTrigger>
         </TabsList>
         <TabsContent value="tb"><TrialBalanceTab tb={tb} to={to} /></TabsContent>
@@ -96,6 +97,7 @@ function AccountingPage() {
         <TabsContent value="cb"><CashbookTab lines={all} accounts={accs} from={from} to={to} userId={me?.id} /></TabsContent>
         <TabsContent value="rb"><ReconciledTab accounts={accs} /></TabsContent>
         <TabsContent value="jv"><JournalTab accounts={accs} /></TabsContent>
+        <TabsContent value="dep"><DepreciationTab accounts={accs} tb={tb} /></TabsContent>
         <TabsContent value="coa"><AccountsTab accounts={accs} /></TabsContent>
       </Tabs>
     </div>
@@ -505,6 +507,77 @@ function ReconciledTab({ accounts }: { accounts: GlAccount[] }) {
           ))}
         </TableBody>
       </Table>
+    </section>
+  );
+}
+
+function DepreciationTab({ accounts, tb }: { accounts: GlAccount[]; tb: TbRow[] }) {
+  const qc = useQueryClient();
+  const assets = accounts.filter((a) => a.type === "asset" && !a.system && !a.code.endsWith("-AD"));
+  const thisYear = new Date().getFullYear();
+  const [year, setYear] = useState(String(thisYear));
+  const [rates, setRates] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const { data: cfg } = useQuery({
+    queryKey: ["asset-depreciation"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("asset_depreciation").select("*");
+      if (error) throw error;
+      return data;
+    },
+  });
+  const bal = (c: string) => tb.find((r) => r.code === c)?.balance ?? 0;
+  async function save(code: string) {
+    const v = rates[code] ?? "";
+    const { error } = await supabase.rpc("set_asset_depreciation", { p_code: code, p_rate: Number(v) || 0 });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Depreciation rate saved");
+    qc.invalidateQueries({ queryKey: ["asset-depreciation"] });
+  }
+  async function run() {
+    setBusy(true);
+    const { data, error } = await supabase.rpc("run_depreciation", { p_year: Number(year) });
+    setBusy(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(data ? `Depreciation posted for ${data} asset(s)` : "Nothing to post for that year");
+    qc.invalidateQueries({ queryKey: ["asset-depreciation"] });
+    qc.invalidateQueries({ queryKey: ["journals"] });
+    qc.invalidateQueries({ queryKey: ["gl-lines"] });
+    qc.invalidateQueries({ queryKey: ["gl-accounts"] });
+  }
+  return (
+    <section className="mt-4 rounded-xl border bg-card p-4 shadow-soft">
+      <h2 className="text-lg font-semibold">Asset depreciation (per annum)</h2>
+      <p className="text-sm text-muted-foreground">Set a yearly rate for each asset. Running a year posts straight-line depreciation (cost × rate) to Depreciation expense and the asset's Accumulated depreciation. Each year can only be posted once per asset, and an asset never goes below zero.</p>
+      {assets.length === 0 && <p className="mt-3 text-sm">Add an asset account in Chart of accounts first.</p>}
+      <Table className="mt-3">
+        <TableHeader><TableRow><TableHead>Asset</TableHead><TableHead className="text-right">Cost</TableHead><TableHead className="text-right">Accumulated</TableHead><TableHead className="text-right">Book value</TableHead><TableHead>Rate % p.a.</TableHead><TableHead>Last year posted</TableHead></TableRow></TableHeader>
+        <TableBody>
+          {assets.map((a) => {
+            const c = cfg?.find((x) => x.account_code === a.code);
+            const cost = bal(a.code), acc = -bal(`${a.code}-AD`);
+            return (
+              <TableRow key={a.code}>
+                <TableCell>{a.code} {a.name}</TableCell>
+                <TableCell className="text-right tabular">{money(cost)}</TableCell>
+                <TableCell className="text-right tabular">{money(acc)}</TableCell>
+                <TableCell className="text-right tabular">{money(cost - acc)}</TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Input aria-label={`Rate for ${a.name}`} className="w-20" inputMode="decimal" placeholder="e.g. 10" value={rates[a.code] ?? (c ? String(c.rate) : "")} onChange={(e) => setRates({ ...rates, [a.code]: e.target.value })} />
+                    <Button size="sm" variant="outline" onClick={() => save(a.code)}>Save</Button>
+                  </div>
+                </TableCell>
+                <TableCell>{c?.last_year ?? "—"}</TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+      <div className="mt-4 flex flex-wrap items-end gap-2">
+        <div><Label htmlFor="dep-year">Year</Label><Input id="dep-year" className="w-28" inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value)} /></div>
+        <Button onClick={run} disabled={busy || !cfg?.length}>Post depreciation for {year}</Button>
+      </div>
     </section>
   );
 }
