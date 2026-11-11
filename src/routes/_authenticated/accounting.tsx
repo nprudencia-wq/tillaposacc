@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, Table
 import { money } from "@/lib/pos";
 import { exportExcel, exportPDF, type Col, type Row } from "@/lib/export";
 import { assetSchedule, balanceSheet, journalBalanced, profitFor, trialBalance, type AccountType, type GlAccount, type GlLine, type TbRow } from "@/lib/ledger";
+import { annualDepreciation } from "@/lib/depreciation";
 
 export const Route = createFileRoute("/_authenticated/accounting")({
   head: () => ({
@@ -79,7 +80,7 @@ function AccountingPage() {
       </div>
 
       <Tabs defaultValue="tb" className="mt-6">
-        <TabsList className="flex-wrap">
+        <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="tb">Trial balance</TabsTrigger>
           <TabsTrigger value="pl">Income statement</TabsTrigger>
           <TabsTrigger value="bs">Balance sheet</TabsTrigger>
@@ -544,6 +545,7 @@ function DepreciationTab({ accounts, tb }: { accounts: GlAccount[]; tb: TbRow[] 
   const thisYear = new Date().getFullYear();
   const [year, setYear] = useState(String(thisYear));
   const [rates, setRates] = useState<Record<string, string>>({});
+  const [startDates, setStartDates] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const { data: cfg } = useQuery({
     queryKey: ["asset-depreciation"],
@@ -555,10 +557,13 @@ function DepreciationTab({ accounts, tb }: { accounts: GlAccount[]; tb: TbRow[] 
   });
   const bal = (c: string) => tb.find((r) => r.code === c)?.balance ?? 0;
   async function save(code: string) {
-    const v = rates[code] ?? "";
-    const { error } = await supabase.rpc("set_asset_depreciation", { p_code: code, p_rate: Number(v) || 0 });
+    const saved = cfg?.find((x) => x.account_code === code);
+    const v = rates[code] ?? (saved ? String(saved.rate) : "");
+    const start = startDates[code] ?? saved?.start_date ?? "";
+    if (Number(v) > 0 && !start) { toast.error("Enter the date the asset was first used"); return; }
+    const { error } = await supabase.rpc("set_asset_depreciation", { p_code: code, p_rate: Number(v), p_start_date: start || undefined });
     if (error) { toast.error(error.message); return; }
-    toast.success("Depreciation rate saved");
+    toast.success("Asset depreciation settings saved");
     qc.invalidateQueries({ queryKey: ["asset-depreciation"] });
   }
   async function run() {
@@ -575,14 +580,16 @@ function DepreciationTab({ accounts, tb }: { accounts: GlAccount[]; tb: TbRow[] 
   return (
     <section className="mt-4 rounded-xl border bg-card p-4 shadow-soft">
       <h2 className="text-lg font-semibold">Asset depreciation (per annum)</h2>
-      <p className="text-sm text-muted-foreground">Set a yearly rate for each asset. Running a year posts straight-line depreciation (cost × rate) to Depreciation expense and the asset's Accumulated depreciation. Each year can only be posted once per asset, and an asset never goes below zero.</p>
       {assets.length === 0 && <p className="mt-3 text-sm">Add an asset account in Chart of accounts first.</p>}
       <Table className="mt-3">
-        <TableHeader><TableRow><TableHead>Asset</TableHead><TableHead className="text-right">Cost</TableHead><TableHead className="text-right">Accumulated</TableHead><TableHead className="text-right">Book value</TableHead><TableHead>Rate % p.a.</TableHead><TableHead>Last year posted</TableHead></TableRow></TableHeader>
+        <TableHeader><TableRow><TableHead>Asset</TableHead><TableHead className="text-right">Cost</TableHead><TableHead className="text-right">Accumulated</TableHead><TableHead className="text-right">Book value</TableHead><TableHead>First used</TableHead><TableHead>Rate % p.a.</TableHead><TableHead className="text-right">Depreciation for {year}</TableHead><TableHead>Last year posted</TableHead></TableRow></TableHeader>
         <TableBody>
           {assets.map((a) => {
             const c = cfg?.find((x) => x.account_code === a.code);
             const cost = bal(a.code), acc = -bal(`${a.code}-AD`);
+            const start = startDates[a.code] ?? c?.start_date ?? "";
+            const rate = Number(rates[a.code] ?? c?.rate ?? 0);
+            const estimate = annualDepreciation(cost, acc, rate, start, Number(year), today());
             return (
               <TableRow key={a.code}>
                 <TableCell>{a.code} {a.name}</TableCell>
@@ -590,11 +597,16 @@ function DepreciationTab({ accounts, tb }: { accounts: GlAccount[]; tb: TbRow[] 
                 <TableCell className="text-right tabular">{money(acc)}</TableCell>
                 <TableCell className="text-right tabular">{money(cost - acc)}</TableCell>
                 <TableCell>
+                  <Input type="date" aria-label={`First used date for ${a.name}`} className="w-40" value={start} disabled={c?.last_year != null && !!c.start_date} onChange={(e) => setStartDates({ ...startDates, [a.code]: e.target.value })} />
+                  {!start && <span className="text-xs text-destructive">First-used date required</span>}
+                </TableCell>
+                <TableCell>
                   <div className="flex gap-2">
-                    <Input aria-label={`Rate for ${a.name}`} className="w-20" inputMode="decimal" placeholder="e.g. 10" value={rates[a.code] ?? (c ? String(c.rate) : "")} onChange={(e) => setRates({ ...rates, [a.code]: e.target.value })} />
+                    <Input aria-label={`Rate for ${a.name}`} className="w-20" type="number" min="0" max="100" step="0.01" placeholder="e.g. 10" value={rates[a.code] ?? (c ? String(c.rate) : "")} onChange={(e) => setRates({ ...rates, [a.code]: e.target.value })} />
                     <Button size="sm" variant="outline" onClick={() => save(a.code)}>Save</Button>
                   </div>
                 </TableCell>
+                <TableCell className="text-right tabular">{c?.last_year != null && c.last_year >= Number(year) ? "Posted" : money(estimate)}</TableCell>
                 <TableCell>{c?.last_year ?? "—"}</TableCell>
               </TableRow>
             );
@@ -603,7 +615,7 @@ function DepreciationTab({ accounts, tb }: { accounts: GlAccount[]; tb: TbRow[] 
       </Table>
       <div className="mt-4 flex flex-wrap items-end gap-2">
         <div><Label htmlFor="dep-year">Year</Label><Input id="dep-year" className="w-28" inputMode="numeric" value={year} onChange={(e) => setYear(e.target.value)} /></div>
-        <Button onClick={run} disabled={busy || !cfg?.length}>Post depreciation for {year}</Button>
+        <Button onClick={run} disabled={busy || !cfg?.length || !Number.isInteger(Number(year)) || Number(year) < 1 || Number(year) > thisYear || cfg.some((c) => !c.start_date && (c.last_year == null || c.last_year < Number(year))) || Object.keys(rates).some((code) => rates[code] !== String(cfg.find((c) => c.account_code === code)?.rate ?? "")) || Object.keys(startDates).some((code) => startDates[code] !== (cfg.find((c) => c.account_code === code)?.start_date ?? ""))}>Post depreciation for {year}</Button>
       </div>
     </section>
   );

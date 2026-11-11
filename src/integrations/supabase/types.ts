@@ -54,6 +54,7 @@ export type Database = {
           account_code: string
           last_year: number | null
           rate: number
+          start_date: string | null
           store_id: string
           updated_at: string
         }
@@ -61,6 +62,7 @@ export type Database = {
           account_code: string
           last_year?: number | null
           rate: number
+          start_date?: string | null
           store_id?: string
           updated_at?: string
         }
@@ -68,6 +70,7 @@ export type Database = {
           account_code?: string
           last_year?: number | null
           rate?: number
+          start_date?: string | null
           store_id?: string
           updated_at?: string
         }
@@ -2684,6 +2687,17 @@ export type Database = {
         }
         Returns: number
       }
+      asset_depreciation_amount: {
+        Args: {
+          p_acc: number
+          p_asof: string
+          p_cost: number
+          p_rate: number
+          p_start: string
+          p_year: number
+        }
+        Returns: number
+      }
       auto_close_daily_settlements: {
         Args: { p_day?: string }
         Returns: number
@@ -3109,10 +3123,12 @@ export type Database = {
         Returns: undefined
       }
       save_zimra_config: { Args: { p: Json }; Returns: undefined }
-      set_asset_depreciation: {
-        Args: { p_code: string; p_rate: number }
-        Returns: undefined
-      }
+      set_asset_depreciation:
+        | { Args: { p_code: string; p_rate: number }; Returns: undefined }
+        | {
+            Args: { p_code: string; p_rate: number; p_start_date: string }
+            Returns: undefined
+          }
       set_sale_payment_references: {
         Args: { p_refs: Json; p_sale_number: string }
         Returns: number

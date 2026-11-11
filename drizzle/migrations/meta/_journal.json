@@ -575,6 +575,13 @@
       "when": 1794385545893,
       "tag": "0081_asset_depreciation",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1794388446238,
+      "tag": "0082_asset_first_used_date",
+      "breakpoints": true
     }
   ]
 }
