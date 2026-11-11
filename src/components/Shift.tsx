@@ -36,7 +36,7 @@ export type ShiftSummary = {
   paid_out_usd: number; paid_out_zig: number; expected_usd: number; expected_zig: number;
 };
 
-const moveLabels: Record<string, string> = { cash_drop: "Safe drop", paid_out: "Paid out", paid_in: "Paid in" };
+const moveLabels: Record<string, string> = { cash_drop: "Safe drop", paid_out: "Paid out", paid_in: "Paid in", deposit_in: "Bottle deposit", deposit_out: "Deposit refund" };
 
 export function useOpenShift() {
   const { data: me } = useStaff();
@@ -203,7 +203,11 @@ function MovementDialog({ shiftId, onClose }: { shiftId: string; onClose: () => 
   async function save() {
     setBusy(true);
     // Always saved on the till first (idempotent upload), so it works with or without internet.
-    try { await enqueueCashMovement({ shift_id: shiftId, type: type as "cash_drop", currency, amount: Number(amount), reason }); }
+    const deposit = type === "deposit_in" || type === "deposit_out";
+    const realType = type === "deposit_in" ? "paid_in" : type === "deposit_out" ? "paid_out" : type;
+    const fullReason = type === "deposit_in" ? `Bottle deposit taken${reason ? ` — ${reason}` : ""}` : type === "deposit_out" ? `Bottle deposit returned${reason ? ` — ${reason}` : ""}` : reason;
+    if (!deposit && !reason.trim()) { setBusy(false); toast.error("A reason is required"); return; }
+    try { await enqueueCashMovement({ shift_id: shiftId, type: realType as "cash_drop", currency, amount: Number(amount), reason: fullReason }); }
     catch (e) { setBusy(false); toast.error((e as Error).message); return; }
     setBusy(false);
     toast.success(internetAvailable() ? `${moveLabels[type]} recorded` : `${moveLabels[type]} saved on till — uploads when internet is back`);
@@ -221,6 +225,8 @@ function MovementDialog({ shiftId, onClose }: { shiftId: string; onClose: () => 
               <SelectItem value="cash_drop">Safe drop (cash to safe)</SelectItem>
               <SelectItem value="paid_out">Paid out (petty cash)</SelectItem>
               <SelectItem value="paid_in">Paid in (extra float)</SelectItem>
+              <SelectItem value="deposit_in">Bottle deposit taken</SelectItem>
+              <SelectItem value="deposit_out">Bottle deposit refunded</SelectItem>
             </SelectContent>
           </Select>
           <div className="flex gap-2">
@@ -230,7 +236,7 @@ function MovementDialog({ shiftId, onClose }: { shiftId: string; onClose: () => 
             </Select>
             <Input type="number" min={0} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" aria-label="Amount" className="tabular" />
           </div>
-          <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason / voucher number" aria-label="Reason" />
+          <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={type.startsWith("deposit") ? "Customer / bottles (optional)" : "Reason / voucher number"} aria-label="Reason" />
           <Button className="w-full" disabled={busy} onClick={save}>Record</Button>
         </div>
       </DialogContent>

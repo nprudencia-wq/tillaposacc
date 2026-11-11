@@ -617,6 +617,20 @@
       "when": 1794389947882,
       "tag": "0087_staff_takings_payment",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1794391024940,
+      "tag": "0088_bottle_deposits",
+      "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1794391040928,
+      "tag": "0089_bottle_deposits_rates",
+      "breakpoints": true
     }
   ]
 }

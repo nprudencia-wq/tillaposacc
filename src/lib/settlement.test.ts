@@ -31,3 +31,12 @@ describe("daily settlement", () => {
     expect(groupTotals(rows)).toEqual({ cash: 16, other: 5, account: 7 });
   });
 });
+
+describe("bottle deposits", () => {
+  it("are left out of daily takings", () => {
+    const rows = buildSettlement({ types: [{ code: "cash", name: "Cash", is_cash: true }], sales: [], refunds: [], repayments: [],
+      movements: [{ id: "1", created_at: "2026-11-11T08:00:00Z", cashier: "A", type: "paid_in", usd: 2, reason: "Bottle deposit taken" },
+        { id: "2", created_at: "2026-11-11T09:00:00Z", cashier: "A", type: "paid_out", usd: 1, reason: "Bottle deposit returned" }] });
+    expect(rows.find((r) => r.method === "cash")?.expected ?? 0).toBe(0);
+  });
+});
