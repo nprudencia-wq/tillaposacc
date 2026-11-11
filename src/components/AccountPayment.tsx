@@ -11,8 +11,8 @@ import { syncQueue } from "@/lib/offline";
 import type { Customer } from "@/components/Customers";
 
 /** Take a customer's debt payment at the till. Saved on the device first, so it works with no internet. */
-export function AccountPaymentDialog({ customer, shiftId, zigRate, randRate, randEnabled, onClose }: {
-  customer: Customer; shiftId: string | null; zigRate: number; randRate: number; randEnabled: boolean; onClose: () => void;
+export function AccountPaymentDialog({ customer, customers, shiftId, zigRate, randRate, randEnabled, onClose }: {
+  customer: Customer | null; customers?: Customer[]; shiftId: string | null; zigRate: number; randRate: number; randEnabled: boolean; onClose: () => void;
 }) {
   const { data: types } = usePaymentTypes();
   const methods = activeTypes(types).filter((t) => !t.is_account);
@@ -23,10 +23,17 @@ export function AccountPaymentDialog({ customer, shiftId, zigRate, randRate, ran
   const [owed, setOwed] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [ref] = useState(() => `PAY-${crypto.randomUUID()}`);
-  useEffect(() => { void customerOwed(customer.id).then(setOwed).catch(() => setOwed(null)); }, [customer.id]);
+  // When the till has no customer on the sale, the cashier picks one here.
+  const [pickedId, setPickedId] = useState(customer?.id ?? "");
+  const who = customer ?? (customers ?? []).find((c) => c.id === pickedId) ?? null;
+  useEffect(() => {
+    if (!who) { setOwed(null); return; }
+    void customerOwed(who.id).then(setOwed).catch(() => setOwed(null));
+  }, [who?.id]);
   const m = method || methods[0]?.code || "";
 
   async function save() {
+    if (!who) { toast.error("Pick a customer first"); return; }
     const value = Number(amount);
     if (!(value > 0) || !Number.isFinite(value)) { toast.error("Enter an amount above zero"); return; }
     if (!m) { toast.error("Add a payment type first"); return; }
@@ -36,8 +43,8 @@ export function AccountPaymentDialog({ customer, shiftId, zigRate, randRate, ran
     if (isCash && !shiftId) { toast.error("Open a shift to take cash from a customer"); return; }
     setBusy(true);
     try {
-      await enqueueRepayment({ client_ref: ref, customer_id: customer.id, customer_name: customer.name, amount: value, currency, usd: Math.round((value / rate) * 100) / 100, method: m, reference, paid_at: new Date().toISOString(), shift_id: shiftId });
-      toast.success(`Payment of ${money(value, currency)} recorded for ${customer.name}`);
+      await enqueueRepayment({ client_ref: ref, customer_id: who.id, customer_name: who.name, amount: value, currency, usd: Math.round((value / rate) * 100) / 100, method: m, reference, paid_at: new Date().toISOString(), shift_id: shiftId });
+      toast.success(`Payment of ${money(value, currency)} recorded for ${who.name}`);
       void syncQueue();
       onClose();
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
@@ -46,8 +53,14 @@ export function AccountPaymentDialog({ customer, shiftId, zigRate, randRate, ran
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
-        <DialogHeader><DialogTitle>Account payment — {customer.name}</DialogTitle></DialogHeader>
-        <p className="text-sm text-muted-foreground">Owes {owed === null ? "…" : money(owed)}{customer.credit_limit > 0 ? ` · limit ${money(customer.credit_limit)}` : ""}. Works offline; it uploads when the internet is back.</p>
+        <DialogHeader><DialogTitle>Account payment{who ? ` — ${who.name}` : ""}</DialogTitle></DialogHeader>
+        {!customer && (
+          <Select value={pickedId} onValueChange={setPickedId}>
+            <SelectTrigger aria-label="Customer paying on account"><SelectValue placeholder="Pick the customer paying…" /></SelectTrigger>
+            <SelectContent>{(customers ?? []).filter((c) => c.active).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}{c.phone ? ` · ${c.phone}` : ""}</SelectItem>)}</SelectContent>
+          </Select>
+        )}
+        <p className="text-sm text-muted-foreground">{who ? <>Owes {owed === null ? "…" : money(owed)}{who.credit_limit > 0 ? ` · limit ${money(who.credit_limit)}` : ""}. </> : ""}Works offline; it uploads when the internet is back.</p>
         <div className="grid grid-cols-2 gap-2">
           <Select value={m} onValueChange={setMethod}>
             <SelectTrigger aria-label="Payment type"><SelectValue placeholder="Payment type" /></SelectTrigger>
