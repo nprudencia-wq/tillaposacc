@@ -558,7 +558,7 @@ function PayDialog({ total, currency, rate, randRate, customer, onClose, onPay }
             </div>
             {change > 0 && currency === "USD" && <div className="text-right text-xs text-muted-foreground">or {money(fromUSD(change, "ZiG", rate), "ZiG")}</div>}
           </div>
-          <Button size="lg" className="h-14 w-full text-lg" disabled={change < 0 || busy || !methods.length}
+          <Button size="lg" className="h-14 w-full text-lg" disabled={change < 0 || busy || !methods.length || (payments.some((p) => p.amount > 0 && isAccountType(p.method)) && !customer)}
             onClick={async () => { setBusy(true); try { await onPay(payments); } catch (e) { toast.error(e instanceof Error ? e.message : "Sale not saved. Keep this sale open and try again."); } finally { setBusy(false); } }}>
             Complete sale
           </Button>
