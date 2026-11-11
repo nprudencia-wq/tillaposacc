@@ -53,7 +53,14 @@ function Settlement({ storeId }: { storeId: string }) {
   const { data } = useSuspenseQuery({
     queryKey: ["settlement", storeId, day],
     queryFn: async () => {
-      const server = await cached(`settlement:${storeId}:${day}`, () => loadServer());
+      // Offline with no saved copy of this day: start from an empty day instead of a blank screen,
+      // so this till's own unsent sales and payments can still be settled.
+      const server = await cached(`settlement:${storeId}:${day}`, () => loadServer()).catch(async (e) => {
+        if (!/No saved copy/.test(String((e as Error)?.message))) throw e;
+        const { data: auth } = await supabase.auth.getSession();
+        const empty: Awaited<ReturnType<typeof loadServer>> = { types: [], sales: [], refunds: [], repayments: [], movements: [], saleRefs: [], payRefs: [], shiftCash: null, shiftCount: 0, saved: null, settledBy: "Staff", me: (auth.session?.user.user_metadata?.full_name as string) || "Staff", checkedAt: "" };
+        return empty;
+      });
       // Add this device's sales and debt payments that haven't uploaded yet, so the day can be settled offline.
       const saleRefs = new Set(server.saleRefs); const payRefs = new Set(server.payRefs);
       const inDay = (at: string) => at >= start && at < end;
