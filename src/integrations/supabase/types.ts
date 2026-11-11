@@ -2739,6 +2739,16 @@ export type Database = {
         Args: { p_apply: boolean; p_stocktake: string }
         Returns: undefined
       }
+      force_close_shift: {
+        Args: {
+          p_actual_usd: number
+          p_actual_zar: number
+          p_actual_zig: number
+          p_notes: string
+          p_shift: string
+        }
+        Returns: string
+      }
       gl_lines: {
         Args: { p_to: string }
         Returns: {

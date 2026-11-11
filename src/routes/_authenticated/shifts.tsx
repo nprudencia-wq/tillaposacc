@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { fetchShiftSummary, ShiftReportDialog, type ShiftSummary } from "@/components/Shift";
 import { money } from "@/lib/pos";
+import { ForceCloseShiftDialog } from "@/components/ForceCloseShift";
 import { ShiftHandoverDialog } from "@/components/ShiftHandover";
 import { useStaff } from "@/hooks/use-staff";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ function ShiftClosePage({ storeId }: { storeId: string }) {
   const start = new Date(`${day}T00:00:00+02:00`).toISOString();
   const end = new Date(Date.parse(start) + 86400000).toISOString();
   const [report, setReport] = useState<{ title: string; s: ShiftSummary } | null>(null);
+  const [force, setForce] = useState<(typeof shifts)[number] | null>(null);
   const [handover, setHandover] = useState<(typeof shifts)[number] | null>(null);
   const { data } = useSuspenseQuery({
     queryKey: ["shifts", "settlement", storeId, day],
@@ -98,13 +100,15 @@ function ShiftClosePage({ storeId }: { storeId: string }) {
                 <td className="tabular p-3">{v(s.variance_usd, "USD")}</td>
                 <td className="tabular p-3">{v(s.variance_zig, "ZiG")}</td><td className="tabular p-3">{v(s.variance_zar, "ZAR")}</td>
                 <td className="flex gap-2 p-3"><Button size="sm" variant="outline" onClick={() => view(s.id, s.status === "closed")}>{s.status === "closed" ? "Z-report" : "X-report"}</Button>
-                  <Button size="sm" variant={s.handover_summary ? "secondary" : "outline"} onClick={() => setHandover(s)}>{s.handover_summary ? "Handover ✓" : "Handover"}</Button></td>
+                  <Button size="sm" variant={s.handover_summary ? "secondary" : "outline"} onClick={() => setHandover(s)}>{s.handover_summary ? "Handover ✓" : "Handover"}</Button>
+                  {s.status === "open" && <Button size="sm" variant="destructive" onClick={() => setForce(s)}>Force close</Button>}</td>
               </tr>
             ))}
             {!shifts.length && <tr><td colSpan={9} className="p-8 text-center text-muted-foreground">No shifts for this day.</td></tr>}
           </tbody>
         </table>
       </div>
+      {force && <ForceCloseShiftDialog shift={force} onClose={() => setForce(null)} onClosed={(z) => { setForce(null); setReport({ title: "Z-report (force closed)", s: z }); }} />}
       {handover && <ShiftHandoverDialog shift={handover} onClose={() => setHandover(null)} />}
       {report && <ShiftReportDialog title={report.title} s={report.s} onClose={() => setReport(null)} />}
     </div>
