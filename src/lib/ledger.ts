@@ -49,14 +49,14 @@ export function balanceSheet(tb: TbRow[]) {
   return { assets, liabilities, equity, earnings, totalAssets, totalLiabilities: sum(liabilities), totalEquity: r2(sum(equity) + earnings), totalLE, balanced: Math.abs(totalAssets - totalLE) < 0.01 };
 }
 
-export interface AssetLine { row: TbRow; accRow?: TbRow; acc: number; nbv: number }
+export interface AssetLine { row: TbRow; accRow: TbRow | null; acc: number; nbv: number }
 /** Pairs each asset with its "-AD" accumulated-depreciation contra account, so reports show cost, accumulated depreciation and net book value. */
 export function assetSchedule(tb: TbRow[]): AssetLine[] {
   const ads = new Map(tb.filter((r) => r.type === "asset" && r.code.endsWith("-AD")).map((r) => [r.code, r]));
   return tb
     .filter((r) => r.type === "asset" && !r.code.endsWith("-AD"))
     .map((r) => {
-      const accRow = ads.get(`${r.code}-AD`);
+      const accRow = ads.get(`${r.code}-AD`) ?? null;
       const acc = accRow ? r2(-accRow.balance) : 0;
       return { row: r, accRow, acc, nbv: r2(r.balance - acc) };
     });
