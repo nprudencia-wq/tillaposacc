@@ -500,7 +500,6 @@ function PayDialog({ total, currency, rate, randRate, customer, onClose, onPay }
   const [payments, setPayments] = useState<Payment[]>([{ method: first, currency, amount: fromUSD(total, currency, rate, randRate) }]);
   const [busy, setBusy] = useState(false);
   const change = changeDueUSD(total, payments, rate, randRate);
-  const isCashType = (code: string) => !!types?.find((t) => t.code === code)?.is_cash;
   const isAccountType = (code: string) => !!(types?.find((t) => t.code === code) as { is_account?: boolean } | undefined)?.is_account;
   const upd = (i: number, p: Partial<Payment>) => setPayments((ps) => ps.map((x, k) => (k === i ? { ...x, ...p } : x)));
 
@@ -520,7 +519,6 @@ function PayDialog({ total, currency, rate, randRate, customer, onClose, onPay }
                 <SelectContent><SelectItem value="USD">USD</SelectItem><SelectItem value="ZiG">ZiG</SelectItem><SelectItem value="ZAR" disabled={randRate <= 0}>Rand</SelectItem></SelectContent>
               </Select>
               <Input type="number" min={0} step="0.01" value={p.amount || ""} onChange={(e) => upd(i, { amount: Number(e.target.value) })} className="tabular flex-1" />
-              {!isCashType(p.method) && !isAccountType(p.method) && <Input aria-label={`${methodLabel(p.method)} reference or approval code`} placeholder="Ref / approval code" maxLength={80} value={p.reference ?? ""} onChange={(e) => upd(i, { reference: e.target.value })} className="w-36" />}
               {payments.length > 1 && <Button size="icon" variant="ghost" aria-label={`Remove this ${methodLabel(p.method)} payment`} onClick={() => setPayments(payments.filter((_, k) => k !== i))}><X className="h-4 w-4" /></Button>}
             </div>
           ))}
@@ -543,11 +541,14 @@ function PayDialog({ total, currency, rate, randRate, customer, onClose, onPay }
                       · on account{customer ? ` — ${customer.name}` : ""}
                     </span>
                   )}
-                  {p.reference?.trim() && <span className="ml-1 text-xs text-muted-foreground">ref {p.reference.trim()}</span>}
                 </span>
-                <span className="tabular font-medium">{money(p.amount, p.currency)}</span>
+                <span className="tabular font-medium">
+                  {money(p.amount, p.currency)}
+                  {p.currency !== "USD" && <span className="ml-1 text-xs text-muted-foreground">({money(paidUSD([p], rate, randRate), "USD")})</span>}
+                </span>
               </div>
             ))}
+            <div className="flex justify-between border-t pt-1 text-sm font-semibold"><span>Sale total</span><span className="tabular">{money(total, "USD")}</span></div>
           </div>
           <div className="tabular rounded-xl bg-muted p-4">
             <div className="flex justify-between text-sm"><span>Paid</span><span>{money(fromUSD(paidUSD(payments, rate, randRate), currency, rate, randRate), currency)}</span></div>
