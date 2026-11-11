@@ -16,6 +16,7 @@ import { exportExcel, exportPDF, type Col, type Row } from "@/lib/export";
 import { assetSchedule, balanceSheet, cashFlow, type CashFlowLine, journalBalanced, profitFor, trialBalance, type AccountType, type GlAccount, type GlLine, type TbRow } from "@/lib/ledger";
 import { annualDepreciation, monthlyDepreciation } from "@/lib/depreciation";
 import { AssetRegister } from "@/components/AssetRegister";
+import { DepositsTab } from "@/components/DepositsTab";
 
 export const Route = createFileRoute("/_authenticated/accounting")({
   head: () => ({
@@ -94,8 +95,10 @@ function AccountingPage() {
           <TabsTrigger value="jv">Journals</TabsTrigger>
           <TabsTrigger value="assets">Asset register</TabsTrigger>
           <TabsTrigger value="dep">Depreciation</TabsTrigger>
+          <TabsTrigger value="dp">Unclaimed deposits</TabsTrigger>
           <TabsTrigger value="coa">Chart of accounts</TabsTrigger>
         </TabsList>
+        <TabsContent value="dp"><DepositsTab from={from} to={to} /></TabsContent>
         <TabsContent value="tb"><TrialBalanceTab tb={tb} to={to} /></TabsContent>
         <TabsContent value="pl"><IncomeTab lines={all} accounts={accs} from={from} to={to} /></TabsContent>
         <TabsContent value="cf"><CashFlowTab lines={all} accounts={accs} from={from} to={to} /></TabsContent>
