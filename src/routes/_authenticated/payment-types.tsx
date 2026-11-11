@@ -52,7 +52,7 @@ function PaymentTypesPage() {
     toast.success(`${n} added`);
   }
 
-  async function patch(t: PaymentType, changes: { name?: string; is_cash?: boolean; active?: boolean; sort_order?: number }) {
+  async function patch(t: PaymentType, changes: { name?: string; is_cash?: boolean; is_staff?: boolean; active?: boolean; sort_order?: number }) {
     const { error } = await supabase.from("payment_types").update(changes).eq("id", t.id);
     if (error) { toast.error(error.message); return; }
     refresh();
@@ -110,6 +110,7 @@ function PaymentTypesPage() {
             <TableRow>
               <TableHead>Name shown at the till</TableHead>
               <TableHead className="text-center">Cash in drawer</TableHead>
+              <TableHead className="text-center">Staff takings</TableHead>
               <TableHead className="text-center">Offered at the till</TableHead>
               <TableHead className="text-center">Order</TableHead>
               <TableHead />
@@ -122,6 +123,10 @@ function PaymentTypesPage() {
                 <TableCell className="text-center">
                   <Switch checked={t.is_cash} disabled={!can} onCheckedChange={(v) => patch(t, { is_cash: v })}
                     aria-label={`Toggle whether ${t.name} counts as cash in the drawer`} />
+                </TableCell>
+                <TableCell className="text-center">
+                  <Switch checked={!!t.is_staff} disabled={!can || t.is_cash || !!t.is_account} onCheckedChange={(v) => patch(t, { is_staff: v })}
+                    aria-label={`Toggle whether ${t.name} records goods taken by staff`} />
                 </TableCell>
                 <TableCell className="text-center">
                   <Switch checked={t.active} disabled={!can} onCheckedChange={(v) => patch(t, { active: v })}

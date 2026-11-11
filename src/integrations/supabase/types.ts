@@ -1059,6 +1059,7 @@ export type Database = {
           id: string
           is_account: boolean
           is_cash: boolean
+          is_staff: boolean
           name: string
           sort_order: number
           store_id: string | null
@@ -1070,6 +1071,7 @@ export type Database = {
           id?: string
           is_account?: boolean
           is_cash?: boolean
+          is_staff?: boolean
           name: string
           sort_order?: number
           store_id?: string | null
@@ -1081,6 +1083,7 @@ export type Database = {
           id?: string
           is_account?: boolean
           is_cash?: boolean
+          is_staff?: boolean
           name?: string
           sort_order?: number
           store_id?: string | null

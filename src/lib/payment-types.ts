@@ -9,6 +9,8 @@ export interface PaymentType {
   name: string;
   is_cash: boolean;
   is_account?: boolean;
+  /** Goods taken by staff: stock leaves at cost, value is owed by staff (account 1160), no drawer cash. */
+  is_staff?: boolean;
   active: boolean;
   sort_order: number;
 }

@@ -610,6 +610,13 @@
       "when": 1794389179593,
       "tag": "0086_depreciation_monthly_impl",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1794389947882,
+      "tag": "0087_staff_takings_payment",
+      "breakpoints": true
     }
   ]
 }
