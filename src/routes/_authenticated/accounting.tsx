@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Trash2, FileDown, FileSpreadsheet } from "lucide-react";
@@ -85,6 +85,7 @@ function AccountingPage() {
           <TabsTrigger value="bs">Balance sheet</TabsTrigger>
           <TabsTrigger value="gl">General ledger</TabsTrigger>
           <TabsTrigger value="cb">Cashbook reconciliation</TabsTrigger>
+          <TabsTrigger value="rb">Reconciled balances</TabsTrigger>
           <TabsTrigger value="jv">Journals</TabsTrigger>
           <TabsTrigger value="coa">Chart of accounts</TabsTrigger>
         </TabsList>
@@ -92,7 +93,8 @@ function AccountingPage() {
         <TabsContent value="pl"><IncomeTab lines={all} accounts={accs} from={from} to={to} /></TabsContent>
         <TabsContent value="bs"><BalanceSheetTab tb={tb} to={to} /></TabsContent>
         <TabsContent value="gl"><LedgerTab lines={all} accounts={accs} from={from} to={to} /></TabsContent>
-        <TabsContent value="cb"><CashbookTab lines={all} accounts={accs} from={from} to={to} /></TabsContent>
+        <TabsContent value="cb"><CashbookTab lines={all} accounts={accs} from={from} to={to} userId={me?.id} /></TabsContent>
+        <TabsContent value="rb"><ReconciledTab accounts={accs} /></TabsContent>
         <TabsContent value="jv"><JournalTab accounts={accs} /></TabsContent>
         <TabsContent value="coa"><AccountsTab accounts={accs} /></TabsContent>
       </Tabs>
@@ -354,10 +356,37 @@ function AccountsTab({ accounts }: { accounts: GlAccount[] }) {
   );
 }
 
-function CashbookTab({ lines, accounts, from, to }: { lines: GlLine[]; accounts: GlAccount[]; from: string; to: string }) {
+const lineKey = (l: GlLine) => [l.entry_date, l.source, l.reference, l.memo, Number(l.debit), Number(l.credit)].join("|");
+function CashbookTab({ lines, accounts, from, to, userId }: { lines: GlLine[]; accounts: GlAccount[]; from: string; to: string; userId?: string | undefined }) {
+  const qc = useQueryClient();
   const [acct, setAcct] = useState("1000");
   const [stmt, setStmt] = useState("");
-  const [cleared, setCleared] = useState<Set<number>>(new Set());
+  const [cleared, setCleared] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState(false);
+  const { data: saved } = useQuery({
+    queryKey: ["cashbook-rec", acct, to],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("cashbook_reconciliations").select("*").eq("account_code", acct).eq("statement_date", to).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const { data: prevCleared } = useQuery({
+    queryKey: ["cashbook-cleared", acct],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("cashbook_reconciliations").select("cleared").eq("account_code", acct);
+      if (error) throw error;
+      return new Set((data ?? []).flatMap((r) => (r.cleared as string[]) ?? []));
+    },
+  });
+  const loadedFor = useRef("");
+  useEffect(() => {
+    const k = `${acct}|${to}`;
+    if (saved === undefined || !prevCleared || loadedFor.current === k) return;
+    loadedFor.current = k;
+    setCleared(new Set(saved ? (saved.cleared as string[]) : prevCleared));
+    setStmt(saved ? String(saved.statement_balance) : "");
+  }, [saved, prevCleared, acct, to]);
   const cashAccts = accounts.filter((a) => a.type === "asset" && a.code !== "1100" && a.code !== "1200");
   const { opening, rows, closing } = useMemo(() => {
     const mine = lines.filter((l) => l.account_code === acct).sort((a, b) => a.entry_date.localeCompare(b.entry_date));
@@ -366,15 +395,24 @@ function CashbookTab({ lines, accounts, from, to }: { lines: GlLine[]; accounts:
     const closing = opening + rows.reduce((a, l) => a + Number(l.debit) - Number(l.credit), 0);
     return { opening: Math.round(opening * 100) / 100, rows, closing: Math.round(closing * 100) / 100 };
   }, [lines, acct, from, to]);
-  const unclearedIn = rows.reduce((a, l, i) => a + (cleared.has(i) ? 0 : Number(l.debit)), 0);
-  const unclearedOut = rows.reduce((a, l, i) => a + (cleared.has(i) ? 0 : Number(l.credit)), 0);
+  const unclearedIn = rows.reduce((a, l, i) => a + (cleared.has(lineKey(l)) ? 0 : Number(l.debit)), 0);
+  const unclearedOut = rows.reduce((a, l, i) => a + (cleared.has(lineKey(l)) ? 0 : Number(l.credit)), 0);
   const statement = Number(stmt) || 0;
   const adjusted = Math.round((statement + unclearedIn - unclearedOut) * 100) / 100;
   const diff = Math.round((closing - adjusted) * 100) / 100;
-  const toggle = (i: number) => { const n = new Set(cleared); if (n.has(i)) n.delete(i); else n.add(i); setCleared(n); };
+  const toggle = (k: string) => { const n = new Set(cleared); if (n.has(k)) n.delete(k); else n.add(k); setCleared(n); };
+  async function save() {
+    if (!userId) return;
+    setSaving(true);
+    const { error } = await supabase.from("cashbook_reconciliations").upsert({ account_code: acct, statement_date: to, statement_balance: statement, cashbook_balance: closing, difference: diff, cleared: [...cleared], reconciled_by: userId, updated_at: new Date().toISOString() }, { onConflict: "store_id,account_code,statement_date" });
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success(diff === 0 ? "Reconciliation saved — balanced" : "Reconciliation saved");
+    qc.invalidateQueries({ queryKey: ["cashbook-rec"] }); qc.invalidateQueries({ queryKey: ["cashbook-cleared"] }); qc.invalidateQueries({ queryKey: ["cashbook-recs"] });
+  }
   const cols: Col[] = [{ key: "date", label: "Date" }, { key: "ref", label: "Reference" }, { key: "memo", label: "Details" }, { key: "in", label: "Money in", money: true }, { key: "out", label: "Money out", money: true }, { key: "status", label: "Status" }];
   const exp: Row[] = [
-    ...rows.map((r, i) => ({ date: r.entry_date, ref: r.reference, memo: r.memo, in: Number(r.debit), out: Number(r.credit), status: cleared.has(i) ? "Cleared" : "Not cleared" })),
+    ...rows.map((r, i) => ({ date: r.entry_date, ref: r.reference, memo: r.memo, in: Number(r.debit), out: Number(r.credit), status: cleared.has(lineKey(r)) ? "Cleared" : "Not cleared" })),
     { date: "", ref: "", memo: "Cashbook balance", in: closing, out: 0, status: "" },
     { date: "", ref: "", memo: "Statement / counted balance", in: statement, out: 0, status: "" },
     { date: "", ref: "", memo: "Difference", in: diff, out: 0, status: diff === 0 ? "Reconciled" : "Not reconciled" },
@@ -384,7 +422,7 @@ function CashbookTab({ lines, accounts, from, to }: { lines: GlLine[]; accounts:
       <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-wrap items-end gap-3">
           <div><Label>Cashbook</Label>
-            <Select value={acct} onValueChange={(v) => { setAcct(v); setCleared(new Set()); }}>
+            <Select value={acct} onValueChange={(v) => setAcct(v)}>
               <SelectTrigger className="w-64" aria-label="Cashbook account"><SelectValue /></SelectTrigger>
               <SelectContent>{cashAccts.map((a) => <SelectItem key={a.code} value={a.code}>{a.code} {a.name}</SelectItem>)}</SelectContent>
             </Select>
@@ -409,7 +447,7 @@ function CashbookTab({ lines, accounts, from, to }: { lines: GlLine[]; accounts:
           {rows.length === 0 && <TableRow><TableCell colSpan={7} className="text-muted-foreground">No entries in these dates.</TableCell></TableRow>}
           {rows.map((r, i) => (
             <TableRow key={i}>
-              <TableCell><input type="checkbox" aria-label={`Cleared ${r.reference}`} className="h-4 w-4" checked={cleared.has(i)} onChange={() => toggle(i)} /></TableCell>
+              <TableCell><input type="checkbox" aria-label={`Cleared ${r.reference}`} className="h-4 w-4" checked={cleared.has(lineKey(r))} onChange={() => toggle(lineKey(r))} /></TableCell>
               <TableCell className="tabular">{r.entry_date}</TableCell><TableCell>{SOURCE_LABEL[r.source] ?? r.source}</TableCell><TableCell>{r.reference}</TableCell><TableCell className="max-w-56 truncate">{r.memo}</TableCell>
               <TableCell className="text-right tabular">{Number(r.debit) ? money(Number(r.debit)) : ""}</TableCell><TableCell className="text-right tabular">{Number(r.credit) ? money(Number(r.credit)) : ""}</TableCell>
             </TableRow>
@@ -417,9 +455,56 @@ function CashbookTab({ lines, accounts, from, to }: { lines: GlLine[]; accounts:
         </TableBody>
       </Table>
       <div className="mt-2 flex gap-2">
-        <Button variant="outline" size="sm" onClick={() => setCleared(new Set(rows.map((_, i) => i)))}>Tick all</Button>
-        <Button variant="outline" size="sm" onClick={() => setCleared(new Set())}>Clear ticks</Button>
+        <Button variant="outline" size="sm" onClick={() => setCleared(new Set([...cleared, ...rows.map(lineKey)]))}>Tick all</Button>
+        <Button variant="outline" size="sm" onClick={() => { const n = new Set(cleared); rows.forEach((r) => n.delete(lineKey(r))); setCleared(n); }}>Clear ticks</Button>
+        <Button size="sm" className="ml-auto" onClick={save} disabled={saving || !userId}>{saving ? "Saving…" : "Save reconciliation"}</Button>
       </div>
+    </section>
+  );
+}
+
+function ReconciledTab({ accounts }: { accounts: GlAccount[] }) {
+  const { data } = useQuery({
+    queryKey: ["cashbook-recs"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("cashbook_reconciliations").select("*").order("statement_date", { ascending: false }).limit(200);
+      if (error) throw error;
+      return data;
+    },
+  });
+  const recs = data ?? [];
+  const { data: people } = useQuery({
+    queryKey: ["rec-people", recs.map((r) => r.reconciled_by).join()],
+    enabled: recs.length > 0,
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("id, full_name").in("id", [...new Set(recs.map((r) => r.reconciled_by))]);
+      return new Map((data ?? []).map((p) => [p.id, p.full_name]));
+    },
+  });
+  const acctName = (c: string) => accounts.find((a) => a.code === c)?.name ?? c;
+  const cols: Col[] = [{ key: "date", label: "Statement date" }, { key: "acct", label: "Account" }, { key: "book", label: "Cashbook", money: true }, { key: "stmt", label: "Statement", money: true }, { key: "diff", label: "Difference", money: true }, { key: "items", label: "Cleared items" }, { key: "by", label: "By" }];
+  const rows: Row[] = recs.map((r) => ({ date: r.statement_date, acct: `${r.account_code} ${acctName(r.account_code)}`, book: Number(r.cashbook_balance), stmt: Number(r.statement_balance), diff: Number(r.difference), items: String((r.cleared as string[]).length), by: people?.get(r.reconciled_by) ?? "" }));
+  return (
+    <section className="mt-4 rounded-xl border bg-card p-4 shadow-soft">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold">Reconciled balances</h2>
+        <ExportButtons name="reconciled-balances" title="Reconciled balances" sub="Saved cashbook reconciliations" cols={cols} rows={rows} />
+      </div>
+      <Table>
+        <TableHeader><TableRow><TableHead>Statement date</TableHead><TableHead>Account</TableHead><TableHead className="text-right">Cashbook</TableHead><TableHead className="text-right">Statement</TableHead><TableHead className="text-right">Difference</TableHead><TableHead>Status</TableHead><TableHead>By</TableHead><TableHead>Saved</TableHead></TableRow></TableHeader>
+        <TableBody>
+          {recs.length === 0 && <TableRow><TableCell colSpan={8} className="text-muted-foreground">No saved reconciliations yet.</TableCell></TableRow>}
+          {recs.map((r) => (
+            <TableRow key={r.id}>
+              <TableCell className="tabular">{r.statement_date}</TableCell><TableCell>{r.account_code} {acctName(r.account_code)}</TableCell>
+              <TableCell className="text-right tabular">{money(Number(r.cashbook_balance))}</TableCell><TableCell className="text-right tabular">{money(Number(r.statement_balance))}</TableCell>
+              <TableCell className={`text-right tabular ${Number(r.difference) ? "text-destructive" : ""}`}>{money(Number(r.difference))}</TableCell>
+              <TableCell>{Number(r.difference) ? "Not reconciled" : "Reconciled"}</TableCell>
+              <TableCell>{people?.get(r.reconciled_by) ?? ""}</TableCell><TableCell className="tabular text-muted-foreground">{new Date(r.updated_at).toLocaleString()}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </section>
   );
 }

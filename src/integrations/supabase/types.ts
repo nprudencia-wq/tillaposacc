@@ -127,6 +127,53 @@ export type Database = {
           },
         ]
       }
+      cashbook_reconciliations: {
+        Row: {
+          account_code: string
+          cashbook_balance: number
+          cleared: Json
+          difference: number
+          id: string
+          reconciled_by: string
+          statement_balance: number
+          statement_date: string
+          store_id: string
+          updated_at: string
+        }
+        Insert: {
+          account_code: string
+          cashbook_balance?: number
+          cleared?: Json
+          difference?: number
+          id?: string
+          reconciled_by: string
+          statement_balance?: number
+          statement_date: string
+          store_id?: string
+          updated_at?: string
+        }
+        Update: {
+          account_code?: string
+          cashbook_balance?: number
+          cleared?: Json
+          difference?: number
+          id?: string
+          reconciled_by?: string
+          statement_balance?: number
+          statement_date?: string
+          store_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cashbook_reconciliations_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cashier_shifts: {
         Row: {
           actual_cash_usd: number | null
