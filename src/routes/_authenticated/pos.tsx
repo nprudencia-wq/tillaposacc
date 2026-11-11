@@ -351,7 +351,7 @@ function Till({ shiftId }: { shiftId: string }) {
               </SelectContent>
             </Select>
             <Button size="icon" variant="outline" className="h-8 w-8" aria-label="Add a new customer" onClick={() => setAddCust(true)}><Plus className="h-4 w-4" /></Button>
-            {customer && <Button size="icon" variant="outline" className="h-8 w-8" title="Take account payment" aria-label={`Take account payment from ${customer.name}`} onClick={() => setPayCust(true)}><HandCoins className="h-4 w-4" /></Button>}
+            {customer && <Button size="sm" variant="secondary" className="h-8 shrink-0 gap-1" title="Receive payment on account" aria-label={`Receive payment from ${customer.name}`} onClick={() => setPayCust(true)}><HandCoins className="h-4 w-4" />Receive payment</Button>}
           </div>
           {me?.canDiscount !== false && <div className="flex items-center gap-2">
             <span className="w-[4.5rem] shrink-0 text-sm text-muted-foreground">Discount</span>
