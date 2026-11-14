@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from "vitest";
-import { methodLabel, isCashMethod, activeTypes, setPaymentTypeCache, type PaymentType } from "./payment-types";
+import { methodLabel, isCashMethod, activeTypes, acceptsPaymentReference, setPaymentTypeCache, type PaymentType } from "./payment-types";
 
 const types: PaymentType[] = [
   { id: "1", code: "cash", name: "Cash", is_cash: true, active: true, sort_order: 1 },
@@ -23,4 +23,9 @@ describe("payment types", () => {
   });
   it("offers only switched-on types", () => expect(activeTypes(types).map((t) => t.code)).toEqual(["cash", "ecocash"]));
   it("never invents payment types when the shop list is empty", () => expect(activeTypes([])).toEqual([]));
+  it("offers references for card/mobile payments, not cash or customer accounts", () => {
+    expect(acceptsPaymentReference(types[1])).toBe(true);
+    expect(acceptsPaymentReference(types[0])).toBe(false);
+    expect(acceptsPaymentReference({ is_cash: false, is_account: true })).toBe(false);
+  });
 });

@@ -33,10 +33,22 @@ describe("daily settlement", () => {
 });
 
 describe("bottle deposits", () => {
-  it("are left out of daily takings", () => {
-    const rows = buildSettlement({ types: [{ code: "cash", name: "Cash", is_cash: true }], sales: [], refunds: [], repayments: [],
-      movements: [{ id: "1", created_at: "2026-11-11T08:00:00Z", cashier: "A", type: "paid_in", usd: 2, reason: "Bottle deposit taken" },
-        { id: "2", created_at: "2026-11-11T09:00:00Z", cashier: "A", type: "paid_out", usd: 1, reason: "Bottle deposit returned" }] });
-    expect(rows.find((r) => r.method === "cash")?.expected ?? 0).toBe(0);
+  const rowsFor = (type: string, usd: number, reason: string) => buildSettlement({
+    types: [{ code: "cash", name: "Cash", is_cash: true }], sales: [], refunds: [], repayments: [],
+    movements: [{ id: "1", created_at: "2026-11-11T08:00:00Z", cashier: "A", type, usd, reason }],
+  });
+
+  it("includes a $2 deposit taken in expected drawer cash but not sales", () => {
+    const cash = rowsFor("paid_in", 2, "Bottle deposit taken").find((r) => r.method === "cash")!;
+    expect(cash.expected).toBe(2);
+    expect(cash.movements).toBe(2);
+    expect(cash.sales).toBe(0);
+  });
+
+  it("includes a $1 deposit refund as cash paid out", () => {
+    const cash = rowsFor("paid_out", 1, "Bottle deposit returned").find((r) => r.method === "cash")!;
+    expect(cash.expected).toBe(-1);
+    expect(cash.movements).toBe(-1);
+    expect(cash.sales).toBe(0);
   });
 });

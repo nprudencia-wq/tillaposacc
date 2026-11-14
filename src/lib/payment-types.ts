@@ -64,3 +64,8 @@ export function usePaymentTypes() {
 export function isAccountMethod(code: string) {
   return !!cache.find((x) => x.code === code)?.is_account;
 }
+
+/** Card, bank and mobile payments can carry an optional statement/approval reference. */
+export function acceptsPaymentReference(type: Pick<PaymentType, "is_cash" | "is_account"> | undefined) {
+  return !!type && !type.is_cash && !type.is_account;
+}

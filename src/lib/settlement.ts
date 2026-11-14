@@ -55,8 +55,7 @@ export function buildSettlement(input: Input): MethodRow[] {
   for (const m of input.movements) {
     // Debt payments in cash also log a drawer paid-in; they're already counted as repayments.
     if (m.type === "paid_in" && (m.reason ?? "").startsWith("Debt payment from")) continue;
-    // Bottle deposits are owed back to customers, not takings.
-    if ((m.reason ?? "").startsWith("Bottle deposit")) continue;
+    // Bottle deposits are not sales, but their cash remains in the drawer until refunded.
     const r = row(cashCode);
     const signed = m.type === "paid_in" ? m.usd : -m.usd;
     r.movements += signed;

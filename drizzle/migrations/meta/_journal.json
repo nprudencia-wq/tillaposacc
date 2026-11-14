@@ -638,6 +638,20 @@
       "when": 1794392144909,
       "tag": "0090_realtime_accounting_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1794662592809,
+      "tag": "0091_bottle_deposits_cash_settlement",
+      "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1794662641278,
+      "tag": "0092_offline_sale_payment_references",
+      "breakpoints": true
     }
   ]
 }
