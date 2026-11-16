@@ -9,6 +9,8 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
+- Static deployment exports only the visitor-independent home route with automatic path discovery disabled; authenticated pages must never be captured at build time. Azure uploads the prebuilt public directory directly, but PIN login and other server functions still require a separate compatible server runtime.
+
 - Sales and stock changes go through the `complete_sale` / `adjust_stock` database functions only; tables have no direct write grants for sales or stock movements, so prices and the stock audit trail can't be bypassed by cashiers.
 - Roles live in `user_roles`; `handle_new_user` only accepts trusted administrative staff creation. Public staff signup is rejected to prevent outsiders entering the existing shop.
 - Money is stored in USD; ZiG amounts are converted with `settings.zig_rate` at sale time and the rate is saved on each sale.

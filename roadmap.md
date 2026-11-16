@@ -1,4 +1,5 @@
 # Roadmap
+- [ ] Azure deployment: export the public home page and upload the prebuilt directory; verify the next workflow and its deployment marker. Signed-in Azure verification needs compatible server hosting and confirmed domain assignment.
 - [x] Fix bottle-deposit cash differences in manual and automatic daily settlement; verify focused calculations.
 - [x] Restore optional card/mobile payment references at checkout; verify field visibility rules and offline upload storage.
 - [x] Accounting asset register added with protected purchase-date saving, current ledger costs/book values and selected-asset links to Depreciation. Signed-in desktop/mobile view and navigation verified; 15 tests pass. Real purchase-date save/reload not exercised because actual dates were not supplied; no shop assets changed. Not published.

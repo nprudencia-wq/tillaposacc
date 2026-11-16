@@ -9,6 +9,9 @@ import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   tanstackStart: {
+    // Only export visitor-independent HTML; never snapshot private shop pages.
+    pages: [{ path: "/" }],
+    prerender: { enabled: true, autoStaticPathsDiscovery: false },
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
