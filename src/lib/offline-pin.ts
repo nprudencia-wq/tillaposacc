@@ -7,8 +7,10 @@ const KEY = "tilla-offline-pins";
 const ITERATIONS = 150_000;
 export const MAX_TRIES = 5;
 export const LOCK_MS = 5 * 60_000;
+/** Saved PINs stop working offline this long after the server last confirmed the cashier is active. */
+export const MAX_OFFLINE_MS = 7 * 24 * 60 * 60_000;
 
-type Entry = { username: string; aliases?: string[]; userId: string; salt: string; hash: string; session: string; tries: number; lockedUntil: number };
+type Entry = { username: string; aliases?: string[]; userId: string; salt: string; hash: string; session: string; tries: number; lockedUntil: number; verifiedAt?: number };
 
 const norm = (u: string) => u.trim().toLowerCase();
 const b64 = (b: ArrayBuffer | Uint8Array) => btoa(String.fromCharCode(...new Uint8Array(b)));
@@ -20,13 +22,18 @@ export async function hashPin(pin: string, salt: Uint8Array): Promise<string> {
   return b64(bits);
 }
 
-async function all(): Promise<Entry[]> { return (await idbGet<Entry[]>(KEY).catch(() => undefined)) ?? []; }
+async function all(): Promise<Entry[]> {
+  const list = (await idbGet<Entry[]>(KEY).catch(() => undefined)) ?? [];
+  // Older saved PINs had no confirmation time: start their offline window now.
+  if (list.some((e) => !e.verifiedAt)) { const t = Date.now(); list.forEach((e) => { e.verifiedAt ??= t; }); await save(list); }
+  return list;
+}
 async function save(list: Entry[]) { await idbSet(KEY, list); }
 
 /** Call after a successful online PIN sign-in. */
 export async function rememberPin(username: string, pin: string, userId: string, session: unknown, aliases: string[] = []) {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const entry: Entry = { username: norm(username), aliases: aliases.map(norm).filter(Boolean), userId, salt: b64(salt), hash: await hashPin(pin, salt), session: JSON.stringify(session), tries: 0, lockedUntil: 0 };
+  const entry: Entry = { username: norm(username), aliases: aliases.map(norm).filter(Boolean), userId, salt: b64(salt), hash: await hashPin(pin, salt), session: JSON.stringify(session), tries: 0, lockedUntil: 0, verifiedAt: Date.now() };
   const list = (await all()).filter((e) => e.username !== entry.username && e.userId !== userId);
   await save([...list, entry]);
 }
@@ -60,7 +67,12 @@ export async function purgeDisabledStaffPins(): Promise<number> {
   const { supabase } = await import("@/integrations/supabase/client");
   const { data, error } = await supabase.rpc("revoked_offline_staff", { p_ids: ids });
   if (error || !Array.isArray(data)) return 0;
-  return removeRevokedPins(data as string[]);
+  const removed = await removeRevokedPins(data as string[]);
+  // Everyone still on this device was just confirmed active by the shop.
+  const list = await all(); const t = Date.now();
+  list.forEach((e) => { e.verifiedAt = t; });
+  await save(list);
+  return removed;
 }
 
 export type OfflineResult = { ok: true; session: string } | { ok: false; reason: string };
@@ -72,6 +84,10 @@ export async function checkOfflinePin(username: string, pin: string, now = Date.
   if (matches.length > 1) return { ok: false, reason: "More than one cashier uses this name. Enter your unique username or email." };
   const e = matches[0];
   if (!e) return { ok: false, reason: "This person hasn't signed in on this till before. Connect to the internet for their first sign-in." };
+  if (now - (e.verifiedAt ?? 0) > MAX_OFFLINE_MS) {
+    await save(list.filter((x) => x !== e));
+    return { ok: false, reason: "This till has been offline too long. Connect to the internet to sign in again." };
+  }
   if (e.lockedUntil > now) return { ok: false, reason: "Too many wrong PINs. Try again in 5 minutes." };
   const good = (await hashPin(pin, unb64(e.salt))) === e.hash;
   if (good) { e.tries = 0; e.lockedUntil = 0; }
