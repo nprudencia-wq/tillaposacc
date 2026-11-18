@@ -35,7 +35,11 @@ export function useShopUpdates(storeId: string | undefined, userId: string | und
     for (const table of SHOP_UPDATE_TABLES) {
       channel.on("postgres_changes", { event: "*", schema: "public", table, filter: shopUpdateFilter(table, storeId) }, schedule);
     }
-    channel.subscribe((status) => { if (status === "SUBSCRIBED") schedule(); });
+    // Refresh on (re)join; if live updates drop, keep refreshing as a backup.
+    channel.subscribe((status) => { if (status === "SUBSCRIBED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT") schedule(); });
+    const onVisible = () => { if (document.visibilityState === "visible") schedule(); };
+    document.addEventListener("visibilitychange", onVisible);
+    const poll = setInterval(() => { if (document.visibilityState === "visible") schedule(); }, 30_000);
     window.addEventListener("tilla-sale", schedule);
     window.addEventListener("tilla-sync", schedule);
     window.addEventListener("tilla-connectivity", schedule);
@@ -43,6 +47,8 @@ export function useShopUpdates(storeId: string | undefined, userId: string | und
     return () => {
       disposed = true;
       clearTimeout(timer);
+      clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("tilla-sale", schedule);
       window.removeEventListener("tilla-sync", schedule);
       window.removeEventListener("tilla-connectivity", schedule);
