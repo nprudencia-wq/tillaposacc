@@ -659,6 +659,13 @@
       "when": 1794721301174,
       "tag": "0093_scope_selected_permission_checks_to_caller",
       "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1795071955949,
+      "tag": "0094_cashier_own_open_shift_cashup",
+      "breakpoints": true
     }
   ]
 }

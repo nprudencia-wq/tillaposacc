@@ -2,7 +2,7 @@ import { printReceiptElement } from "@/lib/print-element";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle2, LockKeyhole, Printer } from "lucide-react";
+import { ArrowLeft, Calculator, CheckCircle2, LockKeyhole, Printer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceName, setDeviceName } from "@/lib/device-name";
 import { cached, closeShiftOffline, deviceSales, isNetworkError, openLocalShift, readLocalShift, readPendingClose, readQueue, syncQueue } from "@/lib/offline";
@@ -19,6 +19,8 @@ import { useStaff } from "@/hooks/use-staff";
 import { deviceSession } from "@/lib/offline-session";
 import { internetAvailable } from "@/lib/connectivity";
 import { enqueueCashMovement, mergeCashMovements, movementsMissingFrom, readCashMovements } from "@/lib/offline-cash";
+import { CashUpDialog } from "@/components/CashUp";
+import type { CashCounts } from "@/lib/cash-up";
 
 export type ShiftSummary = {
   local?: boolean; checkedAt?: string; items?: SoldSummary[];
@@ -164,7 +166,10 @@ export function OpenShiftGate() {
 export function ShiftBar({ shift, canReadX }: { shift: { id: string; shift_number: string; opened_at: string }; canReadX: boolean }) {
   const qc = useQueryClient();
   const [moveOpen, setMoveOpen] = useState(false);
+  const [cashOpen, setCashOpen] = useState(false);
+  const [resumeCashUp, setResumeCashUp] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
+  const [closeCounts, setCloseCounts] = useState<CashCounts | null>(null);
   const [report, setReport] = useState<{ title: string; s: ShiftSummary } | null>(null);
   useEffect(() => {
     const warm = () => { if (internetAvailable()) void fetchShiftSummary(shift.id).catch(() => {}); };
@@ -178,17 +183,23 @@ export function ShiftBar({ shift, canReadX }: { shift: { id: string; shift_numbe
     try { setReport({ title: "X-report (mid-shift)", s: await fetchShiftSummary(shift.id) }); }
     catch (e) { toast.error((e as Error).message); }
   }
+  function closeMovement() {
+    setMoveOpen(false);
+    if (resumeCashUp) { setResumeCashUp(false); setCashOpen(true); }
+  }
   return (
     <div className="flex flex-wrap items-center gap-2 border-b bg-card px-4 py-2 text-sm print:hidden">
       <span className="font-semibold">{shift.shift_number}</span>
       <span className="text-muted-foreground">opened {new Date(shift.opened_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
       <div className="ml-auto flex flex-wrap gap-1">
-        <Button size="sm" variant="outline" onClick={() => setMoveOpen(true)}>Cash drop / payout</Button>
+        <Button size="sm" variant="outline" onClick={() => { setResumeCashUp(false); setMoveOpen(true); }}>Cash drop / payout</Button>
+        <Button size="sm" variant="outline" onClick={() => setCashOpen(true)}><Calculator className="h-4 w-4" />Cash-up</Button>
         {canReadX && <Button size="sm" variant="outline" onClick={xReport}>X-report</Button>}
-        <Button size="sm" onClick={() => setCloseOpen(true)}><LockKeyhole className="h-4 w-4" />Close shift</Button>
+        <Button size="sm" onClick={() => { setCloseCounts(null); setCloseOpen(true); }}><LockKeyhole className="h-4 w-4" />Close shift</Button>
       </div>
-      {moveOpen && <MovementDialog shiftId={shift.id} onClose={() => setMoveOpen(false)} />}
-      {closeOpen && <CloseDialog shiftId={shift.id} onClose={() => { setCloseOpen(false); qc.invalidateQueries({ queryKey: ["open-shift"] }); }} onClosed={(s) => { setCloseOpen(false); setReport({ title: "Z-report (shift closed)", s }); }} />}
+      {moveOpen && <MovementDialog shiftId={shift.id} onClose={closeMovement} />}
+      {cashOpen && <CashUpDialog shiftId={shift.id} loadSummary={fetchShiftSummary} onClose={() => setCashOpen(false)} onRecordMovement={() => { setResumeCashUp(true); setCashOpen(false); setMoveOpen(true); }} onCloseShift={(counts) => { setCloseCounts(counts); setCashOpen(false); setCloseOpen(true); }} />}
+      {closeOpen && <CloseDialog shiftId={shift.id} initialCounts={closeCounts ?? undefined} onClose={() => { setCloseOpen(false); setCloseCounts(null); qc.invalidateQueries({ queryKey: ["open-shift"] }); }} onClosed={(s) => { setCloseOpen(false); setCloseCounts(null); setReport({ title: "Z-report (shift closed)", s }); }} />}
       {report && <ShiftReportDialog title={report.title} s={report.s} onClose={() => { const closed = report.s.shift.status === "closed"; setReport(null); if (closed) qc.invalidateQueries({ queryKey: ["open-shift"] }); }} />}
     </div>
   );
@@ -244,13 +255,13 @@ function MovementDialog({ shiftId, onClose }: { shiftId: string; onClose: () => 
   );
 }
 
-function CloseDialog({ shiftId, onClose, onClosed }: { shiftId: string; onClose: () => void; onClosed: (s: ShiftSummary) => void }) {
+function CloseDialog({ shiftId, initialCounts, onClose, onClosed }: { shiftId: string; initialCounts?: CashCounts | undefined; onClose: () => void; onClosed: (s: ShiftSummary) => void }) {
   const qc = useQueryClient();
   const { data: me } = useStaff();
-  const [review, setReview] = useState(false);
-  const [usd, setUsd] = useState("");
-  const [zig, setZig] = useState("");
-  const [zar, setZar] = useState("");
+  const [review, setReview] = useState(!!initialCounts);
+  const [usd, setUsd] = useState(initialCounts?.usd.toFixed(2) ?? "");
+  const [zig, setZig] = useState(initialCounts?.zig.toFixed(2) ?? "");
+  const [zar, setZar] = useState(initialCounts?.zar.toFixed(2) ?? "");
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const countValid = [usd, zig, zar].every((v) => v.trim() !== "" && Number.isFinite(Number(v)) && Number(v) >= 0);
