@@ -1,8 +1,10 @@
+import { readRegister } from "@/lib/register";
+import { currentScope } from "@/lib/offline";
 const KEY = "tilla-device-name";
 
 /** Fixed name of this physical till (e.g. "Counter 1"); kept on the device, not the cashier. */
 export function getDeviceName(): string {
-  try { return localStorage.getItem(KEY) || ""; } catch { return ""; }
+  try { const scope = currentScope(); return (scope ? readRegister(scope.storeId)?.registerId : null) || localStorage.getItem(KEY) || ""; } catch { return ""; }
 }
 
 export function setDeviceName(name: string) {

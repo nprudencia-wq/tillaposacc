@@ -1,6 +1,7 @@
 // Browser-only till hardware: receipt printer + cash drawer over USB, serial, Bluetooth or network.
 // Call only from event handlers / effects.
 import { DRAWER_KICK } from "@/lib/escpos";
+import { logSystemError } from "@/lib/register-events";
 
 export type Link = "none" | "usb" | "serial" | "bluetooth" | "network";
 export type DrawerMode = "none" | "printer" | "usb" | "serial";
@@ -28,6 +29,12 @@ export function support() {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Writer = (data: Uint8Array) => Promise<void>;
 const writers: Partial<Record<"printer" | "drawer", Writer>> = {};
+let printerStatus = "unknown";
+let scannerStatus = "unknown";
+export function markScannerInput() { scannerStatus = "input_seen"; }
+export function hardwareStatus() {
+  return { printer: loadHardware().printer === "none" ? "not_configured" : printerStatus, scanner: scannerStatus };
+}
 const BT_SERVICES = ["000018f0-0000-1000-8000-00805f9b34fb", "e7810a71-73ae-499d-8c15-faa9aef0c3f2", "49535343-fe7d-4ae5-8fa9-9fafd205e455"];
 
 async function usbWriter(device: any): Promise<Writer> {
@@ -81,7 +88,7 @@ async function reconnect(target: "printer" | "drawer", link: string, cfg: Hardwa
   return writers[target];
 }
 
-export async function sendToPrinter(bytes: Uint8Array, cfg = loadHardware()) {
+async function writePrinter(bytes: Uint8Array, cfg = loadHardware()) {
   if (cfg.printer === "none") throw new Error("No printer set up");
   if (cfg.printer === "network") {
     if (!cfg.networkUrl) throw new Error("Printer address missing");
@@ -94,10 +101,19 @@ export async function sendToPrinter(bytes: Uint8Array, cfg = loadHardware()) {
   try { await w(bytes); } catch (e) { delete writers.printer; throw e; }
 }
 
-export async function openDrawer(cfg = loadHardware()) {
+export async function sendToPrinter(bytes: Uint8Array, cfg = loadHardware()) {
+  try { await writePrinter(bytes, cfg); printerStatus = "last_write_ok"; }
+  catch (error) { printerStatus = "error"; logSystemError("hardware", error); throw error; }
+}
+
+async function writeDrawer(cfg = loadHardware()) {
   if (cfg.drawer === "none") return;
   if (cfg.drawer === "printer") return sendToPrinter(DRAWER_KICK, cfg);
   const w = await reconnect("drawer", cfg.drawer, cfg);
   if (!w) throw new Error("Cash drawer not connected — tap Connect drawer");
   try { await w(DRAWER_KICK); } catch (e) { delete writers.drawer; throw e; }
+}
+export async function openDrawer(cfg = loadHardware()) {
+  try { await writeDrawer(cfg); }
+  catch (error) { logSystemError("hardware", error); throw error; }
 }

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { money } from "@/lib/pos";
 import { activeTypes, usePaymentTypes } from "@/lib/payment-types";
+import { queueAudit } from "@/lib/register-events";
 
 export function RefundDialog({ sale, onClose }: { sale: { id: string; sale_number: string }; onClose: () => void }) {
   const qc = useQueryClient();
@@ -27,6 +28,8 @@ export function RefundDialog({ sale, onClose }: { sale: { id: string; sale_numbe
 
   async function save() {
     setBusy(true);
+    try { await queueAudit("REFUND", { sale_id: sale.id, request_id: reference, qty, reason, method, condition }); }
+    catch { setBusy(false); toast.error("Could not save the refund action record"); return; }
     const { data, error } = await supabase.rpc("credit_note_refund", { p_client_ref: reference,
       p_sale: sale.id,
       p_items: Object.entries(qty).map(([sale_item_id, quantity]) => ({ sale_item_id, quantity, condition })) as never,

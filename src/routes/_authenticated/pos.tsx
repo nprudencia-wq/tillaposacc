@@ -3,7 +3,11 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Minus, Plus, Trash2, Search, PauseCircle, PlayCircle, X, List, LayoutGrid, ReceiptText, Printer, Archive, Settings2, HandCoins, Menu } from "lucide-react";
-import { openDrawer } from "@/lib/hardware";
+import { openDrawer, markScannerInput } from "@/lib/hardware";
+import { RegisterGate } from "@/components/RegisterStatus";
+import { queueAudit, logSystemError } from "@/lib/register-events";
+import { readRegister } from "@/lib/register";
+import { syncQueue } from "@/lib/offline";
 import { RecentReceipts } from "@/components/RecentReceipts";
 import { offlineRef, receiptNumber, takeReservedNumber, topUpReservedNumbers } from "@/lib/receipt-numbers";
 import { ProductImage } from "@/components/ProductImage";
@@ -52,12 +56,12 @@ function PosPage() {
     </div>
   );
   if (isLoading) return <p className="p-8 text-muted-foreground">Loading till…</p>;
-  if (!shift) return <OpenShiftGate />;
+  if (!shift) return <RegisterGate><OpenShiftGate /></RegisterGate>;
   return (
-    <div className="flex h-full flex-col">
+    <RegisterGate><div className="flex h-full flex-col">
       <ShiftBar shift={shift} canReadX={!!me?.canRefund} />
       <div className="min-h-0 flex-1"><Till shiftId={shift.id} /></div>
-    </div>
+    </div></RegisterGate>
   );
 }
 
@@ -73,9 +77,15 @@ function Till({ shiftId }: { shiftId: string }) {
   const { data: catalog = [] } = useQuery({
     queryKey: ["products", "active"],
     queryFn: () => cached("products-active", async () => {
-      const { data, error } = await supabase.from("products").select("*, categories(name)").eq("active", true).order("name");
-      if (error) throw error;
-      return data;
+      const first = await supabase.from("products").select("*, categories(name)").eq("active", true).order("id").range(0, 499);
+      if (first.error) throw first.error;
+      const rows = first.data ?? [];
+      for (let offset = 500; rows.length === offset; offset += 500) {
+        const next = await supabase.from("products").select("*, categories(name)").eq("active", true).order("id").range(offset, offset + 499);
+        if (next.error) throw next.error;
+        rows.push(...(next.data ?? []));
+      }
+      return rows.sort((a, b) => a.name.localeCompare(b.name));
     }),
   });
   const [queueVersion, setQueueVersion] = useState(0);
@@ -153,11 +163,13 @@ function Till({ shiftId }: { shiftId: string }) {
   }, [products, q, cat]);
 
   const listPrice = (id: string) => Number(products.find((p) => p.id === id)?.selling_price ?? 0);
-  function changePrice(id: string, name: string, current: number) {
+  async function changePrice(id: string, name: string, current: number) {
     const v = window.prompt(`New price for ${name} in USD (list price ${money(listPrice(id))})`, String(current));
     if (v === null) return;
     const n = Math.round(Number(v) * 100) / 100;
     if (!Number.isFinite(n) || n < 0) { toast.error("Enter a valid price"); return; }
+    try { await queueAudit("PRICE_OVERRIDE", { shift_id: shiftId, product_id: id, old_price: current, new_price: n }); }
+    catch { toast.error("Could not save the price-change record"); return; }
     setLines((ls) => ls.map((l) => (l.product_id === id ? { ...l, unit_price: n } : l)));
   }
   function add(p: (typeof products)[number]) {
@@ -170,17 +182,23 @@ function Till({ shiftId }: { shiftId: string }) {
       return [...ls, { product_id: p.id, name: p.name, unit_price: Number(p.selling_price), quantity: 1, stock: Number(p.stock) }];
     });
   }
-  function setQty(id: string, qty: number) {
+  async function setQty(id: string, qty: number) {
     const item = products.find((p) => p.id === id);
     if (qty > 0 && item) {
       const error = saleStockError(item.name, qty, Number(item.stock));
       if (error) { toast.error(error); return; }
+    }
+    const previous = lines.find((line) => line.product_id === id);
+    if (previous && qty < previous.quantity) {
+      try { await queueAudit("VOID_ITEM", { shift_id: shiftId, product_id: id, quantity: previous.quantity - Math.max(qty, 0) }); }
+      catch { toast.error("Could not save the item removal record"); return; }
     }
     setLines((ls) => (qty <= 0 ? ls.filter((l) => l.product_id !== id) : ls.map((l) => (l.product_id === id ? { ...l, quantity: qty } : l))));
   }
 
   // Barcode scanners type the code then press Enter.
   function onSearchEnter() {
+    markScannerInput();
     const s = q.trim();
     if (!s) return;
     const hit = products.find((p) => p.barcode === s || p.sku?.toLowerCase() === s.toLowerCase());
@@ -230,14 +248,18 @@ function Till({ shiftId }: { shiftId: string }) {
       items: lines.map((l) => ({ name: l.name, quantity: l.quantity, unit_price: l.unit_price, line_total: l.unit_price * l.quantity })),
     };
     await enqueueSale({
+      id: crypto.randomUUID(),
+      ...(me ? { register_id: readRegister(me.storeId)?.registerId, device_id: readRegister(me.storeId)?.deviceId } : {}),
       client_ref: ref, sold_at: new Date().toISOString(), shift_id: shiftId, currency, discount,
-      items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price })), payments: paid, total, rate, rand_rate: randRate, receipt: snapshot,
+      items: lines.map((l) => ({ id: crypto.randomUUID(), product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price, override: l.unit_price !== listPrice(l.product_id) })), payments: paid, total, rate, rand_rate: randRate, receipt: snapshot,
       ...(customer ? { customer_id: customer.id } : {}),
     });
     window.__lovableEvents?.track?.("project.till_sale_completed", { mode: "offline", currency });
     finish({ sale_number: number, created_at: at, rate: currency === "ZAR" ? randRate : rate, total, change }, paid);
     const nonCash = paid.some((p) => !isCashMethod(p.method));
-    toast.success(`Saved offline as ${number}. It will upload when you're back online.${nonCash ? " Non-cash payments will need checking." : ""}`);
+    toast.success(`${number} saved on this register.${!internetAvailable() ? " Uploads when online." : ""}${nonCash ? " Non-cash payments will need checking." : ""}`);
+    window.dispatchEvent(new Event("tilla-sale"));
+    if (navigator.onLine) void syncQueue().catch((error) => logSystemError("sync", error));
   }
 
   async function complete(payments: Payment[]) {
@@ -259,44 +281,8 @@ function Till({ shiftId }: { shiftId: string }) {
       if (limitError) { toast.error(limitError); return; }
       if (paidUSD(paid, rate, randRate) - total > 0.005) { toast.error("An on-account sale cannot give change"); return; }
     }
-    const overridden = lines.some((l) => l.unit_price !== listPrice(l.product_id));
-    if (!internetAvailable() && overridden) { toast.error("Changed prices need the internet. Undo the price change or wait to reconnect."); return; }
-    // Only a reference that was actually sent online must be kept; an unsent sale gets a TXN number reserved for this till.
-    const sentBefore = saleRef.current;
-    const ref = saleRef.current ?? `TILL-${crypto.randomUUID()}`;
-    if (!internetAvailable() || await readLocalShift()) {
-      if (overridden) { toast.error("Upload this shift before using changed prices"); return; }
-      await saveOffline(paid, sentBefore ?? undefined); return;
-    }
-    saleRef.current = ref;
-    // With the device itself offline the request never leaves, so the reference is not needed.
-    const unsent = () => (typeof navigator !== "undefined" && !navigator.onLine && !sentBefore ? undefined : ref);
-    let result;
-    try { result = await networkRead(() => supabase.rpc("complete_sale_once", {
-      p_client_ref: ref,
-      p_items: lines.map((l) => ({ product_id: l.product_id, quantity: l.quantity, ...(l.unit_price !== listPrice(l.product_id) ? { price: l.unit_price } : {}) })),
-      p_payments: paid as never,
-      p_discount: discount,
-      p_currency: currency,
-      ...(customer ? { p_customer: customer.id } : {}),
-    })); } catch (e) {
-      if (isNetworkError(e) && !overridden) { setInternetAvailable(false); await saveOffline(paid, unsent()); return; }
-      throw e;
-    }
-    const { data, error } = result;
-    if (error && isNetworkError(error) && !overridden) { setInternetAvailable(false); await saveOffline(paid, unsent()); return; }
-    if (error) { toast.error(error.message); qc.invalidateQueries({ queryKey: ["open-shift"] }); return; }
-    window.__lovableEvents?.track?.("project.till_sale_completed", { mode: "online", currency });
-    const res = data as { sale_number: string; total: number; change: number; rate: number };
-    const refs = paid.filter((p) => p.reference?.trim()).map((p) => ({ method: p.method, currency: p.currency, reference: p.reference!.trim() }));
-    if (refs.length) void supabase.rpc("set_sale_payment_references", { p_sale_number: res.sale_number, p_refs: refs }).then(({ error: e }) => { if (e) toast.error("Payment reference not saved: " + e.message); });
-    finish({ sale_number: res.sale_number, created_at: new Date().toISOString(), rate: Number(res.rate), total: Number(res.total), change: Number(res.change) }, paid);
-    qc.invalidateQueries({ queryKey: ["products"] });
-    qc.invalidateQueries({ queryKey: ["sales"] });
-    qc.invalidateQueries({ queryKey: ["customer-ledger"] });
-    if (onAccount) void creditSnapshot().catch(() => {});
-    window.dispatchEvent(new Event("tilla-sale"));
-    toast.success(`Sale ${res.sale_number} completed`);
+    // Commit locally before doing any network work, even while online.
+    await saveOffline(paid);
   }
 
   return (
@@ -306,7 +292,7 @@ function Till({ shiftId }: { shiftId: string }) {
         <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-2 border-b px-3 py-2">
           <h2 className="text-base font-bold">Sale</h2>
           <div className="flex min-w-0 justify-end gap-1 overflow-x-auto">
-            <Button size="sm" variant="ghost" className="shrink-0 text-destructive" disabled={!lines.length && customerId === "none"} onClick={() => { setLines([]); setDiscVal(0); setCustomerId("none"); saleRef.current = null; searchRef.current?.focus(); }}><Trash2 className="h-4 w-4" />Clear</Button>
+            <Button size="sm" variant="ghost" className="shrink-0 text-destructive" disabled={!lines.length && customerId === "none"} onClick={async () => { try { if (lines.length) await queueAudit("VOID_ITEM", { shift_id: shiftId, items: lines, all: true }); setLines([]); setDiscVal(0); setCustomerId("none"); saleRef.current = null; searchRef.current?.focus(); } catch { toast.error("Could not save the item removal record"); } }}><Trash2 className="h-4 w-4" />Clear</Button>
             <Button size="sm" variant="ghost" className="shrink-0" onClick={hold} disabled={!lines.length}><PauseCircle className="h-4 w-4" />Hold</Button>
             <Button size="sm" variant="ghost" className="shrink-0" onClick={() => setHeldOpen(true)}><PlayCircle className="h-4 w-4" />Held ({held.length})</Button>
           </div>
@@ -435,7 +421,7 @@ function Till({ shiftId }: { shiftId: string }) {
             <TillSyncButton />
             <Button data-close variant="outline" className="h-12 justify-start" onClick={() => setReprintOpen(true)}><ReceiptText className="h-5 w-5" />Receipts</Button>
             <Button data-close variant="outline" className="h-12 justify-start" onClick={() => setHeldOpen(true)}><PlayCircle className="h-5 w-5" />Held sales ({held.length})</Button>
-            <Button data-close variant="outline" className="h-12 justify-start" onClick={() => openDrawer().then(() => toast.success("Drawer opened"), (e) => toast.error(e instanceof Error ? e.message : "Drawer failed"))}><Archive className="h-5 w-5" />Open drawer</Button>
+            <Button data-close variant="outline" className="h-12 justify-start" onClick={async () => { try { await queueAudit("NO_SALE_DRAWER_OPEN", { shift_id: shiftId }); await openDrawer(); toast.success("Drawer opened"); } catch (error) { toast.error(error instanceof Error ? error.message : "Drawer failed"); } }}><Archive className="h-5 w-5" />Open drawer</Button>
             <Button data-close variant="outline" className="h-12 justify-start" disabled={!lastReceipt} onClick={() => lastReceipt && void printReceipt(lastReceipt, settings)}><Printer className="h-5 w-5" />Reprint last receipt</Button>
             <Button data-close variant="outline" className="h-12 justify-start" onClick={() => setHwOpen(true)}><Settings2 className="h-5 w-5" />Printer & drawer setup</Button>
             <div className="mt-2 text-xs font-semibold uppercase text-muted-foreground">Product view</div>

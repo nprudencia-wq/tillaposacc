@@ -248,6 +248,47 @@ export type Database = {
           },
         ]
       }
+      cashier_audit_trails: {
+        Row: {
+          action: string
+          cashier_id: string
+          details: Json
+          id: string
+          occurred_at: string
+          received_at: string
+          register_id: string
+          store_id: string
+        }
+        Insert: {
+          action: string
+          cashier_id: string
+          details?: Json
+          id: string
+          occurred_at: string
+          received_at?: string
+          register_id: string
+          store_id: string
+        }
+        Update: {
+          action?: string
+          cashier_id?: string
+          details?: Json
+          id?: string
+          occurred_at?: string
+          received_at?: string
+          register_id?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cashier_audit_trails_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cashier_shifts: {
         Row: {
           actual_cash_usd: number | null
@@ -1340,6 +1381,50 @@ export type Database = {
           },
         ]
       }
+      register_heartbeats: {
+        Row: {
+          app_version: string
+          assigned_by: string
+          device_id: string
+          last_seen: string
+          offline_queue_count: number
+          printer_status: string
+          register_id: string
+          scanner_status: string
+          store_id: string
+        }
+        Insert: {
+          app_version?: string
+          assigned_by: string
+          device_id: string
+          last_seen?: string
+          offline_queue_count?: number
+          printer_status?: string
+          register_id: string
+          scanner_status?: string
+          store_id: string
+        }
+        Update: {
+          app_version?: string
+          assigned_by?: string
+          device_id?: string
+          last_seen?: string
+          offline_queue_count?: number
+          printer_status?: string
+          register_id?: string
+          scanner_status?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "register_heartbeats_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sale_items: {
         Row: {
           cost_price: number
@@ -1493,6 +1578,7 @@ export type Database = {
           id: string
           offline: boolean
           rand_rate: number
+          register_id: string | null
           sale_number: string
           shift_id: string | null
           status: string
@@ -1515,6 +1601,7 @@ export type Database = {
           id?: string
           offline?: boolean
           rand_rate?: number
+          register_id?: string | null
           sale_number?: string
           shift_id?: string | null
           status?: string
@@ -1537,6 +1624,7 @@ export type Database = {
           id?: string
           offline?: boolean
           rand_rate?: number
+          register_id?: string | null
           sale_number?: string
           shift_id?: string | null
           status?: string
@@ -2367,6 +2455,47 @@ export type Database = {
           },
         ]
       }
+      system_errors: {
+        Row: {
+          cashier_id: string
+          category: string
+          id: string
+          message: string
+          occurred_at: string
+          received_at: string
+          register_id: string
+          store_id: string
+        }
+        Insert: {
+          cashier_id: string
+          category: string
+          id: string
+          message: string
+          occurred_at: string
+          received_at?: string
+          register_id: string
+          store_id: string
+        }
+        Update: {
+          cashier_id?: string
+          category?: string
+          id?: string
+          message?: string
+          occurred_at?: string
+          received_at?: string
+          register_id?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "system_errors_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       time_clock: {
         Row: {
           clock_in: string
@@ -2751,6 +2880,10 @@ export type Database = {
         }
         Returns: number
       }
+      assign_register: {
+        Args: { p_device_id: string; p_register_id: string }
+        Returns: undefined
+      }
       auto_close_daily_settlements: {
         Args: { p_day?: string }
         Returns: number
@@ -2817,6 +2950,21 @@ export type Database = {
           p_discount: number
           p_items: Json
           p_payments: Json
+          p_shift: string
+          p_sold_at: string
+        }
+        Returns: Json
+      }
+      complete_register_sale: {
+        Args: {
+          p_client_ref: string
+          p_currency: string
+          p_customer?: string
+          p_device_id: string
+          p_discount: number
+          p_items: Json
+          p_payments: Json
+          p_register_id: string
           p_shift: string
           p_sold_at: string
         }
@@ -3078,6 +3226,28 @@ export type Database = {
         }
         Returns: string
       }
+      record_register_event: {
+        Args: {
+          p_action: string
+          p_details: Json
+          p_device_id: string
+          p_id: string
+          p_occurred_at: string
+          p_register_id: string
+        }
+        Returns: undefined
+      }
+      record_system_error: {
+        Args: {
+          p_category: string
+          p_device_id: string
+          p_id: string
+          p_message: string
+          p_occurred_at: string
+          p_register_id: string
+        }
+        Returns: undefined
+      }
       refund_sale: {
         Args: {
           p_items: Json
@@ -3239,6 +3409,17 @@ export type Database = {
       transfer_stock: {
         Args: { p_from: string; p_items: Json; p_note: string; p_to: string }
         Returns: string
+      }
+      upsert_register_heartbeat: {
+        Args: {
+          p_app_version: string
+          p_device_id: string
+          p_offline_queue_count: number
+          p_printer_status: string
+          p_register_id: string
+          p_scanner_status: string
+        }
+        Returns: undefined
       }
       vendor_update_billing: {
         Args: { p_exempt: boolean; p_price: number; p_tills: number }

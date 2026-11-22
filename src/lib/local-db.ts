@@ -1,22 +1,15 @@
+import { openDB, type IDBPDatabase } from "idb";
 // Browser-only key/value store on IndexedDB (large capacity), used for the till's
 // offline catalog and sale queue. Falls back to localStorage when IndexedDB is unavailable.
 
 const DB_NAME = "tilla-pos";
 const STORE = "kv";
-let dbPromise: Promise<IDBDatabase | null> | null = null;
+let dbPromise: Promise<IDBPDatabase | null> | null = null;
 
-function openDb(): Promise<IDBDatabase | null> {
+function openDb(): Promise<IDBPDatabase | null> {
   if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve) => {
-    try {
-      if (typeof indexedDB === "undefined") return resolve(null);
-      const req = indexedDB.open(DB_NAME, 1);
-      req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE); };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => resolve(null);
-      req.onblocked = () => resolve(null);
-    } catch { resolve(null); }
-  });
+  if (typeof indexedDB === "undefined") return Promise.resolve(null);
+  dbPromise = openDB(DB_NAME, 1, { upgrade(db) { if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE); } }).catch(() => null);
   return dbPromise;
 }
 
@@ -26,13 +19,7 @@ export async function idbGet<T>(key: string): Promise<T | undefined> {
     const raw = localStorage.getItem(key);
     return raw ? (JSON.parse(raw) as T) : undefined;
   }
-  return new Promise((resolve) => {
-    try {
-      const r = db.transaction(STORE, "readonly").objectStore(STORE).get(key);
-      r.onsuccess = () => resolve(r.result as T | undefined);
-      r.onerror = () => resolve(undefined);
-    } catch { resolve(undefined); }
-  });
+  return db.get(STORE, key) as Promise<T | undefined>;
 }
 
 export async function idbSet(key: string, value: unknown): Promise<void> {
@@ -48,13 +35,24 @@ export async function idbSetMany(entries: [string, unknown][]): Promise<void> {
     for (const [key, value] of entries) localStorage.setItem(key, JSON.stringify(value));
     return;
   }
-  return new Promise((resolve, reject) => {
-    try {
-      const tx = db.transaction(STORE, "readwrite");
-      for (const [key, value] of entries) tx.objectStore(STORE).put(value, key);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error);
-    } catch (e) { reject(e); }
-  });
+  const tx = db.transaction(STORE, "readwrite");
+  await Promise.all([...entries.map(([key, value]) => tx.store.put(value, key)), tx.done]);
+}
+
+export async function idbDelete(key: string) {
+  const db = await openDb();
+  if (!db) { localStorage.removeItem(key); return; }
+  await db.delete(STORE, key);
+}
+
+/** Prefix-scoped records avoid rewriting an entire audit queue for each action. */
+export async function idbEntries<T>(prefix: string): Promise<[string, T][]> {
+  const db = await openDb();
+  if (!db) return Object.keys(localStorage).filter((k) => k.startsWith(prefix)).map((k) => [k, JSON.parse(localStorage.getItem(k) ?? "null") as T]);
+  const tx = db.transaction(STORE, "readonly");
+  const range = IDBKeyRange.bound(prefix, prefix + "\uffff");
+  const keys = await tx.store.getAllKeys(range);
+  const values = await tx.store.getAll(range);
+  await tx.done;
+  return keys.map((key, index) => [String(key), values[index] as T]);
 }

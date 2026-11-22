@@ -666,6 +666,20 @@
       "when": 1795071955949,
       "tag": "0094_cashier_own_open_shift_cashup",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1795354800860,
+      "tag": "0095_register_identity_audit_telemetry",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1795354933433,
+      "tag": "0096_local_first_register_sale_upload",
+      "breakpoints": true
     }
   ]
 }

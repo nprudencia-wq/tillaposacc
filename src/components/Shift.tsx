@@ -281,14 +281,8 @@ function CloseDialog({ shiftId, initialCounts, onClose, onClosed }: { shiftId: s
         try { onClosed(await fetchShiftSummary(shiftId)); } catch { onClose(); }
       } else onClose();
     };
-    if (!internetAvailable()) { await closeOffline(); return; }
-    await syncQueue();
-    if (!internetAvailable()) { await closeOffline(); return; }
-    if (readQueue().length || (await readLocalShift()) || (await readPendingClose())) { setBusy(false); toast.error("Some offline sales haven't uploaded yet. Check the offline bar at the top, then try again."); return; }
-    const { error } = await supabase.rpc("close_shift_three", { p_actual_zar: Number(zar), p_actual_usd: Number(usd), p_actual_zig: Number(zig), p_notes: notes });
-    if (error && isNetworkError(error)) { await closeOffline(); return; }
-    if (error) { setBusy(false); { toast.error(error.message); return; } }
-    try { onClosed(await fetchShiftSummary(shiftId)); } catch (e) { toast.error((e as Error).message); onClose(); }
+    await closeOffline();
+    if (navigator.onLine) void syncQueue();
     // open-shift is refreshed when the Z-report is dismissed, so the report stays visible
     qc.invalidateQueries({ queryKey: ["shifts"] });
   }

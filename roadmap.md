@@ -1,4 +1,5 @@
 # Roadmap
+- [ ] Five-register offline-first: register setup/status, durable local-first checkout and audit queue, five-second sync, five-minute heartbeat and non-blocking error telemetry; verify without changing real stock.
 - [ ] Azure deployment: export the public home page and upload the prebuilt directory; verify the next workflow and its deployment marker. Signed-in Azure verification needs compatible server hosting and confirmed domain assignment.
 - [x] Fix bottle-deposit cash differences in manual and automatic daily settlement; verify focused calculations.
 - [x] Restore optional card/mobile payment references at checkout; verify field visibility rules and offline upload storage.

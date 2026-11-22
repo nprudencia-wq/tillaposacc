@@ -13,6 +13,7 @@ import { ClockButton } from "@/components/Clock";
 import { SubscriptionBanner } from "@/components/SubscriptionBanner";
 import { InstallButton } from "@/components/InstallButton";
 import { useShopUpdates } from "@/hooks/use-shop-updates";
+import { RegisterStatus } from "@/components/RegisterStatus";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -100,7 +101,7 @@ function AppLayout() {
             <span className="rounded bg-sidebar-accent px-2 py-0.5 text-xs font-semibold uppercase tracking-wider">Till</span>
           </div>
           <div className="flex items-center gap-3">
-            <ConnectionDot />
+            <RegisterStatus />
             {me && <span className="hidden text-sm sm:inline">{me.name} · {me.roles.map((r) => roleLabels[r] ?? r).join(", ")}</span>}
             {me?.backOffice && (
               <Link to="/dashboard" className="flex items-center gap-2 rounded-lg border border-sidebar-border px-3 py-2 text-sm font-semibold hover:bg-sidebar-accent">

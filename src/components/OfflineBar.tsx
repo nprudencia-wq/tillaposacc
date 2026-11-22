@@ -3,7 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CloudOff, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { isSyncing, readQueue, syncQueue, type QueuedSale } from "@/lib/offline";
+import { hasPendingUploads, isSyncing, readQueue, syncQueue, type QueuedSale } from "@/lib/offline";
+import { SYNC_INTERVAL_MS } from "@/lib/register";
 import { internetAvailable } from "@/lib/connectivity";
 
 export function OfflineBar() {
@@ -22,7 +23,7 @@ export function OfflineBar() {
     if (r.synced) {
       toast.success(`${r.synced} offline sale${r.synced > 1 ? "s" : ""} uploaded`);
     }
-    if (internetAvailable()) qc.invalidateQueries();
+    if (r.synced && internetAvailable()) qc.invalidateQueries();
     if (r.failed) toast.error(`${r.failed} offline sale(s) could not upload`);
     if (manual && !r.synced && !r.failed && !navigator.onLine) toast.error("Still offline");
   }
@@ -41,7 +42,7 @@ export function OfflineBar() {
     window.addEventListener("tilla-queue", refresh);
     window.addEventListener("tilla-connectivity", refresh);
     document.addEventListener("visibilitychange", onVisible);
-    const t = setInterval(() => { if (navigator.onLine) void sync(); }, 15_000);
+    const t = setInterval(() => { if (navigator.onLine) void hasPendingUploads().then((pending) => { if (pending) void sync(); }).catch(() => {}); }, SYNC_INTERVAL_MS);
     return () => {
       window.removeEventListener("online", goOnline);
       window.removeEventListener("offline", refresh);

@@ -9,6 +9,8 @@ import { creditSnapshot, pendingRepayments, syncRepayments } from "@/lib/offline
 import { pendingCashMovements, syncCashMovements } from "@/lib/offline-cash";
 import { getDeviceName } from "@/lib/device-name";
 import { readPendingSettlements, syncSettlements } from "@/lib/settlement-queue";
+import { readRegister } from "@/lib/register";
+import { auditEntry, logSystemError, registerEventCount, syncRegisterEvents } from "@/lib/register-events";
 
 // Browser-only helpers: call from effects, handlers or query functions (never at module scope).
 
@@ -104,6 +106,9 @@ export async function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
 }
 
 export type QueuedSale = {
+  id?: string;
+  register_id?: string;
+  device_id?: string;
   store_id?: string;
   user_id?: string;
   client_ref: string;
@@ -111,7 +116,7 @@ export type QueuedSale = {
   shift_id: string;
   currency: Currency;
   discount: number;
-  items: { product_id: string; quantity: number; unit_price?: number }[];
+  items: { id?: string; product_id: string; quantity: number; unit_price?: number; override?: boolean }[];
   rate?: number;
   rand_rate?: number;
   payments: Payment[];
@@ -151,7 +156,8 @@ export async function enqueueSale(s: QueuedSale) {
     if (s.receipt) {
       const key = scopedStorageKey(RECEIPTS_KEY, scope);
       const receipts = (await idbGet<ReceiptData[]>(key)) ?? [];
-      entries.push([key, [s.receipt, ...receipts.filter((r) => r.sale_number !== s.receipt!.sale_number)].slice(0, 500)]);
+      const receipt = s.receipt;
+      entries.push([key, [receipt, ...receipts.filter((r) => r.sale_number !== receipt.sale_number)].slice(0, 5000)]);
     }
     await idbSetMany(entries);
     if (!sameScope(scope)) return;
@@ -168,7 +174,7 @@ export function stockAfterQueue<T extends { id: string; stock: number | string }
 }
 export async function hasPendingUploads() {
   await queueReady;
-  return readQueue().length > 0 || !!(await readLocalShift()) || !!(await readPendingClose()) || (await pendingRepayments()).length > 0 || (await pendingCashMovements()).length > 0 || (await readPendingSettlements()).length > 0;
+  return readQueue().length > 0 || !!(await readLocalShift()) || !!(await readPendingClose()) || (await pendingRepayments()).length > 0 || (await pendingCashMovements()).length > 0 || (await readPendingSettlements()).length > 0 || (!!activeScope && await registerEventCount(activeScope) > 0);
 }
 async function updateUploadedSale(scope: StoreScope, s: QueuedSale, error?: string) {
   await serialized(async () => {
@@ -214,7 +220,8 @@ export async function openLocalShift(floats: { usd: number; zig: number; zar: nu
     id: crypto.randomUUID(), shift_number: "Offline shift", status: "open", opened_at: new Date().toISOString(),
     cashier_id: activeScope.userId, opening_float_usd: floats.usd, opening_float_zig: floats.zig, opening_float_zar: floats.zar, offline: true, device_name: getDeviceName() || undefined,
   };
-  await idbSet(scopedStorageKey(SHIFT_KEY, activeScope), s);
+  const audit = auditEntry("SHIFT_OPEN", { shift_id: s.id, floats });
+  await idbSetMany([[scopedStorageKey(SHIFT_KEY, activeScope), s], ...(audit ? [audit] : [])]);
   window.dispatchEvent(new Event("tilla-queue"));
   return s;
 }
@@ -260,14 +267,20 @@ export async function closeShiftOffline(shiftId: string, count: { usd: number; z
   if (await readPendingClose()) throw new Error("A previous offline shift is still waiting to upload");
   const local = await readLocalShift();
   const p: PendingClose = { shift_id: shiftId, closed_at: new Date().toISOString(), ...count, local_shift: local?.id === shiftId ? local : null };
-  await idbSet(scopedStorageKey(CLOSE_KEY, activeScope), p);
-  if (p.local_shift) await idbSet(scopedStorageKey(SHIFT_KEY, activeScope), null);
+  const audit = auditEntry("SHIFT_CLOSE", { shift_id: shiftId, ...count });
+  await idbSetMany([[scopedStorageKey(CLOSE_KEY, activeScope), p], ...(p.local_shift ? [[scopedStorageKey(SHIFT_KEY, activeScope), null] as [string, unknown]] : []), ...(audit ? [audit] : [])]);
   window.__lovableEvents?.track?.("project.offline_shift_closed", { opened_offline: !!p.local_shift });
   window.dispatchEvent(new Event("tilla-queue"));
   return p;
 }
 
 async function uploadSale(s: QueuedSale) {
+  if (s.register_id && s.device_id) return supabase.rpc("complete_register_sale", {
+    p_register_id: s.register_id, p_device_id: s.device_id,
+    p_client_ref: s.client_ref, p_items: JSON.parse(JSON.stringify(s.items)), p_payments: JSON.parse(JSON.stringify(s.payments)),
+    p_discount: s.discount, p_currency: s.currency, p_sold_at: s.sold_at, p_shift: s.shift_id,
+    ...(s.customer_id ? { p_customer: s.customer_id } : {}),
+  });
   return supabase.rpc("complete_offline_sale_v2" as never, {
     p_client_ref: s.client_ref, p_items: s.items, p_payments: s.payments,
     p_discount: s.discount, p_currency: s.currency, p_sold_at: s.sold_at, p_shift: s.shift_id,
@@ -329,6 +342,7 @@ export async function syncQueue(timeout = 5000): Promise<{ synced: number; faile
     const { error: reachError } = await networkRead(() => supabase.from("store_memberships").select("store_id").eq("user_id", scope.userId).single(), timeout);
     if (reachError) { if (isNetworkError(reachError)) setInternetAvailable(false); return { synced, failed }; }
     setInternetAvailable(true);
+    await syncRegisterEvents(scope);
     // A shift closed offline goes first (its sales, then its count), so the next shift can't merge into it.
     if (!(await syncPendingClose(scope, timeout))) return { synced, failed };
     // Sales need their shift on the server first.
@@ -341,7 +355,7 @@ export async function syncQueue(timeout = 5000): Promise<{ synced: number; faile
       if (!belongsToScope(s, scope)) { failed++; continue; }
       const { error } = await networkRead(() => uploadSale(s), timeout);
       if (activeScope?.storeId !== scope.storeId || activeScope?.userId !== scope.userId) break;
-      if (error) window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "sale", network: isNetworkError(error) });
+      if (error) { logSystemError("sync", error); window.__lovableEvents?.track?.("project.offline_upload_failed", { kind: "sale", network: isNetworkError(error) }); }
       if (error && isNetworkError(error)) { setInternetAvailable(false); complete = false; break; }
       await updateUploadedSale(scope, s, error?.message);
       if (error) { failed++; complete = false; continue; }
@@ -352,6 +366,7 @@ export async function syncQueue(timeout = 5000): Promise<{ synced: number; faile
     // sales/payments, and the snapshot's refs stop this device counting its own uploads twice.
     await creditSnapshot().catch(() => {});
   } catch (e) {
+    logSystemError("sync", e);
     if (isNetworkError(e)) setInternetAvailable(false);
     else failed++;
   } finally {
