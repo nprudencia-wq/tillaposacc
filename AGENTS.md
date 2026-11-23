@@ -36,3 +36,4 @@
 - Tender exchange rates are stored per payment; Rand units per USD remain unconfigured until entered, and historical USD accounting never uses today's rates.
 - Rand checkout requires a store-scoped confirmation matching the current rate; rate changes invalidate confirmation and database sale/payment triggers enforce it. Why: ambiguous conversions must not enable trading.
 - GRN drafts are store-scoped, version-checked snapshots; locked posting delegates to receive_goods_currency and retains the linked receipt for deduplication. Why: temporary saves cannot change stock or double-receive.
+- Till checkout, shift events and sensitive register actions commit to IndexedDB first; uploads use idempotent register RPCs and delete local records only after server confirmation. Register identities are manager-assigned per store/device. Why: five tills must sell instantly offline without double-posting.

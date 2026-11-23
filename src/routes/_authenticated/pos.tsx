@@ -249,7 +249,7 @@ function Till({ shiftId }: { shiftId: string }) {
     };
     await enqueueSale({
       id: crypto.randomUUID(),
-      ...(me ? { register_id: readRegister(me.storeId)?.registerId, device_id: readRegister(me.storeId)?.deviceId } : {}),
+      ...(() => { const r = me ? readRegister(me.storeId) : null; return r ? { register_id: r.registerId, device_id: r.deviceId } : {}; })(),
       client_ref: ref, sold_at: new Date().toISOString(), shift_id: shiftId, currency, discount,
       items: lines.map((l) => ({ id: crypto.randomUUID(), product_id: l.product_id, quantity: l.quantity, unit_price: l.unit_price, override: l.unit_price !== listPrice(l.product_id) })), payments: paid, total, rate, rand_rate: randRate, receipt: snapshot,
       ...(customer ? { customer_id: customer.id } : {}),
