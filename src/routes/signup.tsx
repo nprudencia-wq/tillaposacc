@@ -35,6 +35,7 @@ function SignupPage() {
     setBusy(true);
     try {
       const { email } = await signup({ data: f });
+      window.__lovableEvents?.track?.("project.trial_signup_completed", { trial_days: TRIAL_DAYS });
       const { error } = await supabase.auth.signInWithPassword({ email, password: f.password });
       if (error) { toast.success("Shop created — please sign in"); navigate({ to: "/auth" }); return; }
       toast.success(`Welcome! Your ${TRIAL_DAYS}-day trial has started.`);

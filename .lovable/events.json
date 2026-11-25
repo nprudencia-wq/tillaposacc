@@ -200,6 +200,26 @@
           }
         }
       }
+    },
+    "project.trial_signup_completed": {
+      "event_schema_version": 1,
+      "description": "A new shop finished the /signup form and its 14-day trial store was created.",
+      "privacy": {
+        "contains_pii": false,
+        "purpose": "product_analytics"
+      },
+      "properties_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "trial_days"
+        ],
+        "properties": {
+          "trial_days": {
+            "type": "number"
+          }
+        }
+      }
     }
   }
 }
