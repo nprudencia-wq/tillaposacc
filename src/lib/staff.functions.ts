@@ -16,7 +16,11 @@ async function assertCanManage(supabase: any, userId: string, targetRole?: strin
   if (owner) return;
   if (targetRole && SENIOR.includes(targetRole)) throw new Error("Managers can only create staff below manager");
   if (targetUser) {
-    const { data: r } = await supabase.from("user_roles").select("role").eq("user_id", targetUser);
+    // Read target roles with the admin client: row policies hide other users' roles from managers.
+    // Store membership was already verified above, so this lookup cannot reach another shop.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: r, error: roleError } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", targetUser);
+    if (roleError) throw new Error("Could not verify that staff member's role");
     if ((r ?? []).some((x: { role: string }) => SENIOR.includes(x.role))) throw new Error("Managers can only reset passwords for their staff");
   }
 }
