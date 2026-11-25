@@ -680,6 +680,20 @@
       "when": 1795354933433,
       "tag": "0096_local_first_register_sale_upload",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1795565013666,
+      "tag": "0097_block_price_override_below_cost",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1795565038859,
+      "tag": "0098_price_floor_all_checkout_paths",
+      "breakpoints": true
     }
   ]
 }
