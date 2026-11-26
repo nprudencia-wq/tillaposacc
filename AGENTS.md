@@ -36,3 +36,4 @@
 - Tender exchange rates are stored per payment; Rand units per USD remain unconfigured until entered, and historical USD accounting never uses today's rates.
 - Rand checkout requires a store-scoped confirmation matching the current rate; rate changes invalidate confirmation and database sale/payment triggers enforce it. Why: ambiguous conversions must not enable trading.
 - GRN drafts are store-scoped, version-checked snapshots; locked posting delegates to receive_goods_currency and retains the linked receipt for deduplication. Why: temporary saves cannot change stock or double-receive.
+- Capacitor Android loads https://tillapos.com via server.url (webDir .output/public is a fallback). Why: PIN login and server functions need the server runtime.
