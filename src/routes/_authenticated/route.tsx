@@ -46,6 +46,7 @@ const navGroups = [
     { to: "/settlement-history", label: "Settlement history" },
     { to: "/multi-till", label: "Multi-till" },
     { to: "/staff", label: "Staff" },
+    { to: "/payroll", label: "Payroll" },
   ] },
   { title: "Reports", icon: BarChart3, items: [
     { to: "/reports", label: "Reports" },
@@ -64,7 +65,7 @@ const navGroups = [
 ] as const;
 const inGroup = (path: string, to: string) => path === to || path.startsWith(to + "/");
 
-const MODULE_PERM: Record<string, Permission> = {"/dashboard": "module_dashboard", "/manage": "module_inventory", "/inventory": "module_inventory", "/stock": "module_stock", "/suppliers": "module_suppliers", "/goods-received": "module_suppliers", "/sales": "module_sales", "/documents": "module_documents", "/customers": "module_customers", "/staff": "module_staff", "/shifts": "module_shifts", "/settlement": "module_shifts", "/settlement-history": "module_shifts", "/multi-till": "module_shifts", "/expenses": "module_expenses", "/accounting": "module_accounting", "/reports": "view_reports", "/payment-types": "module_settings", "/currencies": "module_settings", "/store": "module_settings", "/billing": "module_settings"};
+const MODULE_PERM: Record<string, Permission> = {"/dashboard": "module_dashboard", "/manage": "module_inventory", "/inventory": "module_inventory", "/stock": "module_stock", "/suppliers": "module_suppliers", "/goods-received": "module_suppliers", "/sales": "module_sales", "/documents": "module_documents", "/customers": "module_customers", "/staff": "module_staff", "/payroll": "module_staff", "/shifts": "module_shifts", "/settlement": "module_shifts", "/settlement-history": "module_shifts", "/multi-till": "module_shifts", "/expenses": "module_expenses", "/accounting": "module_accounting", "/reports": "view_reports", "/payment-types": "module_settings", "/currencies": "module_settings", "/store": "module_settings", "/billing": "module_settings"};
 function moduleFor(path: string) { const k = Object.keys(MODULE_PERM).find((p) => path === p || path.startsWith(p + "/")); return k ? MODULE_PERM[k] : undefined; }
 
 function AppLayout() {

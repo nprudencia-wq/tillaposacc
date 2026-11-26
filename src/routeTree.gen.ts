@@ -27,6 +27,7 @@ import { Route as AuthenticatedInventoryRouteImport } from './routes/_authentica
 import { Route as AuthenticatedManageRouteImport } from './routes/_authenticated/manage'
 import { Route as AuthenticatedMultiTillRouteImport } from './routes/_authenticated/multi-till'
 import { Route as AuthenticatedPaymentTypesRouteImport } from './routes/_authenticated/payment-types'
+import { Route as AuthenticatedPayrollRouteImport } from './routes/_authenticated/payroll'
 import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/pos'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedSalesRouteImport } from './routes/_authenticated/sales'
@@ -130,6 +131,11 @@ const AuthenticatedPaymentTypesRoute =
     path: '/payment-types',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedPayrollRoute = AuthenticatedPayrollRouteImport.update({
+  id: '/payroll',
+  path: '/payroll',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPosRoute = AuthenticatedPosRouteImport.update({
   id: '/pos',
   path: '/pos',
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/manage': typeof AuthenticatedManageRoute
   '/multi-till': typeof AuthenticatedMultiTillRoute
   '/payment-types': typeof AuthenticatedPaymentTypesRoute
+  '/payroll': typeof AuthenticatedPayrollRoute
   '/pos': typeof AuthenticatedPosRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/sales': typeof AuthenticatedSalesRoute
@@ -235,6 +242,7 @@ export interface FileRoutesByTo {
   '/manage': typeof AuthenticatedManageRoute
   '/multi-till': typeof AuthenticatedMultiTillRoute
   '/payment-types': typeof AuthenticatedPaymentTypesRoute
+  '/payroll': typeof AuthenticatedPayrollRoute
   '/pos': typeof AuthenticatedPosRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/sales': typeof AuthenticatedSalesRoute
@@ -267,6 +275,7 @@ export interface FileRoutesById {
   '/_authenticated/manage': typeof AuthenticatedManageRoute
   '/_authenticated/multi-till': typeof AuthenticatedMultiTillRoute
   '/_authenticated/payment-types': typeof AuthenticatedPaymentTypesRoute
+  '/_authenticated/payroll': typeof AuthenticatedPayrollRoute
   '/_authenticated/pos': typeof AuthenticatedPosRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/sales': typeof AuthenticatedSalesRoute
@@ -299,6 +308,7 @@ export interface FileRouteTypes {
     | '/manage'
     | '/multi-till'
     | '/payment-types'
+    | '/payroll'
     | '/pos'
     | '/reports'
     | '/sales'
@@ -329,6 +339,7 @@ export interface FileRouteTypes {
     | '/manage'
     | '/multi-till'
     | '/payment-types'
+    | '/payroll'
     | '/pos'
     | '/reports'
     | '/sales'
@@ -360,6 +371,7 @@ export interface FileRouteTypes {
     | '/_authenticated/manage'
     | '/_authenticated/multi-till'
     | '/_authenticated/payment-types'
+    | '/_authenticated/payroll'
     | '/_authenticated/pos'
     | '/_authenticated/reports'
     | '/_authenticated/sales'
@@ -510,6 +522,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPaymentTypesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/payroll': {
+      id: '/_authenticated/payroll'
+      path: '/payroll'
+      fullPath: '/payroll'
+      preLoaderRoute: typeof AuthenticatedPayrollRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/pos': {
       id: '/_authenticated/pos'
       path: '/pos'
@@ -603,6 +622,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedManageRoute: typeof AuthenticatedManageRoute
   AuthenticatedMultiTillRoute: typeof AuthenticatedMultiTillRoute
   AuthenticatedPaymentTypesRoute: typeof AuthenticatedPaymentTypesRoute
+  AuthenticatedPayrollRoute: typeof AuthenticatedPayrollRoute
   AuthenticatedPosRoute: typeof AuthenticatedPosRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSalesRoute: typeof AuthenticatedSalesRoute
@@ -629,6 +649,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedManageRoute: AuthenticatedManageRoute,
   AuthenticatedMultiTillRoute: AuthenticatedMultiTillRoute,
   AuthenticatedPaymentTypesRoute: AuthenticatedPaymentTypesRoute,
+  AuthenticatedPayrollRoute: AuthenticatedPayrollRoute,
   AuthenticatedPosRoute: AuthenticatedPosRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSalesRoute: AuthenticatedSalesRoute,

@@ -1139,6 +1139,116 @@ export type Database = {
           },
         ]
       }
+      payroll_lines: {
+        Row: {
+          advances: number
+          aids_levy: number
+          allowances: number
+          basic: number
+          bonus: number
+          gross: number
+          id: string
+          name: string
+          net: number
+          nssa_employee: number
+          nssa_employer: number
+          paye: number
+          run_id: string
+          store_id: string
+          user_id: string
+        }
+        Insert: {
+          advances?: number
+          aids_levy?: number
+          allowances?: number
+          basic?: number
+          bonus?: number
+          gross?: number
+          id?: string
+          name: string
+          net?: number
+          nssa_employee?: number
+          nssa_employer?: number
+          paye?: number
+          run_id: string
+          store_id?: string
+          user_id: string
+        }
+        Update: {
+          advances?: number
+          aids_levy?: number
+          allowances?: number
+          basic?: number
+          bonus?: number
+          gross?: number
+          id?: string
+          name?: string
+          net?: number
+          nssa_employee?: number
+          nssa_employer?: number
+          paye?: number
+          run_id?: string
+          store_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_lines_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_lines_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_runs: {
+        Row: {
+          created_at: string
+          created_by: string
+          finalized_at: string | null
+          id: string
+          journal_number: string | null
+          period: string
+          status: string
+          store_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          finalized_at?: string | null
+          id?: string
+          journal_number?: string | null
+          period: string
+          status?: string
+          store_id?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          finalized_at?: string | null
+          id?: string
+          journal_number?: string | null
+          period?: string
+          status?: string
+          store_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_runs_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       price_history: {
         Row: {
           cost_price: number
@@ -1923,6 +2033,51 @@ export type Database = {
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_pay_profiles: {
+        Row: {
+          allowances: number
+          basic_salary: number
+          nssa_exempt: boolean
+          paye_exempt: boolean
+          store_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allowances?: number
+          basic_salary?: number
+          nssa_exempt?: boolean
+          paye_exempt?: boolean
+          store_id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allowances?: number
+          basic_salary?: number
+          nssa_exempt?: boolean
+          paye_exempt?: boolean
+          store_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_pay_profiles_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_pay_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -3029,6 +3184,7 @@ export type Database = {
       }
       delete_supplier: { Args: { p_id: string }; Returns: undefined }
       discard_trial_store: { Args: { p_store: string }; Returns: undefined }
+      finalize_payroll_run: { Args: { p_run: string }; Returns: string }
       finish_stocktake: {
         Args: { p_apply: boolean; p_stocktake: string }
         Returns: undefined
