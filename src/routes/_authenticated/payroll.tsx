@@ -55,7 +55,7 @@ function Salaries() {
   async function save(id: string) {
     const e = edit[id]; if (!e) return;
     const { error } = await supabase.from("staff_pay_profiles").upsert({ store_id: me_store(staff, id), user_id: id, basic_salary: Number(e.basic) || 0, allowances: Number(e.allowances) || 0, nssa_exempt: !e.nssa, paye_exempt: !e.paye, updated_at: new Date().toISOString() }, { onConflict: "store_id,user_id" });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("Salary saved"); setEdit(({ [id]: _, ...rest }) => rest); qc.invalidateQueries({ queryKey: ["payroll-staff"] });
   }
   return (
@@ -129,7 +129,7 @@ function PayRuns() {
     setBusy(true);
     const { data, error } = await supabase.rpc("finalize_payroll_run", { p_run: run.id });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success(`Pay run finalised (${data})`); refresh(); qc.invalidateQueries({ queryKey: ["gl-lines"] });
   }
   async function discard() {
