@@ -1,4 +1,5 @@
 # Roadmap
+- [ ] Payroll under Staff & shifts: fixed USD monthly salaries, configurable confirmed statutory rates, protected monthly drafts/finalisation, payslips and accounting; verify isolated test pay run without changing shop finances.
 - [x] Five-register offline-first: register setup/status, durable local-first checkout and audit queue, five-second sync, five-minute heartbeat and non-blocking error telemetry; verify without changing real stock.
 - [ ] Azure deployment: export the public home page and upload the prebuilt directory; verify the next workflow and its deployment marker. Signed-in Azure verification needs compatible server hosting and confirmed domain assignment.
 - [x] Fix bottle-deposit cash differences in manual and automatic daily settlement; verify focused calculations.
